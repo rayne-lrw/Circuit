@@ -36,6 +36,9 @@ python -m http.server 8000
 
 ### 發布到 GitHub Pages
 
+每次修改後先執行 `python3 scripts/bump-version.py` 再推上去：它會更新 `index.html` 裡 css/js 網址後面的版本號，避免瀏覽器拿到快取的舊檔；版本號也會顯示在標題旁邊。
+
+
 1. 把這個專案推到 GitHub。
 2. 到 repository 的 **Settings → Pages**。
 3. **Source** 選 **Deploy from a branch**，分支選 `main`，資料夾選 `/ (root)`，再按 **Save**。
