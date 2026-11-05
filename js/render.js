@@ -39,7 +39,8 @@ function renderBoard(){
     else h+=`<path class="duct-teeth" d="M${d.x+1.5} ${d.y}V${d.y+d.h}M${d.x+d.w-1.5} ${d.y}V${d.y+d.h}"/>`;
     h+='</g>';
   }
-  const order=[...S.devices].sort((a,b)=>(tplOf(b).noOv?1:0)-(tplOf(a).noOv?1:0));
+  const rank=d=>tplOf(d).noOv?0:d.on?2:1; // 鋁軌在最下面，正面附件畫在接觸器上面
+  const order=[...S.devices].sort((a,b)=>rank(a)-rank(b));
   for(const d of order){
     const t=tplOf(d);
     h+=`<g class="dev" data-dev="${d.id}">`;

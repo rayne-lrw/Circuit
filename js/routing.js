@@ -39,7 +39,7 @@ function exits(P){
     }
     if(!best) continue;
     const ex=vert?P.x:(dir==='left'?P.x-bd:P.x+bd), ey=vert?(dir==='top'?P.y-bd:P.y+bd):P.y;
-    const blocked=!!segHits(P.x,P.y,ex,ey,P.dev?[P.dev]:null);
+    const blocked=!!segHits(P.x,P.y,ex,ey,P.dev?famIds(P.dev):null); // 接觸器與正面附件互相不算阻擋
     let cost=bd+(blocked?3000:0);
     if(P.side&&dir!==P.side) cost+=500; // 不從接點正常出線方向走，等於線要壓過自身器具
     out.push({duct:best,along:vert?P.x:P.y,cost,blocked});
@@ -81,10 +81,10 @@ function directPts(A,B){
   return [A,{x:B.x,y:A.y},B];
 }
 function clean(pts,A,B){
-  const ex=[A.dev,B.dev].filter(Boolean);
+  const fa=A.dev?famIds(A.dev):[],fb=B.dev?famIds(B.dev):[];
   for(let i=0;i<pts.length-1;i++){
     const last=i===pts.length-2,first=i===0;
-    const skip=first&&last?ex:first?(A.dev?[A.dev]:[]):last?(B.dev?[B.dev]:[]):[];
+    const skip=first&&last?[...fa,...fb]:first?fa:last?fb:[];
     if(segHits(pts[i].x,pts[i].y,pts[i+1].x,pts[i+1].y,skip)) return false;
   }
   return true;
@@ -179,21 +179,22 @@ function computeIssues(){
   S.devices.forEach((a,i)=>{
     if(a.sheet==='field'||tplOf(a).noOv) return;
     const ra=rectOf('dev',a);
-    S.devices.slice(i+1).forEach(b=>{if(b.sheet===a.sheet&&!tplOf(b).noOv&&overlap(ra,rectOf('dev',b))) out.push({t:`${a.tag} 與 ${b.tag} 重疊`,k:'dev',id:a.id});});
+    S.devices.slice(i+1).forEach(b=>{if(a.on===b.id||b.on===a.id||(a.on&&a.on===b.on))return;if(b.sheet===a.sheet&&!tplOf(b).noOv&&overlap(ra,rectOf('dev',b))) out.push({t:`${a.tag} 與 ${b.tag} 重疊`,k:'dev',id:a.id});});
     // 線槽可以局部切除讓器具，所以器具壓到線槽不警告
   });
   // 深度：關門後面板器具投影到底板，兩者深度相加不可超過可用深度
   const room=B.d-B.back,bo=boxOrigin(),dO=doorO();
   // 完全在箱體外的器具（裝在箱外板金）不算深度與關門碰撞
-  const plateDevs=S.devices.filter(d=>d.sheet==='plate'&&!tplOf(d).noOv&&overlap(rectOf('dev',d),BX)),doorDevs=S.devices.filter(d=>d.sheet==='door');
-  plateDevs.forEach(d=>{if(tplOf(d).d>room) out.push({t:`${d.tag} 深 ${tplOf(d).d} mm，超過可用深度 ${room} mm`,k:'dev',id:d.id});});
+  // 正面附件的深度併入接觸器計算
+  const plateDevs=S.devices.filter(d=>d.sheet==='plate'&&!d.on&&!tplOf(d).noOv&&overlap(rectOf('dev',d),BX)),doorDevs=S.devices.filter(d=>d.sheet==='door');
+  plateDevs.forEach(d=>{const dd=effDepth(d);if(dd>room) out.push({t:`${d.tag} ${riders(d).length?'含正面附件':''}深 ${dd} mm，超過可用深度 ${room} mm`,k:'dev',id:d.id});});
   if(!useDoor()) doorDevs.forEach(d=>out.push({t:`面板已設為不使用，但 ${d.tag} 還在面板上`,k:'dev',id:d.id}));
   // 獨立操作台不是門，不做深度與關門碰撞檢查
   if(isDoorPanel()) doorDevs.forEach(d=>{
     const t=tplOf(d);
     if(t.d>room){out.push({t:`${d.tag} 深 ${t.d} mm，超過可用深度 ${room} mm`,k:'dev',id:d.id});return;}
     const pr={x:bo.x+B.w-(d.x-dO.x)-t.w,y:d.y-dO.y+bo.y,w:t.w,h:t.h};
-    plateDevs.forEach(p=>{const pt=tplOf(p);if(overlap(pr,rectOf('dev',p))&&pt.d+t.d>room) out.push({t:`關門時 ${d.tag} 會撞到 ${p.tag}（${t.d}＋${pt.d}＞${room} mm）`,k:'dev',id:d.id});});
+    plateDevs.forEach(p=>{const pd=effDepth(p);if(overlap(pr,rectOf('dev',p))&&pd+t.d>room) out.push({t:`關門時 ${d.tag} 會撞到 ${p.tag}（${t.d}＋${pd}＞${room} mm）`,k:'dev',id:d.id});});
   });
   S.ducts.forEach(d=>{
     const u=DUCTUSE.get(d.id);if(!u) return;

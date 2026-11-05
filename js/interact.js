@@ -74,7 +74,7 @@ svg.addEventListener('pointerdown',e=>{
       const obj=dg?devOf(dg.dataset.dev):S.ducts.find(d=>d.id===cg.dataset.duct);
       picked={k:dg?'dev':'duct',id:obj.id};sel=null;
       act={t:'drag',obj,ox:p.x-obj.x,oy:p.y-obj.y,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId};
-      if(dg&&isRail(obj)) act.mounted=mountedOn(obj).map(d=>({d,dx:d.x-obj.x,dy:d.y-obj.y}));
+      if(dg){const c=carried(obj);if(c.length) act.mounted=c.map(d=>({d,dx:d.x-obj.x,dy:d.y-obj.y}));}
       svg.setPointerCapture(e.pointerId);renderWires();renderDetail();updateHint();return;
     }
   }
@@ -97,8 +97,11 @@ svg.addEventListener('pointermove',e=>{
     o.sheet=sheetAt({x:r.x+r.w/2,y:r.y+r.h/2});
     if(picked.k==='duct'&&o.sheet==='field') o.sheet='plate';
     railHit=null;
+    if(picked.k==='dev'&&!isRail(o)){
+      if(tplOf(o).front){if(e.altKey)delete o.on;else railHit=hostSnap(o,p.x-act.ox,p.y-act.oy);}
+      else if(!e.altKey) railHit=railSnap(o,p.x-act.ox,p.y-act.oy);
+    }
     if(act.mounted) act.mounted.forEach(m=>{m.d.x=r1(o.x+m.dx);m.d.y=r1(o.y+m.dy);m.d.sheet=o.sheet;});
-    else if(picked.k==='dev'&&!e.altKey) railHit=railSnap(o,p.x-act.ox,p.y-act.oy);
     computeRoutes();renderBoard();renderWires();
   }else if(act.t==='zone'){
     const p=toWorld(e),z=act.obj;
@@ -188,18 +191,21 @@ const nextId=(pre,has)=>{let i=1;while(has(pre+i))i++;return pre+i;};
 const newDevId=d=>nextId((resolveTpl(d.tpl,d.count)||{pre:'U'}).pre,id=>tagUsed(id));
 const snapCopy=o=>JSON.parse(JSON.stringify(o));
 function makeClip(k,o){
-  const extras=k==='zone'?S.devices.filter(d=>inZone(o,d)):k==='dev'&&isRail(o)?mountedOn(o):[];
+  const extras=k==='zone'?S.devices.filter(d=>inZone(o,d)):k==='dev'?carried(o):[];
   return {k,o:snapCopy(o),extras:snapCopy(extras),n:0};
 }
 const clipName=c=>(c.k==='zone'?c.o.name:c.k==='dev'?c.o.tag:c.o.id)+(c.extras.length?`（含 ${c.extras.length} 個器具）`:'');
 function pasteClip(c,dx,dy){
   const sh=o=>{o.x=r1(o.x+dx);o.y=r1(o.y+dy);return o;};
   let main;
-  if(c.k==='dev'){main=sh(snapCopy(c.o));main.id=main.tag=newDevId(main);S.devices.push(main);}
+  const idm={};
+  if(c.k==='dev'){main=sh(snapCopy(c.o));main.id=main.tag=newDevId(main);idm[c.o.id]=main.id;S.devices.push(main);}
   else if(c.k==='duct'){main=sh(snapCopy(c.o));main.id=nextId('D',id=>S.ducts.some(x=>x.id===id));S.ducts.push(main);}
   else if(c.k==='gland'){const b=boxOrigin();main=snapCopy(c.o);main.x=Math.max(b.x+8,Math.min(b.x+S.box.w-8,r1(main.x+dx)));main.id=nextId('G',id=>S.glands.some(x=>x.id===id));S.glands.push(main);}
   else{main=sh(snapCopy(c.o));main.id=nextId('Z',id=>S.fields.some(x=>x.id===id));main.name=(c.o.name+'（複製）').slice(0,20);S.fields.push(main);}
-  const extras=c.extras.map(e=>{const d=sh(snapCopy(e));d.id=d.tag=newDevId(d);S.devices.push(d);return d;});
+  const extras=c.extras.map(e=>{const d=sh(snapCopy(e));d.id=d.tag=newDevId(d);idm[e.id]=d.id;S.devices.push(d);return d;});
+  // 正面附件改接到複本的接觸器；只複製附件本身時先拆開
+  [main,...extras].forEach(d=>{if(d&&d.on){if(idm[d.on])d.on=idm[d.on];else delete d.on;}});
   return {k:c.k,main,extras};
 }
 function dropClip(r){
@@ -218,7 +224,7 @@ function pasteHere(){
   }else{c.n++;dx=dy=20*c.n;}
   const r=pasteClip(c,dx,dy),m=r.main;
   if(r.k==='dev'||r.k==='duct'){const R=rectOf(r.k,m);m.sheet=sheetAt({x:R.x+R.w/2,y:R.y+R.h/2});if(r.k==='duct'&&m.sheet==='field')m.sheet='plate';}
-  if(r.k==='dev'){r.extras.forEach(d=>d.sheet=m.sheet);if(!isRail(m))railSnap(m,m.x,m.y);}
+  if(r.k==='dev'){r.extras.forEach(d=>d.sheet=m.sheet);if(tplOf(m).front)hostSnap(m,m.x,m.y);else if(!isRail(m))railSnap(m,m.x,m.y);}
   if(mode!=='place') setMode('place');
   sel=null;picked={k:r.k,id:m.id};commit();recompute();reveal(pickedBox());
   toast(`已貼上 ${r.k==='zone'?m.name:m.id}${r.extras.length?`（含 ${r.extras.length} 個器具）`:''}；可按復原`);
@@ -235,7 +241,7 @@ function moveBy(dir,keepFocus){
   const n=moveStep,dx=dir==='l'?-n:dir==='r'?n:0,dy=dir==='u'?-n:dir==='d'?n:0;
   if(picked.k==='zone'){S.devices.filter(d=>inZone(o,d)).forEach(d=>{d.x=r1(d.x+dx);d.y=r1(d.y+dy);});o.x=r1(o.x+dx);o.y=r1(o.y+dy);}
   else if(picked.k==='gland'){if(!dx) return false;const b=boxOrigin();o.x=Math.max(b.x+8,Math.min(b.x+S.box.w-8,r1(o.x+dx)));}
-  else{const mt=picked.k==='dev'?mountedOn(o):[];o.x=r1(o.x+dx);o.y=r1(o.y+dy);syncSheet(o);shiftAll(mt,dx,dy,o.sheet);}
+  else{const mt=picked.k==='dev'?carried(o):[];o.x=r1(o.x+dx);o.y=r1(o.y+dy);syncSheet(o);shiftAll(mt,dx,dy,o.sheet);}
   commit();recompute();
   if(keepFocus){const el=document.querySelector(`#detail [data-mv="${dir}"]`);if(el)el.focus();}
   return true;
@@ -247,7 +253,7 @@ const NO_DIN=new Set(['fn3270','fn2010','gnd13','gnd15','mec10','rxlg','fan4']);
 const isRail=d=>!!d&&tplOf(d).noOv;
 const railH=r=>{const t=tplOf(r);return t.w>=t.h;};
 function dinOk(d){
-  if(!d||d.sheet!=='plate'||d.rot===90||d.rot===270||NO_DIN.has(d.tpl)) return false;
+  if(!d||d.on||tplOf(d).front||d.sheet!=='plate'||d.rot===90||d.rot===270||NO_DIN.has(d.tpl)) return false;
   const t=tplOf(d);return !t.noOv&&t.cat!==C5&&t.cat!==C9;
 }
 // 掛在這支鋁軌上的器具：高度中心對到軌道中心，水平中心落在軌道範圍內
@@ -259,6 +265,14 @@ function mountedOn(r){
     const t=tplOf(d),cx=d.x+t.w/2;
     return Math.abs(d.y+t.h/2-cy)<.6&&cx>=r.x&&cx<=r.x+rt.w;
   });
+}
+// 移動器具時要一起帶走的：鋁軌上的器具，以及這些器具（含自己）的正面附件
+function carried(d){const base=isRail(d)?mountedOn(d):[];return [...base,...[d,...base].flatMap(riders)];}
+// 正面附件拖到電磁接觸器上：置中裝上；離開就拆下
+function hostSnap(o,x,y){
+  const t=tplOf(o),c={x:x+t.w/2,y:y+t.h/2},h=S.devices.find(d=>hostOk(d,o)&&inR(c,rectOf('dev',d)));
+  if(!h){delete o.on;return null;}
+  const ht=tplOf(h);o.x=r1(h.x+(ht.w-t.w)/2);o.y=r1(h.y+(ht.h-t.h)/2);o.on=h.id;return h.id;
 }
 function shiftAll(list,dx,dy,sheet){list.forEach(d=>{d.x=r1(d.x+dx);d.y=r1(d.y+dy);d.sheet=sheet;});}
 // 拖曳時呼叫：x、y 是未對齊格點的位置。吸附成功回傳鋁軌 id
@@ -309,12 +323,13 @@ function rotatePicked(){
   const a=tplOf(d),cx=d.x+a.w/2,cy=d.y+a.h/2;
   d.rot=((d.rot||0)+90)%360;if(!d.rot)delete d.rot;
   const b=tplOf(d);d.x=Math.round((cx-b.w/2)/5)*5;d.y=Math.round((cy-b.h/2)/5)*5;
+  riders(d).forEach(r=>{const rt=tplOf(r);r.x=r1(d.x+(b.w-rt.w)/2);r.y=r1(d.y+(b.h-rt.h)/2);});
   commit();recompute();return true;
 }
 function deleteSel(){
   if(sel){S.wires=S.wires.filter(w=>w.id!==sel);sel=null;commit();recompute();return true;}
   if(picked){
-    if(picked.k==='dev'){S.devices=S.devices.filter(d=>d.id!==picked.id);S.wires=S.wires.filter(w=>w.a.d!==picked.id&&w.b.d!==picked.id);if(filt.dev===picked.id)filt.dev='';}
+    if(picked.k==='dev'){riders(devOf(picked.id)).forEach(r=>delete r.on);S.devices=S.devices.filter(d=>d.id!==picked.id);S.wires=S.wires.filter(w=>w.a.d!==picked.id&&w.b.d!==picked.id);if(filt.dev===picked.id)filt.dev='';}
     else if(picked.k==='gland') S.glands=S.glands.filter(g=>g.id!==picked.id);
     else if(picked.k==='zone'){
       const z=S.fields.find(x=>x.id===picked.id),n=S.devices.filter(d=>inZone(z,d)).length;
@@ -508,6 +523,7 @@ $('detail').addEventListener('click',e=>{
   if(b.id==='delWire'||b.id==='delPicked'){deleteSel();return;}
   if(b.dataset.mv){moveBy(b.dataset.mv,true);return;}
   if(b.id==='rotDev'){rotatePicked();return;}
+  if(b.id==='detachAux'){const d=devOf(picked.id),h=d&&devOf(d.on);if(!h)return;delete d.on;d.x=r1(h.x+tplOf(h).w+10);commit();recompute();toast(`已把 ${d.tag} 從 ${h.tag} 拆下`);return;}
   if(b.id==='slotRevert'){const d=devOf(picked.id),src=slotSource(d);if(!src)return;revertSlots(d,src);commit();recompute();renderPalette();toast(`已換回 ${TPL[src].n}，可以每片填端子號；可按復原`);return;}
   if(b.id==='slotSeq'||b.id==='slotClr'){
     const d=devOf(picked.id),n=d.count||resolveTpl(d.tpl).cnt,f=Math.round(Number($('slotFrom').value)||1);

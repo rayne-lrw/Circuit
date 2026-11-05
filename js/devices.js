@@ -57,7 +57,7 @@ const SENS3=[['棕',10,8,'top','+24V'],['藍',25,8,'top','0V'],['黑',40,8,'top'
 const LOOK={dark:['#2f3437','#f1f2ee'],mid:['#54595b','#f1f2ee'],gray:['#a9adaa','#15181a'],light:['#e3e1d6','#23211a'],blue:['#2c3f4e','#eef3f5'],red:['#7a2a2a','#fff3f1'],steel:['#8e9794','#10140f']};
 /* ---------- 器具庫：[inv, 分類, 廠牌, 名稱, 寬, 高, 深, 字首, 外殼, 接點, 其他] 尺寸為參考值 ---------- */
 const TPL={};
-function def(id,inv,cat,b,n,w,h,d,pre,look,terms,x={}){TPL[id]={inv:[].concat(inv||[]),cat,b,n,w,h,d,pre,f:LOOK[look][0],i:LOOK[look][1],t:terms,sheet:x.sheet||'plate',gen:x.gen||null,cnt:x.cnt||null,cntLabel:x.cntLabel||null,noOv:!!x.noOv,round:!!x.round,legacy:!!x.legacy,note:x.note||''};}
+function def(id,inv,cat,b,n,w,h,d,pre,look,terms,x={}){TPL[id]={inv:[].concat(inv||[]),cat,b,n,w,h,d,pre,f:LOOK[look][0],i:LOOK[look][1],t:terms,sheet:x.sheet||'plate',gen:x.gen||null,cnt:x.cnt||null,cntLabel:x.cntLabel||null,noOv:!!x.noOv,round:!!x.round,legacy:!!x.legacy,front:!!x.front,note:x.note||''};}
 const C1='斷路器',C2='電磁接觸器',C3='繼電器／計時',C4='PLC',C5='伺服驅動',C6='電源／濾波',C7='端子台／接地',C8='網路／插座',C9='其他元件',D1='面板：按鈕與顯示',F1='現場：馬達',F2='現場：感測器',F3='現場：接線盒與其他';
 def('fuji-bw50',null,C1,'FUJI','BW50EAG 3P50A',75,100,84,'Q','dark',[...pole(['1','3','5'],[12.5,37.5,62.5],10,'top','電源側'),...pole(['2','4','6'],[12.5,37.5,62.5],90,'bottom','負載側')]);
 [['3P40A',3],['3P16A',3],['3P4A',3],['2P4A',2],['1P6A',1],['1P4A',1],['1P2A',1],['1P1A',1]].forEach(([r,p])=>def('ic60-'+r,null,C1,'施耐德','iC60N '+r,18*p,85,78.5,'Q','light',brk(p,85)));
@@ -67,7 +67,7 @@ def('lc1d09',null,C2,'施耐德','LC1D09BL DC24V',45,77,95,'K','dark',deca(45,77
 def('lc1d18',null,C2,'施耐德','LC1D18BL DC24V',45,77,95,'K','dark',deca(45,77));
 def('lc1d38',null,C2,'施耐德','LC1D38BL DC24V',45,85,101,'K','dark',deca(45,85));
 def('lc1d258',null,C2,'施耐德','LC1D258BL DC24V 2NO+2NC',45,91,107,'K','dark',[...row(['1','R1','R3','3'],7,'top',45,'主接點',7),['A1',37,20,'top','線圈'],...row(['2','R2','R4','4'],84,'bottom',45,'主接點',7),['A2',37,71,'bottom','線圈']]);
-def('ladn40',null,C2,'施耐德','LADN40 輔助 4A',43.9,47,36.2,'KX','mid',[...pole(['53','63','73','83'],[5.9,16.4,27,37.6],9.6,'top','常開'),...pole(['54','64','74','84'],[5.9,16.4,27,37.6],37.4,'bottom','常開')],{note:'裝在接觸器正面，總深度＝接觸器深度＋36.2 mm'});
+def('ladn40',null,C2,'施耐德','LADN40 輔助 4A',43.9,47,36.2,'KX','mid',[...pole(['53','63','73','83'],[5.9,16.4,27,37.6],9.6,'top','常開'),...pole(['54','64','74','84'],[5.9,16.4,27,37.6],37.4,'bottom','常開')],{note:'裝在接觸器正面：拖到電磁接觸器上會自動裝上，深度與接觸器相加',front:true});
 def('cu11',null,C2,'TECO','CU-11 AC220V',45,70,82,'K','light',[...pole(['L1','L2','L3','13'],[6.75,17.25,27.75,38.25],7,'top','主接點／輔助'),...pole(['T1','T2','T3','14'],[6.75,17.25,27.75,38.25],63,'bottom','主接點／輔助'),['A1',4,24,'top','線圈'],['A2',4,46,'bottom','線圈']],{note:'線圈接點位置未從照片確認'});
 def('sp16',null,C2,'士林','S-P16 AC220V',53,81,83.5,'K','light',[...pole(['L1','L2','L3'],[9,21,33],10,'top','主接點'),['A2',16,3,'top','線圈'],['A1',28,3,'top','線圈'],['13',46,8,'top','常開輔助'],['21',46,18,'top','常閉輔助'],...pole(['T1','T2','T3'],[9,21,33],71,'bottom','主接點'),['14',46,63,'bottom','常開輔助'],['22',46,73,'bottom','常閉輔助']]);
 def('my2n-24',null,C3,'OMRON','MY2N DC24V＋PYF08A 座',23,72,66,'KA','blue',SOCK8,{note:'台製座的接點編號以實物為準'});
