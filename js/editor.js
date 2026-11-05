@@ -6,6 +6,7 @@ function openEditor(tplId,dev){
   ed={srcId:tplId,dev:dev||null,keepId:!!tplId&&!base.gen,terms:base?base.terms.map(t=>({...t})):[]};
   ed.orig=ed.terms.map(t=>({...t})); // 開啟時的接點：改名時沿用位置，儲存時用來把導線改接到新編號
   $('edTitle').textContent=base?`編輯器具：${base.n}`:'新增自訂器具';
+  $('edSlotNote').hidden=!hasSlots(base);
   $('eName').value=base?base.n:'';$('eBrand').value=base?base.b:'';$('eSheet').value=base?(base.sheet||'plate'):'plate';$('ePre').value=base?base.pre:'U';
   $('eW').value=base?+base.w.toFixed(1):45;$('eH').value=base?base.h:80;$('eD').value=base?base.d:60;$('eCol').value=base?base.f:'#54595b';$('eOk').checked=!!(base&&base.ok);
   $('eTop').value=ed.terms.filter(t=>t.side==='top').map(t=>t.id).join(',');$('eBot').value=ed.terms.filter(t=>t.side==='bottom').map(t=>t.id).join(',');
@@ -52,6 +53,7 @@ $('edSave').onclick=()=>{
   const c=cleanTpl(raw);if(!c)return;
   const src=ed.srcId&&(S.tpls[ed.srcId]||TPL[ed.srcId]);
   if(src){c.note=src.note||'';c.cat=src.cat||c.cat;}
+  const orig=TPL[ed.srcId]?ed.srcId:src&&src.src;if(orig)c.src=orig; // 記住原廠型號，之後可以換回
   S.tpls=S.tpls||{};
   let id=ed.keepId?ed.srcId:null;
   if(!id){let i=1;while(S.tpls['c'+i])i++;id='c'+i;}

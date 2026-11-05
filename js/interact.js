@@ -507,6 +507,7 @@ $('detail').addEventListener('click',e=>{
   if(b.id==='delWire'||b.id==='delPicked'){deleteSel();return;}
   if(b.dataset.mv){moveBy(b.dataset.mv,true);return;}
   if(b.id==='rotDev'){rotatePicked();return;}
+  if(b.id==='slotRevert'){const d=devOf(picked.id),src=slotSource(d);if(!src)return;revertSlots(d,src);commit();recompute();renderPalette();toast(`已換回 ${TPL[src].n}，可以每片填端子號；可按復原`);return;}
   if(b.id==='slotSeq'||b.id==='slotClr'){
     const d=devOf(picked.id),n=d.count||resolveTpl(d.tpl).cnt,f=Math.round(Number($('slotFrom').value)||1);
     setSlots(d,b.id==='slotClr'?[]:Array.from({length:n},(_,i)=>String(f+i)));renderDetail();return;

@@ -8,7 +8,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23334'/%3E%3Cpath d='M3 4h5v8h5' fill='none' stroke='%23fc3' stroke-width='2'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261105.155305">
+<link rel="stylesheet" href="css/style.css?v=20261105.155614">
 </head>
 <body>
 <div id="app">
@@ -50,7 +50,7 @@
     <aside id="left">
       <div class="scroll">
         <div id="sizes">
-          <h2 class="h2ver">盤面尺寸 (mm) <span id="ver" title="目前版本；更新後這個號碼會改變">v20261105.155305</span></h2>
+          <h2 class="h2ver">盤面尺寸 (mm) <span id="ver" title="目前版本；更新後這個號碼會改變">v20261105.155614</span></h2>
           <div class="fields">
             <label for="bw">箱寬<input id="bw" type="number" step="10" min="100"></label>
             <label for="bh">箱高<input id="bh" type="number" step="10" min="100"></label>
@@ -127,6 +127,7 @@
 <div id="ed" hidden role="dialog" aria-label="器具編輯器">
   <div id="edCard">
     <h2 id="edTitle">器具編輯器</h2>
+    <p id="edSlotNote" class="note wide" hidden><b>WAGO 端子台的端子號不用在這裡改。</b>請關掉這個視窗，在右側面板的「端子號」每片一格填寫。在這裡儲存會把它變成自訂器具，之後就不能每片填端子號，也不能直接改片數。</p>
     <div style="display:flex;flex-direction:column;gap:8px">
       <div class="fields">
         <label for="eName">名稱／型號<input id="eName" maxlength="40"></label>
@@ -150,17 +151,17 @@
   </div>
 </div>
 
-<script src="js/inventory.js?v=20261105.155305"></script>
-<script src="js/devices.js?v=20261105.155305"></script>
-<script src="js/sample.js?v=20261105.155305"></script>
-<script src="js/state.js?v=20261105.155305"></script>
-<script src="js/routing.js?v=20261105.155305"></script>
-<script src="js/render.js?v=20261105.155305"></script>
-<script src="js/panels.js?v=20261105.155305"></script>
-<script src="js/popup.js?v=20261105.155305"></script>
-<script src="js/report.js?v=20261105.155305"></script>
-<script src="js/interact.js?v=20261105.155305"></script>
-<script src="js/editor.js?v=20261105.155305"></script>
-<script src="js/main.js?v=20261105.155305"></script>
+<script src="js/inventory.js?v=20261105.155614"></script>
+<script src="js/devices.js?v=20261105.155614"></script>
+<script src="js/sample.js?v=20261105.155614"></script>
+<script src="js/state.js?v=20261105.155614"></script>
+<script src="js/routing.js?v=20261105.155614"></script>
+<script src="js/render.js?v=20261105.155614"></script>
+<script src="js/panels.js?v=20261105.155614"></script>
+<script src="js/popup.js?v=20261105.155614"></script>
+<script src="js/report.js?v=20261105.155614"></script>
+<script src="js/interact.js?v=20261105.155614"></script>
+<script src="js/editor.js?v=20261105.155614"></script>
+<script src="js/main.js?v=20261105.155614"></script>
 </body>
 </html>

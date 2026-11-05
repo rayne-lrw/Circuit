@@ -101,7 +101,7 @@ function renderDetail(){
       const d=devOf(picked.id),t=tplOf(d),n=S.wires.filter(w=>w.a.d===d.id||w.b.d===d.id).length;
       box.innerHTML=`<div class="big">${esc(d.tag)}</div><dl><dt>器具</dt><dd>${esc(t.b)} ${esc(t.n)}</dd><dt>尺寸</dt><dd>${+t.w.toFixed(1)} × ${+t.h.toFixed(1)} × ${t.d} mm</dd><dt>核對</dt><dd>尺寸 ${esc(verText(d.tpl,t))}；接點${t.ok?'已對照':TERM_OK.has(d.tpl)?'依照片或外型圖':'未核對'}</dd>${d.rot?`<dt>旋轉</dt><dd>${d.rot}°</dd>`:''}<dt>位置</dt><dd>${d.sheet==='door'?doorShort():d.sheet==='field'?esc(devRef(d).name||'現場'):'底板'}　X ${d.x}　Y ${d.y}</dd><dt>接線</dt><dd>${n} 條</dd>${t.noOv?`<dt>軌上器具</dt><dd>${mountedOn(d).map(x=>esc(x.tag)).join(' ')||'無'}</dd>`:''}${gapsOf(d)}${t.note?`<dt>備註</dt><dd>${esc(t.note)}</dd>`:''}</dl>
       ${t.gen?`<div class="fields"><label for="dCount">${esc(t.cntLabel)}<input id="dCount" type="number" min="1" value="${d.count||t.cnt}"></label></div>`:''}
-      ${hasSlots(t)?slotHtml(d):''}
+      ${hasSlots(t)?slotHtml(d):slotSource(d)?`<div class="revert"><p class="note">這組端子台之前用「編輯器具」改過，變成了自訂器具，所以不能每片填端子號，也不能改片數。換回 WAGO 端子台後，原本改的編號會變成每片的端子號，接好的線都會保留。</p><button class="tool" id="slotRevert">換回 ${esc(TPL[slotSource(d)].n)}</button></div>`:''}
       <div class="fields"><label for="dX">X（距${d.sheet==='door'?doorShort():d.sheet==='field'?esc(devRef(d).name||'現場區'):'底板'}左緣）<input id="dX" type="number" step="1" value="${r1(d.x-devRef(d).x)}"></label><label for="dY">Y（距上緣）<input id="dY" type="number" step="1" value="${r1(d.y-devRef(d).y)}"></label></div>${moveHtml(false)}
       <div class="row"><button class="tool" id="rotDev">旋轉 90°</button><button class="tool" id="editTpl">編輯器具</button><button class="tool danger" id="delPicked">刪除器具${n?`與 ${n} 條線`:''}</button></div>`;
       ['X','Y'].forEach(c=>{$('d'+c).onchange=e=>{const v=Number(e.target.value);if(e.target.value===''||!isFinite(v))return;const R=devRef(d),mt=mountedOn(d),ox=d.x,oy=d.y;if(c==='X')d.x=r1(R.x+v);else d.y=r1(R.y+v);shiftAll(mt,d.x-ox,d.y-oy,d.sheet);commit();recompute();};});
@@ -136,6 +136,32 @@ function renderDetail(){
     return;
   }
   box.hidden=true;
+}
+/* 之前用編輯器改過的 WAGO 端子台（已變成自訂器具）：找回原本的型號 */
+function slotSource(d){
+  const c=S.tpls&&S.tpls[d.tpl];if(!c) return null;
+  if(c.src&&hasSlots(TPL[c.src])) return c.src;
+  return Object.keys(TPL).find(id=>hasSlots(TPL[id])&&TPL[id].n===c.n&&TPL[id].b===c.b)||null;
+}
+// 換回原廠端子台：依位置把自訂接點對回 1A、1B…，導線跟著改接；自訂的編號變成每片的端子號
+function revertSlots(d,src){
+  const c=S.tpls[d.tpl],per=TPL[src].gen(1).t.length,n=Math.max(1,Math.round(c.terms.length/per));
+  const g=resolveTpl(src,n).terms,map={},used=new Set(),labels=[],pair=new Map();
+  // 同一排數量相同時照順序對應（舊版編輯器會把雙層擠成一排，位置已經不準）；否則找位置最近的
+  ['top','bottom'].forEach(sd=>{const a=c.terms.filter(t=>t.side===sd),b=g.filter(t=>t.side===sd);if(a.length===b.length)a.forEach((t,i)=>pair.set(t,b[i]));});
+  c.terms.forEach(ct=>{
+    let best=pair.get(ct)||null,bd=Infinity;
+    if(best&&used.has(best.id)) best=null;
+    if(!best) g.forEach(gt=>{if(used.has(gt.id))return;const q=(gt.x-ct.x)**2+(gt.y-ct.y)**2;if(q<bd){bd=q;best=gt;}});
+    if(!best) return;
+    used.add(best.id);if(map[ct.id]===undefined) map[ct.id]=best.id; // 編號重複時，導線原本接的是第一個
+    const m=SLOT_RE.exec(best.id),i=m?m[1]-1:-1,lb=(/^(.+?)[A-D]$/.exec(ct.id)||[0,ct.id])[1];
+    if(i>=0&&!labels[i]&&lb!==String(i+1)) labels[i]=lb;
+  });
+  S.wires.forEach(w=>[w.a,w.b].forEach(e=>{if(e.d===d.id&&map[e.t]!==undefined)e.t=map[e.t];}));
+  d.tpl=src;d.count=n;
+  const L=Array.from({length:n},(_,i)=>labels[i]||'');
+  if(L.some(Boolean)) d.labels=L; else delete d.labels;
 }
 /* 端子台：每片一格端子號 */
 function slotHtml(d){
