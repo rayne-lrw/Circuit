@@ -431,7 +431,30 @@ $('issues').addEventListener('click',e=>{
   recompute();
 });
 $('sample').onclick=()=>{S=normalize(sampleState()).state;resetUi();commit();recompute();renderPalette();fit();};
-$('clearW').onclick=()=>{if(!S.wires.length)return;S.wires=[];resetUi();commit();recompute();};
+/* 清除選單：先選範圍，再在選單內確認；箱體尺寸、面板模式、現場區與自訂器具都保留 */
+const CLEAR={
+  wires:{n:'只清除線',what:()=>`${S.wires.length} 條線`,ok:()=>S.wires.length>0,run:()=>{S.wires=[];}},
+  devs:{n:'清除器具和線',what:()=>`${S.devices.length} 個器具、${S.wires.length} 條線`,ok:()=>S.devices.length+S.wires.length>0,run:()=>{S.devices=[];S.wires=[];}},
+  all:{n:'全部清空',what:()=>`${S.devices.length} 個器具、${S.wires.length} 條線、${S.ducts.length} 條線槽、${S.glands.length} 個出線口`,ok:()=>S.devices.length+S.wires.length+S.ducts.length+S.glands.length>0,run:()=>{S.devices=[];S.wires=[];S.ducts=[];S.glands=[];}}
+};
+function clearMenu(step){
+  const m=$('clearM');
+  if(step){
+    const c=CLEAR[step];
+    m.innerHTML=`<p class="mq">確定要${c.n.replace('只','')}？<br><b>會刪除 ${esc(c.what())}</b><br>刪除後可以按「復原」救回。</p><div class="row"><button class="tool" data-clr="">取消</button><button class="tool danger" data-clr-go="${step}">確定清除</button></div>`;
+    m.querySelector('[data-clr-go]').focus();return;
+  }
+  m.innerHTML=Object.entries(CLEAR).map(([k,c])=>`<button class="mi" role="menuitem" data-clr="${k}"${c.ok()?'':' disabled'}><span>${c.n}</span><small>${esc(c.what())}</small></button>`).join('')+`<p class="note" style="padding:4px 8px 2px">箱體尺寸、面板設定、現場區與自訂器具都會保留。</p>`;
+}
+function setClearMenu(open){$('clearM').hidden=!open;$('clearB').setAttribute('aria-expanded',open);if(open){clearMenu(null);const f=$('clearM').querySelector('.mi:not(:disabled)');if(f)f.focus();}}
+$('clearB').onclick=e=>{e.stopPropagation();setClearMenu($('clearM').hidden);};
+$('clearM').addEventListener('click',e=>{
+  e.stopPropagation();const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.clrGo){const c=CLEAR[b.dataset.clrGo],msg=c.what();c.run();filt.dev='';resetUi();setClearMenu(false);commit();recompute();toast(`已清除 ${msg}；可按復原`);return;}
+  if(b.dataset.clr) clearMenu(b.dataset.clr); else setClearMenu(false);
+});
+document.addEventListener('click',e=>{if(!$('clearM').hidden&&!e.target.closest('.menuwrap'))setClearMenu(false);});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('clearM').hidden){setClearMenu(false);$('clearB').focus();e.stopImmediatePropagation();}},true);
 try{ if(localStorage.getItem(OLDKEY)&&!localStorage.getItem(KEY)) $('oldDraft').hidden=false; }catch(_){}
 $('oldDraft').onclick=()=>{
   try{const n=normalize(JSON.parse(localStorage.getItem(OLDKEY)));if(n){S=n.state;resetUi();commit();recompute();fit();toast('已讀回舊版暫存；可按復原');}}catch(_){toast('舊版暫存讀取失敗');}
