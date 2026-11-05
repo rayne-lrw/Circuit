@@ -21,7 +21,7 @@ function renderBoard(){
   h+=`<rect class="doorr" x="${dr.x}" y="${dr.y}" width="${dr.w}" height="${dr.h}" rx="4"/>`;
   h+=`<text class="sheet-t" x="${dr.x}" y="${dr.y-8}">面板內側（開門攤平）</text>`;
   h+=`<text class="dim" x="${dr.x+6}" y="${dr.y+dr.h-6}">面板 ${dr.w} × ${dr.h} mm</text>`;
-  h+=`<rect class="fieldr" x="${fr.x}" y="${fr.y}" width="${fr.w}" height="${fr.h}" rx="4"/><text class="field-t" x="${fr.x+6}" y="${fr.y+16}">現場設備</text>`;
+  for(const z of S.fields) h+=`<g class="zoneg" data-zone="${z.id}"><rect class="fieldr" x="${z.x}" y="${z.y}" width="${z.w}" height="${z.h}" rx="4"/><rect class="zone-h" x="${z.x}" y="${z.y}" width="${Math.min(z.w,Math.max(120,[...z.name].length*14+60))}" height="22" rx="4"/><text class="field-t" x="${z.x+6}" y="${z.y+16}">${esc(z.name)}</text></g>`;
   const door=S.wires.filter(w=>wireKind(w)==='door').length+S.wires.filter(w=>{const a=devOf(w.a.d)?.sheet,b=devOf(w.b.d)?.sheet;return (a==='door'&&b==='field')||(a==='field'&&b==='door');}).length;
   const hh=Math.max(14,door*2.6+8);
   h+=`<rect class="harness" x="${P.w}" y="${S.hinge-hh/2}" width="${dr.x-P.w}" height="${hh}"/><text class="harness-t" x="${(P.w+dr.x)/2}" y="${S.hinge-hh/2-4}" text-anchor="middle">過門線束 ${door} 條</text>`;
@@ -113,6 +113,7 @@ function renderWires(){
 function pickedBox(){
   if(!picked) return null;
   if(picked.k==='dev'){const d=devOf(picked.id);if(!d)return null;const t=tplOf(d);return {x:d.x,y:d.y,w:t.w,h:t.h};}
+  if(picked.k==='zone'){const z=S.fields.find(x=>x.id===picked.id);return z?{x:z.x,y:z.y,w:z.w,h:z.h}:null;}
   if(picked.k==='gland'){const g=S.glands.find(x=>x.id===picked.id);return g?{x:g.x-8,y:boxBottom()-8,w:16,h:16}:null;}
   const d=S.ducts.find(x=>x.id===picked.id);return d?{x:d.x,y:d.y,w:d.w,h:d.h}:null;
 }
@@ -183,7 +184,7 @@ function applyView(){
 function fit(){
   const r=$('svg').getBoundingClientRect();if(!r.width||!r.height)return;
   const o=boxOrigin(),dr=sheetRect('door'),fr=sheetRect('field');
-  const x0=Math.min(0,o.x)-16,y0=Math.min(0,o.y,dr.y)-20,x1=Math.max(S.plate.w,dr.x+dr.w)+6,y1=fr.y+fr.h+6;
+  const x0=Math.min(0,o.x,fr.x)-16,y0=Math.min(0,o.y,dr.y,fr.y)-20,x1=Math.max(S.plate.w,dr.x+dr.w,fr.x+fr.w)+6,y1=Math.max(o.y+S.box.h+30,fr.y+fr.h)+6;
   const bw=x1-x0,bh=y1-y0,mx=8,top=6,bot=44;
   const k=Math.min((r.width-2*mx)/bw,(r.height-top-bot)/bh);
   view.k=k;view.x=(r.width-bw*k)/2-x0*k;view.y=top+(r.height-top-bot-bh*k)/2-y0*k;view.manual=false;applyView();

@@ -120,7 +120,9 @@ dt{color:var(--muted)} dd{margin:0;font-family:var(--mono);overflow-wrap:anywher
 .doorr{fill:#dfe0da;stroke:#5f6662;stroke-width:1.5}
 .fieldr{fill:none;stroke:var(--muted);stroke-width:1;stroke-dasharray:8 6}
 .sheet-t{font-family:var(--sans);font-size:13px;font-weight:700;fill:var(--ink)}
-.field-t{font-family:var(--sans);font-size:13px;font-weight:700;fill:var(--muted)}
+.field-t{font-family:var(--sans);font-size:13px;font-weight:700;fill:var(--muted);pointer-events:none}
+.zone-h{fill:transparent;pointer-events:none}
+.place .zone-h{fill:var(--muted);fill-opacity:.12;pointer-events:all;cursor:move}
 .harness{fill:#8d938f;opacity:.25}
 .harness-t{font-family:var(--sans);font-size:8.5px;fill:var(--muted)}
 .gland{fill:#30383a;stroke:#fff;stroke-width:.8}

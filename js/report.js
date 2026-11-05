@@ -127,10 +127,10 @@ const WIRE_HEAD=['線號','線徑mm²','線色','種類','起點器具','起點�
 function extTable(){
   return S.wires.filter(w=>wireKind(w)==='ext').sort((a,b)=>natCmp(a.ext?.cable,b.ext?.cable)||natCmp(a.no,b.no)).map(w=>{
     const af=devOf(w.a.d).sheet==='field',f=af?w.a:w.b,n=af?w.b:w.a,t=tplOf(devOf(f.d));
-    return [w.ext?.cable,w.ext?.core,specName(w.ext?.spec),w.no,w.gauge,colorOf(w).n,`${n.d}·${n.t}`,ROUTES.get(w.id)?.gland||'',`${f.d}·${f.t}`,t.n,t.note||''];
+    return [w.ext?.cable,w.ext?.core,specName(w.ext?.spec),w.no,w.gauge,colorOf(w).n,`${n.d}·${n.t}`,ROUTES.get(w.id)?.gland||'',zoneOf(devOf(f.d))?.name||'',`${f.d}·${f.t}`,t.n,t.note||''];
   });
 }
-const EXT_HEAD=['電纜編號','芯線','電纜規格','線號','線徑mm²','線色','箱內端','出線口','現場端','現場設備','備註'];
+const EXT_HEAD=['電纜編號','芯線','電纜規格','線號','線徑mm²','線色','箱內端','出線口','現場區','現場端','現場設備','備註'];
 
 /* 右側面板 */
 function renderBom(){
@@ -180,11 +180,11 @@ function buildPrint(){
   let tot=0;ROUTES.forEach(r=>{tot+=r.len;});
   const meta=`${date}　${S.devices.length} 器具　${S.wires.length} 線　圖面總長 ${(tot/1000).toFixed(1)} m`;
   const bo=boxOrigin(),dr=sheetRect('door'),fr=sheetRect('field'),pad=(r,a,b=a)=>({x:r.x-a,y:r.y-a,w:r.w+2*a,h:r.h+a+b});
-  const x0=Math.min(0,bo.x)-16,y0=Math.min(0,bo.y,dr.y)-20,x1=Math.max(S.plate.w,dr.x+dr.w)+6,y1=fr.y+fr.h+6;
+  const x0=Math.min(0,bo.x,fr.x)-16,y0=Math.min(0,bo.y,dr.y,fr.y)-20,x1=Math.max(S.plate.w,dr.x+dr.w,fr.x+fr.w)+6,y1=Math.max(bo.y+S.box.h+30,fr.y+fr.h)+6;
   let h=printDrawing('盤面配線圖　全圖',{x:x0,y:y0,w:x1-x0,h:y1-y0},'',meta);
   h+=printDrawing('底板',pad({x:bo.x,y:bo.y,w:S.box.w,h:S.box.h},20,30),'labels-on z2',meta);
   if(S.devices.some(x=>x.sheet==='door')) h+=printDrawing('面板內側（開門攤平）',pad(dr,20),'labels-on z2',meta);
-  if(S.devices.some(x=>x.sheet==='field')) h+=printDrawing('現場設備',pad(fr,10,20),'labels-on z2',meta);
+  S.fields.forEach(z=>{if(S.devices.some(d=>inZone(z,d))) h+=printDrawing(z.name,pad(z,10,20),'labels-on z2',meta);});
   const sec=(t,body)=>`<section class="pg"><div class="ph"><b>${esc(t)}</b><span>${esc(meta)}</span></div>${body}</section>`;
   if(S.wires.length) h+=sec('線號表',tableHtml(WIRE_HEAD,wireTable(),[1,10]));
   const ext=extTable();if(ext.length) h+=sec('外線表',tableHtml(EXT_HEAD,ext,[4]));

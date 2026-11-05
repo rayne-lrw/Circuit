@@ -34,6 +34,9 @@ function sampleState(){
   W('Q0','6','E1','2',3.5,'ground');W('PS1','FG','E1','3',1.25,'ground');W('SV1','PE','E1','4',5.5,'ground');
   return {box:{w:800,h:1100,d:300,back:20},plate:{w:700,h:1000},door:{w:800,h:1100},hinge:500,fillLimit:50,glands:[{id:'G1',x:120,spec:'M40 浪管接頭'},{id:'G2',x:300,spec:'M25 浪管接頭'},{id:'G3',x:560,spec:'M20 電纜固定頭'}],tpls:{},devices,ducts,wires,nextNo:n};
 }
+// 舊專案沒有 fields：依原本寫死的位置建一個（箱底下 90 mm、寬到面板右緣、高 210）。
+// state.js 一載入就會呼叫 normalize，這時 GAP_F 等常數還沒宣告，所以這裡直接寫數值。
+function defaultField(box,plate,door){const bx=(plate.w-box.w)/2,by=(plate.h-box.h)/2;return {id:'Z1',name:'現場 1',x:bx,y:by+box.h+90,w:box.w+120+door.w,h:210};}
 // 讀暫存或匯入時都走這裡：檔案內容視為不可信，欄位不對就略過。
 function cleanTpl(t){
   const ss=(v,n)=>String(v==null?'':v).slice(0,n),num=(v,d)=>{const x=Number(v);return Number.isFinite(x)?x:d;};
@@ -65,7 +68,9 @@ function normalize(o){
   const dr=o.door||{},door={w:Math.max(100,num(dr.w,box.w)),h:Math.max(100,num(dr.h,box.h))};
   const glands=(Array.isArray(o.glands)?o.glands:[{id:'G1',x:plate.w/2,spec:'M25 浪管接頭'}]).filter(g=>g&&safe(g.id)).map(g=>({id:g.id,x:num(g.x,100),spec:cleanSpec(g.spec)||'M25 浪管接頭'}));
   const nextNo=Math.max(num(o.nextNo,1),1+Math.max(0,...wires.map(w=>Number(w.no.replace(/\D/g,''))||0)));
-  return {state:{box,plate,door,hinge:num(o.hinge,plate.h/2),fillLimit:Math.min(100,Math.max(5,num(o.fillLimit,50))),spare:Math.min(5000,Math.max(0,num(o.spare,0))),glands,tpls,devices,ducts,wires,nextNo},
+  const fields=(Array.isArray(o.fields)?o.fields:[]).filter(z=>z&&safe(z.id)).slice(0,30).map(z=>({id:z.id,name:txt(z.name,20)||z.id,x:num(z.x,0),y:num(z.y,0),w:Math.max(50,num(z.w,600)),h:Math.max(50,num(z.h,210))}));
+  if(!fields.length) fields.push(defaultField(box,plate,door));
+  return {state:{box,plate,door,fields,hinge:num(o.hinge,plate.h/2),fillLimit:Math.min(100,Math.max(5,num(o.fillLimit,50))),spare:Math.min(5000,Math.max(0,num(o.spare,0))),glands,tpls,devices,ducts,wires,nextNo},
     dropped:(o.devices.length-devices.length)+(o.ducts.length-ducts.length)+(o.wires.length-wires.length)};
 }
 

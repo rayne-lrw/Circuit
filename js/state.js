@@ -43,11 +43,25 @@ const doorO=()=>{const b=boxOrigin();return {x:b.x+S.box.w+GAP_D,y:b.y};};
 const fieldO=()=>{const b=boxOrigin();return {x:b.x,y:b.y+S.box.h+GAP_F};};
 function sheetRect(s){
   if(s==='door'){const o=doorO();return {x:o.x,y:o.y,w:S.door.w,h:S.door.h};}
-  if(s==='field'){const o=fieldO(),d=doorO();return {x:o.x,y:o.y,w:d.x+S.door.w-o.x,h:FIELD_H};}
+  if(s==='field'){ // 所有現場區的外框
+    const Z=S.fields||[];if(!Z.length){const o=fieldO(),d=doorO();return {x:o.x,y:o.y,w:d.x+S.door.w-o.x,h:FIELD_H};}
+    const x0=Math.min(...Z.map(z=>z.x)),y0=Math.min(...Z.map(z=>z.y)),x1=Math.max(...Z.map(z=>z.x+z.w)),y1=Math.max(...Z.map(z=>z.y+z.h));
+    return {x:x0,y:y0,w:x1-x0,h:y1-y0};
+  }
   return {x:0,y:0,w:S.plate.w,h:S.plate.h};
 }
 const inR=(p,r)=>p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h;
-const sheetAt=p=>inR(p,sheetRect('door'))?'door':inR(p,sheetRect('field'))?'field':'plate';
+/* 現場區可以有好幾個、可移動：S.fields=[{id,name,x,y,w,h}] */
+const zoneAt=p=>(S.fields||[]).find(z=>inR(p,z))||null;
+function zoneOf(d){
+  const t=tplOf(d),c={x:d.x+t.w/2,y:d.y+t.h/2},z=zoneAt(c);if(z) return z;
+  let best=null,bd=Infinity;
+  (S.fields||[]).forEach(z=>{const dx=Math.max(z.x-c.x,0,c.x-z.x-z.w),dy=Math.max(z.y-c.y,0,c.y-z.y-z.h),q=dx*dx+dy*dy;if(q<bd){bd=q;best=z;}});
+  return best;
+}
+const devRef=d=>d.sheet==='field'?(zoneOf(d)||sheetRect('field')):sheetRect(d.sheet);
+const inZone=(z,d)=>{if(d.sheet!=='field')return false;const t=tplOf(d);return inR({x:d.x+t.w/2,y:d.y+t.h/2},z);};
+const sheetAt=p=>inR(p,sheetRect('door'))?'door':zoneAt(p)?'field':'plate';
 const boxBottom=()=>boxOrigin().y+S.box.h;
 const wireKind=w=>{const a=devOf(w.a.d),b=devOf(w.b.d);if(!a||!b)return 'in';if(a.sheet==='field'||b.sheet==='field')return 'ext';if(a.sheet==='door'||b.sheet==='door')return 'door';return 'in';};
 const KINDS={in:'箱內',door:'過門',ext:'外線'};
