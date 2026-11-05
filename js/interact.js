@@ -98,7 +98,7 @@ svg.addEventListener('pointermove',e=>{
     if(picked.k==='duct'&&o.sheet==='field') o.sheet='plate';
     railHit=null;
     if(picked.k==='dev'&&!isRail(o)){
-      if(tplOf(o).front){if(e.altKey)delete o.on;else railHit=hostSnap(o,p.x-act.ox,p.y-act.oy);}
+      if(attachOf(o)){if(e.altKey)delete o.on;else railHit=hostSnap(o,p.x-act.ox,p.y-act.oy);}
       else if(!e.altKey) railHit=railSnap(o,p.x-act.ox,p.y-act.oy);
     }
     if(act.mounted) act.mounted.forEach(m=>{m.d.x=r1(o.x+m.dx);m.d.y=r1(o.y+m.dy);m.d.sheet=o.sheet;});
@@ -224,7 +224,7 @@ function pasteHere(){
   }else{c.n++;dx=dy=20*c.n;}
   const r=pasteClip(c,dx,dy),m=r.main;
   if(r.k==='dev'||r.k==='duct'){const R=rectOf(r.k,m);m.sheet=sheetAt({x:R.x+R.w/2,y:R.y+R.h/2});if(r.k==='duct'&&m.sheet==='field')m.sheet='plate';}
-  if(r.k==='dev'){r.extras.forEach(d=>d.sheet=m.sheet);if(tplOf(m).front)hostSnap(m,m.x,m.y);else if(!isRail(m))railSnap(m,m.x,m.y);}
+  if(r.k==='dev'){r.extras.forEach(d=>d.sheet=m.sheet);if(attachOf(m))hostSnap(m,m.x,m.y);else if(!isRail(m))railSnap(m,m.x,m.y);}
   if(mode!=='place') setMode('place');
   sel=null;picked={k:r.k,id:m.id};commit();recompute();reveal(pickedBox());
   toast(`已貼上 ${r.k==='zone'?m.name:m.id}${r.extras.length?`（含 ${r.extras.length} 個器具）`:''}；可按復原`);
@@ -253,7 +253,7 @@ const NO_DIN=new Set(['fn3270','fn2010','gnd13','gnd15','mec10','rxlg','fan4']);
 const isRail=d=>!!d&&tplOf(d).noOv;
 const railH=r=>{const t=tplOf(r);return t.w>=t.h;};
 function dinOk(d){
-  if(!d||d.on||tplOf(d).front||d.sheet!=='plate'||d.rot===90||d.rot===270||NO_DIN.has(d.tpl)) return false;
+  if(!d||d.on||attachOf(d)||d.sheet!=='plate'||d.rot===90||d.rot===270||NO_DIN.has(d.tpl)) return false;
   const t=tplOf(d);return !t.noOv&&t.cat!==C5&&t.cat!==C9;
 }
 // 掛在這支鋁軌上的器具：高度中心對到軌道中心，水平中心落在軌道範圍內
@@ -270,9 +270,11 @@ function mountedOn(r){
 function carried(d){const base=isRail(d)?mountedOn(d):[];return [...base,...[d,...base].flatMap(riders)];}
 // 正面附件拖到電磁接觸器上：置中裝上；離開就拆下
 function hostSnap(o,x,y){
-  const t=tplOf(o),c={x:x+t.w/2,y:y+t.h/2},h=S.devices.find(d=>hostOk(d,o)&&inR(c,rectOf('dev',d)));
+  const t=tplOf(o),c={x:x+t.w/2,y:y+t.h/2},below=attachOf(o)==='below';
+  // 掛在下方的附件：拖到驅動器上或驅動器正下方都算
+  const h=S.devices.find(d=>{if(!hostOk(d,o))return false;const R=rectOf('dev',d);return inR(c,below?{x:R.x,y:R.y,w:R.w,h:R.h+t.h+12}:R);});
   if(!h){delete o.on;return null;}
-  const ht=tplOf(h);o.x=r1(h.x+(ht.w-t.w)/2);o.y=r1(h.y+(ht.h-t.h)/2);o.on=h.id;return h.id;
+  placeOn(o,h);o.on=h.id;return h.id;
 }
 function shiftAll(list,dx,dy,sheet){list.forEach(d=>{d.x=r1(d.x+dx);d.y=r1(d.y+dy);d.sheet=sheet;});}
 // 拖曳時呼叫：x、y 是未對齊格點的位置。吸附成功回傳鋁軌 id
@@ -323,7 +325,7 @@ function rotatePicked(){
   const a=tplOf(d),cx=d.x+a.w/2,cy=d.y+a.h/2;
   d.rot=((d.rot||0)+90)%360;if(!d.rot)delete d.rot;
   const b=tplOf(d);d.x=Math.round((cx-b.w/2)/5)*5;d.y=Math.round((cy-b.h/2)/5)*5;
-  riders(d).forEach(r=>{const rt=tplOf(r);r.x=r1(d.x+(b.w-rt.w)/2);r.y=r1(d.y+(b.h-rt.h)/2);});
+  riders(d).forEach(r=>placeOn(r,d));
   commit();recompute();return true;
 }
 function deleteSel(){
