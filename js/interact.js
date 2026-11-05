@@ -185,7 +185,7 @@ svg.addEventListener('contextmenu',e=>{if(draft&&!draft.pop){e.preventDefault();
    剪貼簿只存在這個頁面。鋁軌連軌上器具、現場區連區內器具一起複製；導線不複製。 */
 let clip=null,cursorIn=false;
 const nextId=(pre,has)=>{let i=1;while(has(pre+i))i++;return pre+i;};
-const newDevId=d=>nextId((resolveTpl(d.tpl,d.count)||{pre:'U'}).pre,id=>S.devices.some(x=>x.id===id));
+const newDevId=d=>nextId((resolveTpl(d.tpl,d.count)||{pre:'U'}).pre,id=>tagUsed(id));
 const snapCopy=o=>JSON.parse(JSON.stringify(o));
 function makeClip(k,o){
   const extras=k==='zone'?S.devices.filter(d=>inZone(o,d)):k==='dev'&&isRail(o)?mountedOn(o):[];
@@ -464,7 +464,7 @@ $('libQ').oninput=renderPalette;
 $('palette').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
   if(b.dataset.add){
-    const base=resolveTpl(b.dataset.add);let i=1;while(S.devices.some(d=>d.id===base.pre+i))i++;
+    const base=resolveTpl(b.dataset.add);let i=1;while(tagUsed(base.pre+i))i++;
     const vc=viewCenter(),zp=picked&&picked.k==='zone'&&S.fields.find(z=>z.id===picked.id),pd=picked&&picked.k==='dev'&&devOf(picked.id);
     const zone=zp||zoneAt(vc)||(pd&&pd.sheet==='field'&&zoneOf(pd))||S.fields[0];
     const id=base.pre+i,sheet=base.sheet==='door'&&!useDoor()?'plate':base.sheet||'plate',R=sheet==='field'?zone:sheet==='plate'?boxRect():sheetRect(sheet),d={id,tag:id,tpl:b.dataset.add,sheet,x:0,y:0};

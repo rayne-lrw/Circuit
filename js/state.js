@@ -74,6 +74,9 @@ const wireKind=w=>{const a=devOf(w.a.d),b=devOf(w.b.d);if(!a||!b)return 'in';if(
 const SLOT_RE=/^(\d+)([A-D])$/;
 const hasSlots=t=>!!(t&&t.gen&&t.cntLabel==='片數');
 function termLabel(d,t){if(!d||!d.labels)return t;const m=SLOT_RE.exec(t);return (m&&d.labels[m[1]-1])||t;}
-const epText=e=>`${e.d}·${termLabel(devOf(e.d),e.t)}`;
+/* 器具編號：d.tag 是顯示用、可以改；d.id 是內部識別，導線用它接，改編號不影響接線 */
+const tagOf=id=>{const d=devOf(id);return d?d.tag:id;};
+const tagUsed=(v,except)=>S.devices.some(d=>d!==except&&(d.tag===v||d.id===v));
+const epText=e=>`${tagOf(e.d)}·${termLabel(devOf(e.d),e.t)}`;
 const KINDS={in:'箱內',door:'過門',ext:'外線'};
 

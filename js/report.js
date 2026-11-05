@@ -120,7 +120,7 @@ function lenSections(){
 function wireTable(){
   return [...S.wires].sort((a,b)=>natCmp(a.no,b.no)).map(w=>{
     const r=ROUTES.get(w.id)||{via:[],len:0};
-    return [w.no,w.gauge,colorOf(w).n,KINDS[wireKind(w)],w.a.d,termLabel(devOf(w.a.d),w.a.t),w.b.d,termLabel(devOf(w.b.d),w.b.t),r.via.join('→'),r.gland||'',m1(wireLen(w)),w.ext?.cable||'',w.ext?.core||''];
+    return [w.no,w.gauge,colorOf(w).n,KINDS[wireKind(w)],tagOf(w.a.d),termLabel(devOf(w.a.d),w.a.t),tagOf(w.b.d),termLabel(devOf(w.b.d),w.b.t),r.via.join('→'),r.gland||'',m1(wireLen(w)),w.ext?.cable||'',w.ext?.core||''];
   });
 }
 const WIRE_HEAD=['線號','線徑mm²','線色','種類','起點器具','起點接點','終點器具','終點接點','經過線槽','出線口','估算長度m','電纜','芯線'];

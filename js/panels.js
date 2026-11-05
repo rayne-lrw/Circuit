@@ -53,7 +53,7 @@ function renderList(){
     $('list').innerHTML=[...by].sort((a,b)=>a[0].localeCompare(b[0])).map(([k,ws])=>{
       const fw=ws[0],fd=devOf(fw.a.d).sheet==='field'?fw.a.d:fw.b.d,g=ROUTES.get(fw.id)?.gland;
       const zn=zoneOf(devOf(fd));
-      return `<div class="cable-h">${esc(k)} → ${esc(fd)}${zn?`（${esc(zn.name)}）`:''}${g?` · ${esc(g)}`:''}<br><span class="note">${esc(specName(fw.ext&&fw.ext.spec))}</span></div>`+ws.map(wireRow).join('');
+      return `<div class="cable-h">${esc(k)} → ${esc(tagOf(fd))}${zn?`（${esc(zn.name)}）`:''}${g?` · ${esc(g)}`:''}<br><span class="note">${esc(specName(fw.ext&&fw.ext.spec))}</span></div>`+ws.map(wireRow).join('');
     }).join('')||`<p class="note">還沒有外線。從箱內接點點到「現場設備」區的接點就會建立外線。</p>`;
     return;
   }
@@ -99,11 +99,17 @@ function renderDetail(){
     box.hidden=false;
     if(picked.k==='dev'){
       const d=devOf(picked.id),t=tplOf(d),n=S.wires.filter(w=>w.a.d===d.id||w.b.d===d.id).length;
-      box.innerHTML=`<div class="big">${esc(d.tag)}</div><dl><dt>器具</dt><dd>${esc(t.b)} ${esc(t.n)}</dd><dt>尺寸</dt><dd>${+t.w.toFixed(1)} × ${+t.h.toFixed(1)} × ${t.d} mm</dd><dt>核對</dt><dd>尺寸 ${esc(verText(d.tpl,t))}；接點${t.ok?'已對照':TERM_OK.has(d.tpl)?'依照片或外型圖':'未核對'}</dd>${d.rot?`<dt>旋轉</dt><dd>${d.rot}°</dd>`:''}<dt>位置</dt><dd>${d.sheet==='door'?doorShort():d.sheet==='field'?esc(devRef(d).name||'現場'):'底板'}　X ${d.x}　Y ${d.y}</dd><dt>接線</dt><dd>${n} 條</dd>${t.noOv?`<dt>軌上器具</dt><dd>${mountedOn(d).map(x=>esc(x.tag)).join(' ')||'無'}</dd>`:''}${gapsOf(d)}${t.note?`<dt>備註</dt><dd>${esc(t.note)}</dd>`:''}</dl>
+      box.innerHTML=`<div class="fields"><label for="dTag" style="grid-column:1/-1">器具編號<input id="dTag" maxlength="16" value="${esc(d.tag)}" style="font-size:15px;font-weight:600"></label></div><dl><dt>器具</dt><dd>${esc(t.b)} ${esc(t.n)}</dd><dt>尺寸</dt><dd>${+t.w.toFixed(1)} × ${+t.h.toFixed(1)} × ${t.d} mm</dd><dt>核對</dt><dd>尺寸 ${esc(verText(d.tpl,t))}；接點${t.ok?'已對照':TERM_OK.has(d.tpl)?'依照片或外型圖':'未核對'}</dd>${d.rot?`<dt>旋轉</dt><dd>${d.rot}°</dd>`:''}<dt>位置</dt><dd>${d.sheet==='door'?doorShort():d.sheet==='field'?esc(devRef(d).name||'現場'):'底板'}　X ${d.x}　Y ${d.y}</dd><dt>接線</dt><dd>${n} 條</dd>${t.noOv?`<dt>軌上器具</dt><dd>${mountedOn(d).map(x=>esc(x.tag)).join(' ')||'無'}</dd>`:''}${gapsOf(d)}${t.note?`<dt>備註</dt><dd>${esc(t.note)}</dd>`:''}</dl>
       ${t.gen?`<div class="fields"><label for="dCount">${esc(t.cntLabel)}<input id="dCount" type="number" min="1" value="${d.count||t.cnt}"></label></div>`:''}
       ${hasSlots(t)?slotHtml(d):slotSource(d)?`<div class="revert"><p class="note">這組端子台之前用「編輯器具」改過，變成了自訂器具，所以不能每片填端子號，也不能改片數。換回 WAGO 端子台後，原本改的編號會變成每片的端子號，接好的線都會保留。</p><button class="tool" id="slotRevert">換回 ${esc(TPL[slotSource(d)].n)}</button></div>`:''}
       <div class="fields"><label for="dX">X（距${d.sheet==='door'?doorShort():d.sheet==='field'?esc(devRef(d).name||'現場區'):'底板'}左緣）<input id="dX" type="number" step="1" value="${r1(d.x-devRef(d).x)}"></label><label for="dY">Y（距上緣）<input id="dY" type="number" step="1" value="${r1(d.y-devRef(d).y)}"></label></div>${moveHtml(false)}
       <div class="row"><button class="tool" id="rotDev">旋轉 90°</button><button class="tool" id="editTpl">編輯器具</button><button class="tool danger" id="delPicked">刪除器具${n?`與 ${n} 條線`:''}</button></div>`;
+      $('dTag').onchange=e=>{
+        const v=e.target.value.trim();
+        if(!v||v===d.tag){e.target.value=d.tag;return;}
+        if(tagUsed(v,d)){toast(`編號 ${v} 已經有器具在用`);e.target.value=d.tag;return;}
+        d.tag=v;commit();recompute();
+      };
       ['X','Y'].forEach(c=>{$('d'+c).onchange=e=>{const v=Number(e.target.value);if(e.target.value===''||!isFinite(v))return;const R=devRef(d),mt=mountedOn(d),ox=d.x,oy=d.y;if(c==='X')d.x=r1(R.x+v);else d.y=r1(R.y+v);shiftAll(mt,d.x-ox,d.y-oy,d.sheet);commit();recompute();};});
       if(t.gen) $('dCount').onchange=e=>{const v=Number(e.target.value);if(!(v>=1))return;const before=S.wires.length;d.count=Math.min(t.cntLabel.includes('mm')?2000:96,Math.round(v));commit();recompute();snapshotPrev=JSON.stringify(S);save();if(S.wires.length<before)toast(`接點變少，移除了 ${before-S.wires.length} 條線；可按復原`);};
     }else if(picked.k==='zone'){
