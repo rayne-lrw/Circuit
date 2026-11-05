@@ -183,6 +183,9 @@ select.flash{outline:2px solid var(--accent);outline-offset:1px}
 .pill-bg{fill:#b0005a}
 .pill-t{fill:#fff;font-family:var(--mono);font-size:13px;font-weight:600}
 .end-ring{fill:none;stroke:#b0005a;stroke-width:2.5}
+.flash-r{fill:none;stroke:var(--accent);stroke-width:4px;vector-effect:non-scaling-stroke;pointer-events:none;animation:flash 1.3s ease-out forwards}
+@keyframes flash{0%,40%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.flash-r{animation:none}}
 .rail-hit{fill:none;stroke:var(--accent);stroke-width:2px;vector-effect:non-scaling-stroke;pointer-events:none}
 
 /* 列印：圖面頁 A4 橫向，表格頁 A4 直向；一律用淺色 */

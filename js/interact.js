@@ -220,7 +220,7 @@ function pasteHere(){
   if(r.k==='dev'||r.k==='duct'){const R=rectOf(r.k,m);m.sheet=sheetAt({x:R.x+R.w/2,y:R.y+R.h/2});if(r.k==='duct'&&m.sheet==='field')m.sheet='plate';}
   if(r.k==='dev'){r.extras.forEach(d=>d.sheet=m.sheet);if(!isRail(m))railSnap(m,m.x,m.y);}
   if(mode!=='place') setMode('place');
-  sel=null;picked={k:r.k,id:m.id};commit();recompute();
+  sel=null;picked={k:r.k,id:m.id};commit();recompute();reveal(pickedBox());
   toast(`已貼上 ${r.k==='zone'?m.name:m.id}${r.extras.length?`（含 ${r.extras.length} 個器具）`:''}；可按復原`);
 }
 let moveStep=10;
@@ -465,18 +465,18 @@ $('palette').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
   if(b.dataset.add){
     const base=resolveTpl(b.dataset.add);let i=1;while(S.devices.some(d=>d.id===base.pre+i))i++;
-    const zp=picked&&picked.k==='zone'&&S.fields.find(z=>z.id===picked.id),pd=picked&&picked.k==='dev'&&devOf(picked.id);
-    const zone=zp||(pd&&pd.sheet==='field'&&zoneOf(pd))||S.fields[0];
-    const id=base.pre+i,sheet=base.sheet==='door'&&!useDoor()?'plate':base.sheet||'plate',R=sheet==='field'?zone:sheetRect(sheet),d={id,tag:id,tpl:b.dataset.add,sheet,x:0,y:0};
+    const vc=viewCenter(),zp=picked&&picked.k==='zone'&&S.fields.find(z=>z.id===picked.id),pd=picked&&picked.k==='dev'&&devOf(picked.id);
+    const zone=zp||zoneAt(vc)||(pd&&pd.sheet==='field'&&zoneOf(pd))||S.fields[0];
+    const id=base.pre+i,sheet=base.sheet==='door'&&!useDoor()?'plate':base.sheet||'plate',R=sheet==='field'?zone:sheet==='plate'?boxRect():sheetRect(sheet),d={id,tag:id,tpl:b.dataset.add,sheet,x:0,y:0};
     if(base.gen) d.count=base.cnt;
-    const t=resolveTpl(b.dataset.add,d.count);
-    d.x=Math.round((R.x+R.w/2-t.w/2)/5)*5;d.y=Math.round((R.y+R.h/2-t.h/2)/5)*5;
+    const t=resolveTpl(b.dataset.add,d.count),c=inR(vc,R)?vc:{x:R.x+R.w/2,y:R.y+R.h/2}; // 畫面中央在該區域內就放在畫面中央
+    d.x=Math.round((c.x-t.w/2)/5)*5;d.y=Math.round((c.y-t.h/2)/5)*5;
     S.devices.push(d);
     setMode('place');picked={k:'dev',id};
   }else if(b.dataset.ductAdd){
     let i=1;while(S.ducts.some(d=>d.id==='D'+i))i++;
-    const h=b.dataset.ductAdd==='h',wd=Number(b.dataset.dw),w=h?300:wd,hh=h?wd:300;
-    S.ducts.push({id:'D'+i,sheet:'plate',dp:Number(b.dataset.dd),x:Math.round((S.plate.w-w)/10)*5,y:Math.round((S.plate.h-hh)/10)*5,w,h:hh});
+    const h=b.dataset.ductAdd==='h',wd=Number(b.dataset.dw),w=h?300:wd,hh=h?wd:300,vc=viewCenter(),c=inR(vc,boxRect())?vc:{x:S.plate.w/2,y:S.plate.h/2};
+    S.ducts.push({id:'D'+i,sheet:'plate',dp:Number(b.dataset.dd),x:Math.round((c.x-w/2)/5)*5,y:Math.round((c.y-hh/2)/5)*5,w,h:hh});
     setMode('place');picked={k:'duct',id:'D'+i};
   }else if(b.dataset.zoneAdd!==undefined){
     let i=1;while(S.fields.some(z=>z.id==='Z'+i))i++;
@@ -485,10 +485,11 @@ $('palette').addEventListener('click',e=>{
     setMode('place');picked={k:'zone',id:'Z'+i};
   }else if(b.dataset.glandAdd){
     let i=1;while(S.glands.some(g=>g.id==='G'+i))i++;
-    S.glands.push({id:'G'+i,x:Math.round(S.plate.w/10)*5,spec:b.dataset.glandAdd});
+    const vc=viewCenter(),B=boxRect(),gx=vc.x>B.x+8&&vc.x<B.x+B.w-8?vc.x:S.plate.w/2;
+    S.glands.push({id:'G'+i,x:Math.round(gx/5)*5,spec:b.dataset.glandAdd});
     setMode('place');picked={k:'gland',id:'G'+i};
   }else return;
-  commit();recompute();
+  commit();recompute();reveal(pickedBox());
 });
 $('list').addEventListener('click',e=>{const b=e.target.closest('[data-wl]');if(!b)return;const v=sel===b.dataset.wl?null:b.dataset.wl;if(mode!=='wire')setMode('wire');sel=v;renderList();renderDetail();applyWireClasses();updateHint();});
 $('list').addEventListener('pointerover',e=>{const b=e.target.closest('[data-wl]');const v=b?b.dataset.wl:null;if(v!==listHover){listHover=v;applyWireClasses();}});

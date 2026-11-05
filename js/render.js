@@ -105,6 +105,7 @@ function renderWires(){
     const [k,id]=s.split('|'),o=k==='dev'?devOf(id):S.ducts.find(d=>d.id===id);if(!o) return;
     const r=rectOf(k,o);t+=`<rect class="issue-rect" x="${r.x-1}" y="${r.y-1}" width="${r.w+2}" height="${r.h+2}" rx="2"/>`;
   });
+  if(flashR) t+=`<rect class="flash-r" x="${flashR.x-4}" y="${flashR.y-4}" width="${flashR.w+8}" height="${flashR.h+8}" rx="4"/>`;
   const rh=railHit&&devOf(railHit);
   if(rh){const rt=tplOf(rh);t+=`<rect class="rail-hit" x="${rh.x-1}" y="${rh.y-1}" width="${rt.w+2}" height="${rt.h+2}" rx="2"/>`;}
   if(picked){
@@ -183,6 +184,20 @@ function applyView(){
   $('svg').classList.toggle('labels-on',showNo);
   $('svg').classList.toggle('place',mode==='place');
   renderOverlay();
+}
+/* 新增或貼上物件後：不在畫面內就平移過去（不改縮放），並閃一下外框 */
+const boxRect=()=>{const o=boxOrigin();return {x:o.x,y:o.y,w:S.box.w,h:S.box.h};};
+function viewCenter(){const r=$('svg').getBoundingClientRect();return {x:(r.width/2-view.x)/view.k,y:((r.height-44)/2-view.y)/view.k};}
+let flashR=null,flashT=0;
+function reveal(R){
+  if(!R) return;
+  const r=$('svg').getBoundingClientRect(),k=view.k,m=24;
+  const x0=R.x*k+view.x,y0=R.y*k+view.y,x1=(R.x+R.w)*k+view.x,y1=(R.y+R.h)*k+view.y;
+  if(x0<m||y0<m||x1>r.width-m||y1>r.height-44-m){
+    view.x=r.width/2-(R.x+R.w/2)*k;view.y=(r.height-44)/2-(R.y+R.h/2)*k;view.manual=true;applyView();
+  }
+  flashR=R;clearTimeout(flashT);renderWires();
+  flashT=setTimeout(()=>{flashR=null;renderWires();},1300);
 }
 function fit(){
   const r=$('svg').getBoundingClientRect();if(!r.width||!r.height)return;
