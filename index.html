@@ -8,7 +8,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23334'/%3E%3Cpath d='M3 4h5v8h5' fill='none' stroke='%23fc3' stroke-width='2'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261105.164949">
+<link rel="stylesheet" href="css/style.css?v=20261105.165300">
 </head>
 <body>
 <div id="app">
@@ -51,23 +51,11 @@
       <button class="tool totop" id="toTop" hidden aria-label="回到器具庫最上方">↑ 最上</button>
       <div class="scroll">
         <div id="sizes">
-          <h2 class="h2ver">盤面尺寸 (mm) <span id="ver" title="目前版本；更新後這個號碼會改變">v20261105.164949</span></h2>
-          <div class="fields">
-            <label for="bw">箱寬<input id="bw" type="number" step="10" min="100"></label>
-            <label for="bh">箱高<input id="bh" type="number" step="10" min="100"></label>
-            <label for="bd">箱深<input id="bd" type="number" step="10" min="50"></label>
-            <label for="bk">底板到箱背<input id="bk" type="number" step="5" min="0"></label>
-            <label for="pw">底板寬<input id="pw" type="number" step="10" min="100"></label>
-            <label for="ph">底板高<input id="ph" type="number" step="10" min="100"></label>
-            <label for="dm" style="grid-column:1/-1">面板<select id="dm"><option value="door">門板（蓋住箱體，檢查關門碰撞）</option><option value="console">獨立操作台（不檢查尺寸）</option><option value="none">不使用</option></select></label>
-            <label for="dw">面板寬<input id="dw" type="number" step="10" min="100"></label>
-            <label for="dh">面板高<input id="dh" type="number" step="10" min="100"></label>
-            <label for="hy">過門線束 Y<input id="hy" type="number" step="10"></label>
-            <label for="fl">線槽上限 %<input id="fl" type="number" step="5" min="5" max="100"></label>
-          </div>
+          <button class="tool setbtn" id="setOpen" aria-haspopup="dialog">盤面設定…</button>
+          <p class="note" id="setSum"></p>
         </div>
         <div>
-          <h2>器具庫</h2>
+          <h2 class="h2ver">器具庫 <span id="ver" title="目前版本；更新後這個號碼會改變">v20261105.165300</span></h2>
           <input id="libQ" type="search" placeholder="搜尋型號、品名、廠牌" aria-label="搜尋器具">
           <div class="row" style="margin-top:6px;justify-content:flex-start"><button class="tool" id="newTpl">新增自訂器具</button></div>
         </div>
@@ -124,6 +112,26 @@
     </aside>
   </main>
 </div>
+<div id="setDlg" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="setTitle">
+  <div class="card">
+    <h2 id="setTitle">盤面設定 (mm)</h2>
+    <div class="fields">
+            <label for="bw">箱寬<input id="bw" type="number" step="10" min="100"></label>
+            <label for="bh">箱高<input id="bh" type="number" step="10" min="100"></label>
+            <label for="bd">箱深<input id="bd" type="number" step="10" min="50"></label>
+            <label for="bk">底板到箱背<input id="bk" type="number" step="5" min="0"></label>
+            <label for="pw">底板寬<input id="pw" type="number" step="10" min="100"></label>
+            <label for="ph">底板高<input id="ph" type="number" step="10" min="100"></label>
+            <label for="dm" style="grid-column:1/-1">面板<select id="dm"><option value="door">門板（蓋住箱體，檢查關門碰撞）</option><option value="console">獨立操作台（不檢查尺寸）</option><option value="none">不使用</option></select></label>
+            <label for="dw">面板寬<input id="dw" type="number" step="10" min="100"></label>
+            <label for="dh">面板高<input id="dh" type="number" step="10" min="100"></label>
+            <label for="hy">過門線束 Y<input id="hy" type="number" step="10"></label>
+            <label for="fl">線槽上限 %<input id="fl" type="number" step="5" min="5" max="100"></label>
+          </div>
+    <p class="note">改箱體或底板尺寸時，面板與現場區裡的東西會一起平移。</p>
+    <div class="row"><button class="primary" id="setClose">完成</button></div>
+  </div>
+</div>
 <div id="print" aria-hidden="true"></div>
 <div id="ed" hidden role="dialog" aria-label="器具編輯器">
   <div id="edCard">
@@ -152,17 +160,17 @@
   </div>
 </div>
 
-<script src="js/inventory.js?v=20261105.164949"></script>
-<script src="js/devices.js?v=20261105.164949"></script>
-<script src="js/sample.js?v=20261105.164949"></script>
-<script src="js/state.js?v=20261105.164949"></script>
-<script src="js/routing.js?v=20261105.164949"></script>
-<script src="js/render.js?v=20261105.164949"></script>
-<script src="js/panels.js?v=20261105.164949"></script>
-<script src="js/popup.js?v=20261105.164949"></script>
-<script src="js/report.js?v=20261105.164949"></script>
-<script src="js/interact.js?v=20261105.164949"></script>
-<script src="js/editor.js?v=20261105.164949"></script>
-<script src="js/main.js?v=20261105.164949"></script>
+<script src="js/inventory.js?v=20261105.165300"></script>
+<script src="js/devices.js?v=20261105.165300"></script>
+<script src="js/sample.js?v=20261105.165300"></script>
+<script src="js/state.js?v=20261105.165300"></script>
+<script src="js/routing.js?v=20261105.165300"></script>
+<script src="js/render.js?v=20261105.165300"></script>
+<script src="js/panels.js?v=20261105.165300"></script>
+<script src="js/popup.js?v=20261105.165300"></script>
+<script src="js/report.js?v=20261105.165300"></script>
+<script src="js/interact.js?v=20261105.165300"></script>
+<script src="js/editor.js?v=20261105.165300"></script>
+<script src="js/main.js?v=20261105.165300"></script>
 </body>
 </html>

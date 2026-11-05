@@ -347,6 +347,7 @@ document.addEventListener('keydown',e=>{
   const typing=/INPUT|SELECT|TEXTAREA/.test(e.target.tagName);
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?$('redo').click():$('undo').click();return;}
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();$('redo').click();return;}
+  if(!$('setDlg').hidden){if(e.key==='Escape')setDialog(false);return;}
   if(typing) return;
   if((e.ctrlKey||e.metaKey)&&!e.altKey&&!e.shiftKey){
     const k=e.key.toLowerCase();
@@ -440,7 +441,7 @@ $('dm').onchange=e=>{
 };sizeInput('fl',v=>S.fillLimit=Math.min(100,Math.max(5,v)));
 $('issues').addEventListener('click',e=>{
   const b=e.target.closest('[data-iss]');if(!b)return;const x=ISSUES[Number(b.dataset.iss)];if(!x)return;
-  if(x.k==='doormode'){const dm=$('dm');dm.scrollIntoView({block:'center'});dm.focus();dm.classList.add('flash');setTimeout(()=>dm.classList.remove('flash'),1600);return;}
+  if(x.k==='doormode'){setDialog(true);const dm=$('dm');dm.focus();dm.classList.add('flash');setTimeout(()=>dm.classList.remove('flash'),1600);return;}
   if(x.k==='wire'){if(mode!=='wire')setMode('wire');picked=null;sel=x.id;}
   else{if(mode!=='place')setMode('place');sel=null;picked={k:x.k,id:x.id};}
   recompute();
@@ -475,6 +476,14 @@ $('oldDraft').onclick=()=>{
   try{const n=normalize(JSON.parse(localStorage.getItem(OLDKEY)));if(n){S=n.state;resetUi();commit();recompute();fit();toast('已讀回舊版暫存；可按復原');}}catch(_){toast('舊版暫存讀取失敗');}
   $('oldDraft').hidden=true;
 };
+/* 盤面設定視窗：欄位 id 不變，原本的尺寸輸入處理照常運作 */
+function setDialog(open){
+  $('setDlg').hidden=!open;
+  if(open){syncSizes();$('bw').focus();}else $('setOpen').focus();
+}
+$('setOpen').onclick=()=>setDialog(true);
+$('setClose').onclick=()=>setDialog(false);
+$('setDlg').addEventListener('click',e=>{if(e.target===$('setDlg'))setDialog(false);});
 $('libQ').oninput=renderPalette;
 // 器具庫捲下去後出現「回到最上」
 {const sc=document.querySelector('#left .scroll'),tt=$('toTop');
