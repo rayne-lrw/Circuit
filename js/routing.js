@@ -253,7 +253,7 @@ function computeRoutes(){
     const a=axis(d),lo=a==='h'?d.y:d.x,hi=lo+(a==='h'?d.h:d.w),pad=3.5,avail=hi-lo-2*pad;
     const c=(lo+hi)/2;
     // 占用率取線槽內最擠那一段的導線截面積
-    const ev=[];list.forEach(e=>{const ar=Math.PI/4*(OD[e.g]||4)**2;ev.push([e.lo,ar],[e.hi+.01,-ar]);});
+    const ev=[];list.forEach(e=>{const ar=Math.PI/4*odOf(e.g)**2;ev.push([e.lo,ar],[e.hi+.01,-ar]);});
     ev.sort((x,y)=>x[0]-y[0]);let cur=0,peak=0;ev.forEach(([,v])=>{cur+=v;peak=Math.max(peak,cur);});
     const section=Math.min(d.w,d.h)*(d.dp||40);
     DUCTUSE.set(d.id,{n:list.length,lanes:T,pitch:T>1?Math.min(3.4,avail/(T-1)):3.4,pct:Math.round(peak/section*100)});

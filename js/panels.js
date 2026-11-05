@@ -83,7 +83,7 @@ function renderDetail(){
     ${kind==='ext'?`<div class="fields"><label for="xCable">電纜編號<input id="xCable" maxlength="12" value="${esc((w.ext&&w.ext.cable)||'')}"></label><label for="xCore">芯線<input id="xCore" maxlength="10" value="${esc((w.ext&&w.ext.core)||'')}"></label>
       <label for="xSpec" style="grid-column:1/-1">電纜規格<select id="xSpec">${cableOptions(w.ext&&w.ext.spec)}</select></label>
       <label for="xGland" style="grid-column:1/-1">出線口<select id="xGland"><option value="">自動選最近</option>${S.glands.map(g=>`<option value="${g.id}"${w.gland===g.id?' selected':''}>${esc(g.id)}</option>`).join('')}</select></label></div>`:''}
-    <div><div class="sub-h">線徑 mm²</div><div class="chips">${GAUGES.map(([g])=>`<button class="chip" data-dg="${g}" aria-pressed="${w.gauge===g}">${g}</button>`).join('')}</div></div>
+    <div><div class="sub-h">線徑 mm²</div>${gaugeChips(w.gauge,'dg','dn')}</div>
     <div><div class="sub-h">顏色</div>${colorChips(w.color,'dn',w)}</div>
     <p class="note">${esc(stockMsg(w.gauge,w.color))}</p>
     <div class="row">${w.wps.length?'<button class="tool" id="clearWp">清除中繼點</button>':''}<button class="tool danger" id="delWire">刪除這條線</button></div>`;

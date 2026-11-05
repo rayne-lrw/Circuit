@@ -24,7 +24,7 @@ function fillPop(){
   const ex=draftIsExt();
   $('pop').innerHTML=`<div class="ends">${esc(epText(draft.a))} → ${esc(epText(draft.end))}${draft.wps.length?`（${draft.wps.length} 中繼點）`:''}${ex?'　外線':''}</div>
   ${ex?`<div class="fields"><label for="pCable">電纜編號<input id="pCable" maxlength="12" value="${esc(draft.ext.cable)}"></label><label for="pCore">芯線<input id="pCore" maxlength="10" value="${esc(draft.ext.core)}"></label><label for="pSpec" style="grid-column:1/-1">電纜規格<select id="pSpec">${cableOptions(draft.ext.spec)}</select></label></div>`:''}
-  <div><h3>線徑 mm²</h3><div class="chips">${GAUGES.map(([g])=>`<button class="chip" data-pg="${g}" aria-pressed="${last.gauge===g}">${g}</button>`).join('')}</div></div>
+  <div><h3>線徑 mm²</h3>${gaugeChips(last.gauge,'pg','pn')}</div>
   <div><h3>顏色</h3>${colorChips(last.color,'pn')}</div>
   <p class="note">${esc(stockMsg(last.gauge,last.color))}。臨時顏色重新整理後會從選單移除，已接的線顏色不變。</p>
   <div class="row"><button class="tool" id="popNo">取消</button><button class="primary" id="popOk">建立</button></div>`;
@@ -42,6 +42,7 @@ function cancelDraft(){draft=null;closePop();renderOverlay();updateHint();}
 $('pop').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
   if(b.dataset.newc){last.color=addTemp(b.dataset.newc);fillPop();renderOverlay();$('popOk').focus();return;}
+  if(b.dataset.newg){const v=addTempGauge(b.dataset.newg);if(v==null)return;last.gauge=v;fillPop();renderOverlay();$('popOk').focus();return;}
   if(b.dataset.pg||b.dataset.pc){
     if(b.dataset.pg) last.gauge=Number(b.dataset.pg);
     if(b.dataset.pc) last.color=b.dataset.pc;

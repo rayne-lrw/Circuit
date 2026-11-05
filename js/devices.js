@@ -1,7 +1,27 @@
 "use strict";
 /* ---------- 基礎資料 ---------- */
 const GAUGES=[[0.5,.9],[0.75,1.0],[1.25,1.3],[2,1.7],[3.5,2.1],[5.5,2.6],[8,3.1],[14,3.7]];
-const gw=g=>(GAUGES.find(x=>x[0]===g)||[0,1.5])[1];
+// 表上沒有的線徑（臨時新增）依表內插；超過最大值依截面積開根號外推
+function interpG(tab,g){
+  const t=tab.slice().sort((a,b)=>a[0]-b[0]),e=t.find(x=>x[0]===g);if(e)return e[1];
+  if(g<t[0][0]) return t[0][1]*Math.sqrt(g/t[0][0]);
+  const L=t[t.length-1];if(g>L[0]) return L[1]*Math.sqrt(g/L[0]);
+  const i=t.findIndex(x=>x[0]>g),a=t[i-1],b=t[i];return a[1]+(b[1]-a[1])*(g-a[0])/(b[0]-a[0]);
+}
+const gw=g=>interpG(GAUGES,g);
+// 臨時線徑只存在這次開啟的頁面；專案裡已經用到的線徑會一直出現在選單上
+const tempGauges=[];
+function gaugeList(cur){const s=new Set([...GAUGES.map(x=>x[0]),...tempGauges,...(S?S.wires.map(w=>w.gauge):[])]);if(cur!=null)s.add(cur);return [...s].filter(g=>g>0).sort((a,b)=>a-b);}
+function gaugeChips(cur,attr,pre){
+  return `<div class="chips">${gaugeList(cur).map(g=>`<button class="chip" data-${attr}="${g}" aria-pressed="${cur===g}">${g}</button>`).join('')}</div>
+  <div class="newc newg"><input id="${pre}G" type="number" min="0.1" max="300" step="0.05" placeholder="其他線徑，例如 0.3" aria-label="新增線徑 mm²"><span class="note">mm²</span><button class="tool" data-newg="${pre}">新增</button></div>`;
+}
+function addTempGauge(pre){
+  const v=Math.round(Number($(pre+'G').value)*100)/100;
+  if(!(v>=0.1&&v<=300)){toast('線徑請填 0.1～300 mm²');return null;}
+  if(!gaugeList().includes(v)) tempGauges.push(v);
+  return v;
+}
 const COLORS={
   white:{n:'白',c:'#fbfbf6',k:'#2b2f2e'}, black:{n:'黑',c:'#17181a',k:'#f5f5ee'}, red:{n:'紅',c:'#d6202c',k:'#3c0a0e'},
   brown:{n:'棕',c:'#7d4a22',k:'#f0e2d2'}, blue:{n:'藍',c:'#1763d6',k:'#04183a'}, ground:{n:'黃綠',c:'#159a4b',k:'#032a13',stripe:'#f4c400'},
@@ -32,6 +52,7 @@ function colorChips(cur,pre,w){
   <div class="newc"><input type="color" id="${pre}Hex" value="#8e44ad" aria-label="選擇新顏色"><input id="${pre}Name" maxlength="8" placeholder="顏色名稱（可不填）" aria-label="顏色名稱"><button class="tool" data-newc="${pre}">新增</button></div>`;
 }
 const OD={0.5:2.4,0.75:2.8,1.25:3.2,2:3.6,3.5:4.2,5.5:5,8:5.8,14:7.6}; // 導線外徑估算值，用來算線槽占用率
+const odOf=g=>interpG(Object.entries(OD).map(([k,v])=>[Number(k),v]),g);
 /* ---------- 接點排列工具 ---------- */
 const pole=(ids,xs,y,side,desc)=>ids.map((id,i)=>[id,xs[i],y,side,desc]);
 function row(ids,y,side,w,desc,m=7){const n=ids.length;return ids.map((id,i)=>[id,n===1?w/2:m+(w-2*m)*i/(n-1),y,side,desc]);}

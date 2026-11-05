@@ -517,6 +517,10 @@ $('detail').addEventListener('change',e=>{
   for(let i=0;i<L.length;i++) if(L[i]==null) L[i]='';
   setSlots(d,L);
 });
+// 新增線徑、顏色名稱的輸入框按 Enter 等於按旁邊的「新增」
+['detail','pop'].forEach(id=>$(id).addEventListener('keydown',e=>{
+  if(e.key!=='Enter'||!e.target.closest('.newc'))return;const b=e.target.closest('.newc').querySelector('button');if(b){e.preventDefault();e.stopPropagation();b.click();}
+}));
 $('detail').addEventListener('input',e=>{if(e.target.id==='mvD'){const v=Number(e.target.value);if(v>0)moveStep=v;}});
 $('detail').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
@@ -533,6 +537,7 @@ $('detail').addEventListener('click',e=>{
   const w=sel&&S.wires.find(x=>x.id===sel);if(!w)return;
   if(b.id==='clearWp') w.wps=[];
   else if(b.dataset.dg) w.gauge=Number(b.dataset.dg);
+  else if(b.dataset.newg){const v=addTempGauge(b.dataset.newg);if(v==null)return;w.gauge=v;}
   else if(b.dataset.newc) applyColor(w,addTemp(b.dataset.newc));
   else if(b.dataset.pc) applyColor(w,b.dataset.pc);
   else return;
