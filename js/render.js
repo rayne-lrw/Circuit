@@ -18,13 +18,15 @@ function renderBoard(){
   h+=`<rect class="boxr" x="${bo.x}" y="${bo.y}" width="${B.w}" height="${B.h}" rx="4"/>`;
   h+=`<text class="dim" x="${bo.x+6}" y="${bo.y+B.h-6}">電控箱 ${B.w} × ${B.h} × ${B.d} mm</text>`;
   h+=`<text class="sheet-t" x="${bo.x}" y="${bo.y-8}">底板</text>`;
-  h+=`<rect class="doorr" x="${dr.x}" y="${dr.y}" width="${dr.w}" height="${dr.h}" rx="4"/>`;
-  h+=`<text class="sheet-t" x="${dr.x}" y="${dr.y-8}">面板內側（開門攤平）</text>`;
-  h+=`<text class="dim" x="${dr.x+6}" y="${dr.y+dr.h-6}">面板 ${dr.w} × ${dr.h} mm</text>`;
+  if(useDoor()){
+    h+=`<rect class="doorr" x="${dr.x}" y="${dr.y}" width="${dr.w}" height="${dr.h}" rx="4"/>`;
+    h+=`<text class="sheet-t" x="${dr.x}" y="${dr.y-8}">${doorTitle()}</text>`;
+    h+=`<text class="dim" x="${dr.x+6}" y="${dr.y+dr.h-6}">${doorShort()} ${dr.w} × ${dr.h} mm</text>`;
+  }
   for(const z of S.fields) h+=`<g class="zoneg" data-zone="${z.id}"><rect class="fieldr" x="${z.x}" y="${z.y}" width="${z.w}" height="${z.h}" rx="4"/><rect class="zone-h" x="${z.x}" y="${z.y}" width="${Math.min(z.w,Math.max(120,[...z.name].length*14+60))}" height="22" rx="4"/><text class="field-t" x="${z.x+6}" y="${z.y+16}">${esc(z.name)}</text></g>`;
   const door=S.wires.filter(w=>wireKind(w)==='door').length+S.wires.filter(w=>{const a=devOf(w.a.d)?.sheet,b=devOf(w.b.d)?.sheet;return (a==='door'&&b==='field')||(a==='field'&&b==='door');}).length;
   const hh=Math.max(14,door*2.6+8);
-  h+=`<rect class="harness" x="${P.w}" y="${S.hinge-hh/2}" width="${dr.x-P.w}" height="${hh}"/><text class="harness-t" x="${(P.w+dr.x)/2}" y="${S.hinge-hh/2-4}" text-anchor="middle">過門線束 ${door} 條</text>`;
+  if(useDoor()) h+=`<rect class="harness" x="${P.w}" y="${S.hinge-hh/2}" width="${dr.x-P.w}" height="${hh}"/><text class="harness-t" x="${(P.w+dr.x)/2}" y="${S.hinge-hh/2-4}" text-anchor="middle">${S.doorMode==='console'?'到操作台':'過門線束'} ${door} 條</text>`;
   h+=`<rect class="plate" x="0" y="0" width="${P.w}" height="${P.h}" rx="2"/>`;
   [[8,8],[P.w-8,8],[8,P.h-8],[P.w-8,P.h-8]].forEach(([x,y])=>h+=`<circle class="hole" cx="${x}" cy="${y}" r="3"/>`);
   for(let x=0;x<=P.w;x+=100) h+=`<line class="tick" x1="${x}" y1="-5" x2="${x}" y2="-1"/><text class="dim" x="${x}" y="-8" text-anchor="middle">${x}</text>`;
@@ -183,7 +185,7 @@ function applyView(){
 }
 function fit(){
   const r=$('svg').getBoundingClientRect();if(!r.width||!r.height)return;
-  const o=boxOrigin(),dr=sheetRect('door'),fr=sheetRect('field');
+  const o=boxOrigin(),dr=useDoor()?sheetRect('door'):{x:o.x,y:o.y,w:S.box.w,h:S.box.h},fr=sheetRect('field');
   const x0=Math.min(0,o.x,fr.x)-16,y0=Math.min(0,o.y,dr.y,fr.y)-20,x1=Math.max(S.plate.w,dr.x+dr.w,fr.x+fr.w)+6,y1=Math.max(o.y+S.box.h+30,fr.y+fr.h)+6;
   const bw=x1-x0,bh=y1-y0,mx=8,top=6,bot=44;
   const k=Math.min((r.width-2*mx)/bw,(r.height-top-bot)/bh);
@@ -205,8 +207,16 @@ function renderIssues(){
   const max=12,rows=ISSUES.slice(0,max);
   $('issues').innerHTML=ISSUES.length?rows.map((x,i)=>x.k?`<button class="issue" data-iss="${i}">${esc(x.t)}</button>`:`<div class="issue">${esc(x.t)}</div>`).join('')+(ISSUES.length>max?`<p class="ok">還有 ${ISSUES.length-max} 項，先處理上面的問題。</p>`:''):`<p class="ok">尺寸、深度、擺放與走線都沒有發現問題。</p>`;
 }
+function applyDoorMode(){
+  const m=S.doorMode||'door';
+  KINDS.door=m==='console'?'操作台':'過門';SHEET_N.door=doorShort();
+  const dm=$('dm');if(document.activeElement!==dm)dm.value=m;
+  ['dw','dh','hy'].forEach(id=>$(id).closest('label').hidden=m==='none');
+  $('vDoor').hidden=m==='none';$('vDoor').textContent=doorShort();
+}
 function syncSizes(){
   const set=(id,v)=>{const el=$(id);if(document.activeElement!==el)el.value=v;};
+  applyDoorMode();
   set('bw',S.box.w);set('bh',S.box.h);set('bd',S.box.d);set('bk',S.box.back);set('pw',S.plate.w);set('ph',S.plate.h);set('dw',S.door.w);set('dh',S.door.h);set('hy',S.hinge);set('fl',S.fillLimit);
 }
 let toastT=0;

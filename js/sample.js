@@ -70,7 +70,8 @@ function normalize(o){
   const nextNo=Math.max(num(o.nextNo,1),1+Math.max(0,...wires.map(w=>Number(w.no.replace(/\D/g,''))||0)));
   const fields=(Array.isArray(o.fields)?o.fields:[]).filter(z=>z&&safe(z.id)).slice(0,30).map(z=>({id:z.id,name:txt(z.name,20)||z.id,x:num(z.x,0),y:num(z.y,0),w:Math.max(50,num(z.w,600)),h:Math.max(50,num(z.h,210))}));
   if(!fields.length) fields.push(defaultField(box,plate,door));
-  return {state:{box,plate,door,fields,hinge:num(o.hinge,plate.h/2),fillLimit:Math.min(100,Math.max(5,num(o.fillLimit,50))),spare:Math.min(5000,Math.max(0,num(o.spare,0))),glands,tpls,devices,ducts,wires,nextNo},
+  const doorMode=['door','console','none'].includes(o.doorMode)?o.doorMode:'door';
+  return {state:{box,plate,door,doorMode,fields,hinge:num(o.hinge,plate.h/2),fillLimit:Math.min(100,Math.max(5,num(o.fillLimit,50))),spare:Math.min(5000,Math.max(0,num(o.spare,0))),glands,tpls,devices,ducts,wires,nextNo},
     dropped:(o.devices.length-devices.length)+(o.ducts.length-ducts.length)+(o.wires.length-wires.length)};
 }
 

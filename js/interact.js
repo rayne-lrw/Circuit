@@ -356,7 +356,12 @@ sizeInput('bw',v=>S.box.w=Math.max(100,v),true);sizeInput('bh',v=>S.box.h=Math.m
 sizeInput('bd',v=>S.box.d=Math.max(50,v));sizeInput('bk',v=>S.box.back=Math.max(0,v));
 sizeInput('pw',v=>S.plate.w=Math.max(100,v),true);sizeInput('ph',v=>S.plate.h=Math.max(100,v),true);
 sizeInput('dw',v=>S.door.w=Math.max(100,v));sizeInput('dh',v=>S.door.h=Math.max(100,v));
-sizeInput('hy',v=>S.hinge=v);sizeInput('fl',v=>S.fillLimit=Math.min(100,Math.max(5,v)));
+sizeInput('hy',v=>S.hinge=v);
+$('dm').onchange=e=>{
+  const v=e.target.value,n=S.devices.filter(d=>d.sheet==='door').length;
+  if(v==='none'&&n){toast(`面板上還有 ${n} 個器具，請先移走或刪除`);e.target.value=S.doorMode||'door';return;}
+  S.doorMode=v;commit();e.target.blur();recompute();if(!view.manual)fit();renderList();
+};sizeInput('fl',v=>S.fillLimit=Math.min(100,Math.max(5,v)));
 $('issues').addEventListener('click',e=>{
   const b=e.target.closest('[data-iss]');if(!b)return;const x=ISSUES[Number(b.dataset.iss)];if(!x)return;
   if(x.k==='wire'){if(mode!=='wire')setMode('wire');picked=null;sel=x.id;}
@@ -377,7 +382,7 @@ $('palette').addEventListener('click',e=>{
     const base=resolveTpl(b.dataset.add);let i=1;while(S.devices.some(d=>d.id===base.pre+i))i++;
     const zp=picked&&picked.k==='zone'&&S.fields.find(z=>z.id===picked.id),pd=picked&&picked.k==='dev'&&devOf(picked.id);
     const zone=zp||(pd&&pd.sheet==='field'&&zoneOf(pd))||S.fields[0];
-    const id=base.pre+i,sheet=base.sheet||'plate',R=sheet==='field'?zone:sheetRect(sheet),d={id,tag:id,tpl:b.dataset.add,sheet,x:0,y:0};
+    const id=base.pre+i,sheet=base.sheet==='door'&&!useDoor()?'plate':base.sheet||'plate',R=sheet==='field'?zone:sheetRect(sheet),d={id,tag:id,tpl:b.dataset.add,sheet,x:0,y:0};
     if(base.gen) d.count=base.cnt;
     const t=resolveTpl(b.dataset.add,d.count);
     d.x=Math.round((R.x+R.w/2-t.w/2)/5)*5;d.y=Math.round((R.y+R.h/2-t.h/2)/5)*5;

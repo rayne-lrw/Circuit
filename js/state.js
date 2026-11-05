@@ -61,7 +61,12 @@ function zoneOf(d){
 }
 const devRef=d=>d.sheet==='field'?(zoneOf(d)||sheetRect('field')):sheetRect(d.sheet);
 const inZone=(z,d)=>{if(d.sheet!=='field')return false;const t=tplOf(d);return inR({x:d.x+t.w/2,y:d.y+t.h/2},z);};
-const sheetAt=p=>inR(p,sheetRect('door'))?'door':zoneAt(p)?'field':'plate';
+/* 面板模式：door 門板（比箱體小會警告、做關門碰撞檢查）、console 獨立操作台（不檢查）、none 不使用 */
+const useDoor=()=>S.doorMode!=='none';
+const isDoorPanel=()=>!S.doorMode||S.doorMode==='door';
+const doorTitle=()=>S.doorMode==='console'?'操作台':'面板內側（開門攤平）';
+const doorShort=()=>S.doorMode==='console'?'操作台':'面板';
+const sheetAt=p=>useDoor()&&inR(p,sheetRect('door'))?'door':zoneAt(p)?'field':'plate';
 const boxBottom=()=>boxOrigin().y+S.box.h;
 const wireKind=w=>{const a=devOf(w.a.d),b=devOf(w.b.d);if(!a||!b)return 'in';if(a.sheet==='field'||b.sheet==='field')return 'ext';if(a.sheet==='door'||b.sheet==='door')return 'door';return 'in';};
 const KINDS={in:'箱內',door:'過門',ext:'外線'};
