@@ -89,8 +89,10 @@ function clean(pts,A,B){
   }
   return true;
 }
-function routeLeg(A,B,J){
+function routeLeg(A,B,J,noDuct){
   if(A.sheet!==B.sheet) return {direct:true,pts:directPts(A,B)};
+  // 指定不進線槽（例如動力線直接拉）：直接連到下一點，穿過其他器具時提示
+  if(noDuct){const d=directPts(A,B);return {direct:true,pts:d,warn:A.sheet==='plate'&&!clean(d,A,B)?'直接拉線穿過其他器具':null};}
   if(!A.inDuct&&!B.inDuct&&!A.must&&!B.must){
     const d=directPts(A,B), ok=clean(d,A,B), m=Math.abs(A.x-B.x)+Math.abs(A.y-B.y);
     if(ok&&(!(A.dev&&B.dev)||m<=95)) return {direct:true,pts:d};
@@ -229,7 +231,7 @@ function computeRoutes(){
   const center_=(_,d)=>center(d);
   const items=S.wires.map(w=>{
     const anchors=buildAnchors(endpoint(w.a,off(w.a)),endpoint(w.b,off(w.b)),w.wps,ctr,w.gland);
-    const legs=[];for(let i=0;i<anchors.length-1;i++) legs.push(routeLeg(anchors[i],anchors[i+1],J));
+    const legs=[];for(let i=0;i<anchors.length-1;i++) legs.push(routeLeg(anchors[i],anchors[i+1],J,!!w.direct));
     return {w,anchors,legs,first:realize(w.id,anchors,legs,center_)};
   });
   // 線道分配
@@ -291,10 +293,10 @@ function computeRoutes(){
   }
   ISSUES=computeIssues();
 }
-function previewPts(a,wps,end){
+function previewPts(a,wps,end,noDuct){
   const J=junctions();
   const anchors=buildAnchors(endpoint(a,0),end,wps,{h:0,g:0,hn:1},null);
-  const legs=[];for(let i=0;i<anchors.length-1;i++) legs.push(routeLeg(anchors[i],anchors[i+1],J));
+  const legs=[];for(let i=0;i<anchors.length-1;i++) legs.push(routeLeg(anchors[i],anchors[i+1],J,noDuct));
   return simplify(realize('_',anchors,legs,(_,d)=>center(d)).pts);
 }
 

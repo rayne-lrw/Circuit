@@ -62,6 +62,7 @@ function normalize(o){
     if(typeof w.hex==='string'&&/^#[0-9a-fA-F]{6}$/.test(w.hex)){r.hex=w.hex;r.cname=txt(w.cname||'自訂',8);}
     if(w.ext&&typeof w.ext==='object') r.ext={cable:txt(w.ext.cable,12),core:txt(w.ext.core,10),spec:cleanSpec(w.ext.spec)};
     if(safe(w.gland)) r.gland=w.gland;
+    if(w.direct===true) r.direct=true;
     return r;
   });
   const plate={w:Math.max(100,num(o.plate&&o.plate.w,600)),h:Math.max(100,num(o.plate&&o.plate.h,800))};

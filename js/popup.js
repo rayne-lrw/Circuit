@@ -27,7 +27,9 @@ function fillPop(){
   <div><h3>線徑 mm²</h3>${gaugeChips(last.gauge,'pg','pn')}</div>
   <div><h3>顏色</h3>${colorChips(last.color,'pn')}</div>
   <p class="note">${esc(stockMsg(last.gauge,last.color))}。臨時顏色重新整理後會從選單移除，已接的線顏色不變。</p>
+  <label class="check"><input type="checkbox" id="pDirect"${last.direct?' checked':''}>不進線槽（直接拉線，例如動力線）</label>
   <div class="row"><button class="tool" id="popNo">取消</button><button class="primary" id="popOk">建立</button></div>`;
+  $('pDirect').onchange=e=>{last.direct=e.target.checked;renderOverlay();};
   if(ex){$('pCable').oninput=e=>draft.ext.cable=e.target.value;$('pCore').oninput=e=>draft.ext.core=e.target.value;$('pSpec').onchange=e=>draft.ext.spec=e.target.value;}
 }
 function closePop(){$('pop').hidden=true;}
@@ -35,6 +37,7 @@ function finishWire(){
   const n=S.nextNo++;
   const w={id:'w'+n+'_'+Date.now().toString(36),no:'W'+String(n).padStart(3,'0'),a:draft.a,b:draft.end,wps:draft.wps,gauge:last.gauge,color:last.color};
   applyColor(w,last.color);
+  if(last.direct) w.direct=true;
   if(draftIsExt()) w.ext={cable:draft.ext.cable,core:draft.ext.core,spec:draft.ext.spec};
   S.wires.push(w);draft=null;closePop();sel=w.id;commit();recompute();
 }

@@ -78,15 +78,17 @@ function renderDetail(){
     const c=colorOf(w),kind=wireKind(w);
     box.hidden=false;
     box.innerHTML=`<div class="big"><span class="sw" style="background:${swatch(c)}"></span> ${w.no}　${esc(c.n)}　${w.gauge} mm²　${KINDS[kind]}</div>
-    <dl><dt>起點</dt><dd>${esc(epText(w.a))}</dd><dt>終點</dt><dd>${esc(epText(w.b))}</dd><dt>路徑</dt><dd>${r.via.length?esc(r.via.join(' → ')):'直接跨接'}${r.gland?' → '+esc(r.gland):''}</dd><dt>中繼點</dt><dd>${w.wps.length} 個</dd><dt>圖面線長</dt><dd>${(r.len/1000).toFixed(2)} m</dd></dl>
+    <dl><dt>起點</dt><dd>${esc(epText(w.a))}</dd><dt>終點</dt><dd>${esc(epText(w.b))}</dd><dt>路徑</dt><dd>${w.direct?'不進線槽，直接拉線':r.via.length?esc(r.via.join(' → ')):'直接跨接'}${r.gland?' → '+esc(r.gland):''}</dd><dt>中繼點</dt><dd>${w.wps.length} 個</dd><dt>圖面線長</dt><dd>${(r.len/1000).toFixed(2)} m</dd></dl>
     ${r.warn?`<span class="flag">${esc(r.warn)}：請加中繼點或調整線槽</span>`:''}
     ${kind==='ext'?`<div class="fields"><label for="xCable">電纜編號<input id="xCable" maxlength="12" value="${esc((w.ext&&w.ext.cable)||'')}"></label><label for="xCore">芯線<input id="xCore" maxlength="10" value="${esc((w.ext&&w.ext.core)||'')}"></label>
       <label for="xSpec" style="grid-column:1/-1">電纜規格<select id="xSpec">${cableOptions(w.ext&&w.ext.spec)}</select></label>
       <label for="xGland" style="grid-column:1/-1">出線口<select id="xGland"><option value="">自動選最近</option>${S.glands.map(g=>`<option value="${g.id}"${w.gland===g.id?' selected':''}>${esc(g.id)}</option>`).join('')}</select></label></div>`:''}
+    <label class="check"><input type="checkbox" id="wDirect"${w.direct?' checked':''}>不進線槽（直接拉線，可加中繼點調整路徑）</label>
     <div><div class="sub-h">線徑 mm²</div>${gaugeChips(w.gauge,'dg','dn')}</div>
     <div><div class="sub-h">顏色</div>${colorChips(w.color,'dn',w)}</div>
     <p class="note">${esc(stockMsg(w.gauge,w.color))}</p>
     <div class="row">${w.wps.length?'<button class="tool" id="clearWp">清除中繼點</button>':''}<button class="tool danger" id="delWire">刪除這條線</button></div>`;
+    $('wDirect').onchange=e=>{if(e.target.checked)w.direct=true;else delete w.direct;commit();recompute();};
     if(kind==='ext'){
       const upd=(fn)=>e=>{w.ext=w.ext||{cable:'',core:'',spec:''};fn(e.target.value);commit();recompute();};
       $('xCable').onchange=upd(v=>w.ext.cable=v.slice(0,12));$('xCore').onchange=upd(v=>w.ext.core=v.slice(0,10));$('xSpec').onchange=upd(v=>w.ext.spec=v);

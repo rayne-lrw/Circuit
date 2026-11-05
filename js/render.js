@@ -162,7 +162,7 @@ function renderOverlay(){
   if(draft){
     const a=draft.a,wps=draft.wps;
     const end=draft.end?endpoint(draft.end,0):snap?{x:snap.x,y:snap.y,side:snap.side,dev:snap.d,sheet:devOf(snap.d).sheet}:wpAnchor(cursor);
-    const pts=previewPts(a,wps,end);
+    const pts=previewPts(a,wps,end,draft.pop&&last.direct);
     if(draft.pop){const col=keyColor(last.color);h+=`<path d="${pathD(pts)}" fill="none" stroke="${col.k}" stroke-width="${gw(last.gauge)+.9}"/><path d="${pathD(pts)}" fill="none" stroke="${col.c}" stroke-width="${gw(last.gauge)}"/>`;}
     else h+=`<path class="draft" d="${pathD(pts)}"/>`;
     wps.forEach(p=>h+=`<circle class="wp" cx="${p.x}" cy="${p.y}" r="${4/k}"/>`);
