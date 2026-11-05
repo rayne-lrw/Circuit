@@ -111,6 +111,8 @@ select.flash{outline:2px solid var(--accent);outline-offset:1px}
 .newc input[type=color]{width:34px;height:28px;padding:1px;border:1px solid var(--line);border-radius:5px;background:var(--panel-2)}
 .newc input:not([type=color]){border:1px solid var(--line);background:var(--panel-2);border-radius:5px;padding:4px 6px;width:100%;font-size:12.5px}
 .newc .tool{padding:4px 8px;font-size:12.5px}
+.newc.newg{grid-template-columns:minmax(0,1fr) auto auto}
+.newg input{font-family:var(--mono)}
 .revert{display:flex;flex-direction:column;gap:6px;align-items:flex-start;background:var(--warn-bg);border-radius:6px;padding:8px}
 #edSlotNote{background:var(--warn-bg);color:var(--fg);border-radius:6px;padding:8px 10px}
 #edSlotNote b{color:var(--warn)}

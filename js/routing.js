@@ -80,11 +80,12 @@ function directPts(A,B){
   if(bv) return [A,{x:B.x,y:A.y},B];
   return [A,{x:B.x,y:A.y},B];
 }
-function clean(pts,A,B){
+// loose：每一段都不把起訖兩端的器具算成阻擋（直接拉線時，轉角那段會進到終點器具裡）
+function clean(pts,A,B,loose){
   const fa=A.dev?famIds(A.dev):[],fb=B.dev?famIds(B.dev):[];
   for(let i=0;i<pts.length-1;i++){
     const last=i===pts.length-2,first=i===0;
-    const skip=first&&last?[...fa,...fb]:first?fa:last?fb:[];
+    const skip=loose||first&&last?[...fa,...fb]:first?fa:last?fb:[];
     if(segHits(pts[i].x,pts[i].y,pts[i+1].x,pts[i+1].y,skip)) return false;
   }
   return true;
@@ -92,7 +93,7 @@ function clean(pts,A,B){
 function routeLeg(A,B,J,noDuct){
   if(A.sheet!==B.sheet) return {direct:true,pts:directPts(A,B)};
   // 指定不進線槽（例如動力線直接拉）：直接連到下一點，穿過其他器具時提示
-  if(noDuct){const d=directPts(A,B);return {direct:true,pts:d,warn:A.sheet==='plate'&&!clean(d,A,B)?'直接拉線穿過其他器具':null};}
+  if(noDuct){const d=directPts(A,B);return {direct:true,pts:d,warn:A.sheet==='plate'&&!clean(d,A,B,true)?'直接拉線穿過其他器具':null};}
   if(!A.inDuct&&!B.inDuct&&!A.must&&!B.must){
     const d=directPts(A,B), ok=clean(d,A,B), m=Math.abs(A.x-B.x)+Math.abs(A.y-B.y);
     if(ok&&(!(A.dev&&B.dev)||m<=95)) return {direct:true,pts:d};
