@@ -98,7 +98,7 @@ svg.addEventListener('pointermove',e=>{
     if(picked.k==='duct'&&o.sheet==='field') o.sheet='plate';
     railHit=null;
     if(picked.k==='dev'&&!isRail(o)){
-      if(attachOf(o)){if(e.altKey)delete o.on;else railHit=hostSnap(o,p.x-act.ox,p.y-act.oy);}
+      if(attachOf(o)){if(e.altKey)delete o.on;else railHit=hostSnap(o,p.x-act.ox,p.y-act.oy);if(!o.on&&attachOf(o)==='below')delete o.rot;}
       else if(!e.altKey) railHit=railSnap(o,p.x-act.ox,p.y-act.oy);
     }
     if(act.mounted) act.mounted.forEach(m=>{m.d.x=r1(o.x+m.dx);m.d.y=r1(o.y+m.dy);m.d.sheet=o.sheet;});
@@ -542,7 +542,7 @@ $('detail').addEventListener('click',e=>{
   if(b.id==='delWire'||b.id==='delPicked'){deleteSel();return;}
   if(b.dataset.mv){moveBy(b.dataset.mv,true);return;}
   if(b.id==='rotDev'){rotatePicked();return;}
-  if(b.id==='detachAux'){const d=devOf(picked.id),h=d&&devOf(d.on);if(!h)return;delete d.on;d.x=r1(h.x+tplOf(h).w+10);commit();recompute();toast(`已把 ${d.tag} 從 ${h.tag} 拆下`);return;}
+  if(b.id==='detachAux'){const d=devOf(picked.id),h=d&&devOf(d.on);if(!h)return;delete d.on;if(attachOf(d)==='below')delete d.rot;d.x=r1(h.x+tplOf(h).w+10);commit();recompute();toast(`已把 ${d.tag} 從 ${h.tag} 拆下`);return;}
   if(b.id==='slotRevert'){const d=devOf(picked.id),src=slotSource(d);if(!src)return;revertSlots(d,src);commit();recompute();renderPalette();toast(`已換回 ${TPL[src].n}，可以每片填端子號；可按復原`);return;}
   if(b.id==='slotSeq'||b.id==='slotClr'){
     const d=devOf(picked.id),n=d.count||resolveTpl(d.tpl).cnt,f=Math.round(Number($('slotFrom').value)||1);

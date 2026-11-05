@@ -79,7 +79,19 @@ const riders=d=>S.devices.filter(x=>x.on===d.id);
 // 附件種類：front 疊在接觸器正面中央（深度相加）；below 掛在伺服驅動器下方（深度不相加）
 const attachOf=d=>tplOf(d).attach||null;
 function hostOk(h,o){if(!h||h===o||h.on||h.sheet!==o.sheet)return false;const t=tplOf(h);if(t.attach||t.noOv)return false;return attachOf(o)==='below'?t.cat===C5:t.cat===C2;}
-function placeOn(r,h){const t=tplOf(r),ht=tplOf(h);if(attachOf(r)==='below'){r.x=r1(h.x+Math.min(6,Math.max(0,ht.w-t.w)));r.y=r1(h.y+ht.h);}else{r.x=r1(h.x+(ht.w-t.w)/2);r.y=r1(h.y+(ht.h-t.h)/2);}}
+// 伺服電池的安裝位置：預設掛在下方距左緣 6 mm（MR-J4-200B 外型圖）；
+// MR-J4-700B 依外型圖裝在正面右側 CN2L、CN4 附近，轉成直的
+const BAT_AT={j4700:{x:147,y:155,rot:90}};
+const batFront=(r,h)=>attachOf(r)==='below'&&!!BAT_AT[h.tpl];
+function placeOn(r,h){
+  const ht=tplOf(h);
+  if(attachOf(r)==='below'){
+    const a=BAT_AT[h.tpl];
+    if(a&&a.rot)r.rot=a.rot;else delete r.rot;
+    const t=tplOf(r);
+    if(a){r.x=r1(h.x+a.x);r.y=r1(h.y+a.y);}else{r.x=r1(h.x+Math.min(6,Math.max(0,ht.w-t.w)));r.y=r1(h.y+ht.h);}
+  }else{const t=tplOf(r);r.x=r1(h.x+(ht.w-t.w)/2);r.y=r1(h.y+(ht.h-t.h)/2);}
+}
 const famIds=id=>{const d=devOf(id);if(!d)return [id];return [d.id,...(d.on?[d.on]:[]),...riders(d).map(r=>r.id)];};
 const effDepth=d=>tplOf(d).d+Math.max(0,...riders(d).filter(r=>attachOf(r)==='front').map(r=>tplOf(r).d));
 /* 器具編號：d.tag 是顯示用、可以改；d.id 是內部識別，導線用它接，改編號不影響接線 */
