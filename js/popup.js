@@ -1,0 +1,53 @@
+"use strict";
+/* ---------- 建線彈窗 ---------- */
+const draftIsExt=()=>draft&&draft.end&&(devOf(draft.a.d).sheet==='field'||devOf(draft.end.d).sheet==='field');
+function nextCable(){let i=1;while(S.wires.some(w=>w.ext&&w.ext.cable==='C'+String(i).padStart(2,'0')))i++;return 'C'+String(i).padStart(2,'0');}
+function openPop(){
+  draft.pop=true;
+  if(draftIsExt()){
+    const fd=devOf(draft.a.d).sheet==='field'?draft.a:draft.end;
+    const sameDev=S.wires.find(w=>w.ext&&wireKind(w)==='ext'&&(w.a.d===fd.d||w.b.d===fd.d));
+    draft.ext={cable:sameDev?sameDev.ext.cable:nextCable(),core:fd.t,spec:sameDev?sameDev.ext.spec:''};
+  }
+  const pop=$('pop'),st=$('stage').getBoundingClientRect();
+  fillPop();
+  pop.hidden=false;
+  const pw=pop.offsetWidth,ph=pop.offsetHeight;
+  let x=cursor.sx+18,y=cursor.sy-ph/2;
+  if(x+pw>st.width-8) x=cursor.sx-pw-18;
+  x=Math.max(8,Math.min(x,st.width-pw-8));y=Math.max(8,Math.min(y,st.height-ph-8));
+  pop.style.left=x+'px';pop.style.top=y+'px';
+  $('popOk').focus();
+  snap=null;renderOverlay();updateHint();
+}
+function fillPop(){
+  const ex=draftIsExt();
+  $('pop').innerHTML=`<div class="ends">${esc(draft.a.d)}·${esc(draft.a.t)} → ${esc(draft.end.d)}·${esc(draft.end.t)}${draft.wps.length?`（${draft.wps.length} 中繼點）`:''}${ex?'　外線':''}</div>
+  ${ex?`<div class="fields"><label for="pCable">電纜編號<input id="pCable" maxlength="12" value="${esc(draft.ext.cable)}"></label><label for="pCore">芯線<input id="pCore" maxlength="10" value="${esc(draft.ext.core)}"></label><label for="pSpec" style="grid-column:1/-1">電纜規格<select id="pSpec">${cableOptions(draft.ext.spec)}</select></label></div>`:''}
+  <div><h3>線徑 mm²</h3><div class="chips">${GAUGES.map(([g])=>`<button class="chip" data-pg="${g}" aria-pressed="${last.gauge===g}">${g}</button>`).join('')}</div></div>
+  <div><h3>顏色</h3>${colorChips(last.color,'pn')}</div>
+  <p class="note">${esc(stockMsg(last.gauge,last.color))}。臨時顏色重新整理後會從選單移除，已接的線顏色不變。</p>
+  <div class="row"><button class="tool" id="popNo">取消</button><button class="primary" id="popOk">建立</button></div>`;
+  if(ex){$('pCable').oninput=e=>draft.ext.cable=e.target.value;$('pCore').oninput=e=>draft.ext.core=e.target.value;$('pSpec').onchange=e=>draft.ext.spec=e.target.value;}
+}
+function closePop(){$('pop').hidden=true;}
+function finishWire(){
+  const n=S.nextNo++;
+  const w={id:'w'+n+'_'+Date.now().toString(36),no:'W'+String(n).padStart(3,'0'),a:draft.a,b:draft.end,wps:draft.wps,gauge:last.gauge,color:last.color};
+  applyColor(w,last.color);
+  if(draftIsExt()) w.ext={cable:draft.ext.cable,core:draft.ext.core,spec:draft.ext.spec};
+  S.wires.push(w);draft=null;closePop();sel=w.id;commit();recompute();
+}
+function cancelDraft(){draft=null;closePop();renderOverlay();updateHint();}
+$('pop').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.newc){last.color=addTemp(b.dataset.newc);fillPop();renderOverlay();$('popOk').focus();return;}
+  if(b.dataset.pg||b.dataset.pc){
+    if(b.dataset.pg) last.gauge=Number(b.dataset.pg);
+    if(b.dataset.pc) last.color=b.dataset.pc;
+    fillPop();renderOverlay();$('popOk').focus();return;
+  }
+  if(b.id==='popOk') finishWire();
+  if(b.id==='popNo') cancelDraft();
+});
+

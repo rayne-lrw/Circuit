@@ -1,0 +1,161 @@
+"use strict";
+/* ---------- 基礎資料 ---------- */
+const GAUGES=[[0.5,.9],[0.75,1.0],[1.25,1.3],[2,1.7],[3.5,2.1],[5.5,2.6],[8,3.1],[14,3.7]];
+const gw=g=>(GAUGES.find(x=>x[0]===g)||[0,1.5])[1];
+const COLORS={
+  white:{n:'白',c:'#fbfbf6',k:'#2b2f2e'}, black:{n:'黑',c:'#17181a',k:'#f5f5ee'}, red:{n:'紅',c:'#d6202c',k:'#3c0a0e'},
+  brown:{n:'棕',c:'#7d4a22',k:'#f0e2d2'}, blue:{n:'藍',c:'#1763d6',k:'#04183a'}, ground:{n:'黃綠',c:'#159a4b',k:'#032a13',stripe:'#f4c400'},
+  green:{n:'綠',c:'#159a4b',k:'#032a13'}, gray:{n:'灰',c:'#7f8785',k:'#1d2120'},
+  // 舊暫存檔可能用到，不列入建線選單
+  yellow:{n:'黃',c:'#f4c400',k:'#3f3300',legacy:true}, orange:{n:'橘',c:'#f0781e',k:'#3f1c02',legacy:true}
+};
+// 臨時顏色只存在這次開啟的頁面，重新整理後選單回到預設；已接的線把色碼存在線上，所以顏色不變。
+const tempColors={};
+function casing(hex){
+  const n=parseInt(hex.slice(1),16),r=n>>16&255,g=n>>8&255,b=n&255;
+  return (0.299*r+0.587*g+0.114*b)>110?'#222725':'#f4f4ee';
+}
+const keyColor=k=>tempColors[k]||COLORS[k]||COLORS.black;
+const colorOf=w=>w.hex?{n:w.cname||'自訂',c:w.hex,k:casing(w.hex)}:(COLORS[w.color]||COLORS.black);
+function applyColor(w,key){
+  const t=tempColors[key];w.color=key;
+  if(t){w.hex=t.c;w.cname=t.n;}else if(COLORS[key]){delete w.hex;delete w.cname;}
+}
+function addTemp(pre){
+  const hex=$(pre+'Hex').value.toLowerCase(),name=$(pre+'Name').value.trim().slice(0,8)||'自訂';
+  const key='x'+hex.slice(1);tempColors[key]={n:name,c:hex,k:casing(hex)};return key;
+}
+function colorChips(cur,pre,w){
+  const items=[...Object.entries(COLORS).filter(([,c])=>!c.legacy),...Object.entries(tempColors)];
+  if(w&&!items.some(([k])=>k===w.color)) items.push([w.color,colorOf(w)]);
+  return `<div class="chips">${items.map(([k,c])=>`<button class="chip color" data-pc="${k}" aria-pressed="${cur===k}"><span class="sw" style="background:${swatch(c)}"></span>${esc(c.n)}</button>`).join('')}</div>
+  <div class="newc"><input type="color" id="${pre}Hex" value="#8e44ad" aria-label="選擇新顏色"><input id="${pre}Name" maxlength="8" placeholder="顏色名稱（可不填）" aria-label="顏色名稱"><button class="tool" data-newc="${pre}">新增</button></div>`;
+}
+const OD={0.5:2.4,0.75:2.8,1.25:3.2,2:3.6,3.5:4.2,5.5:5,8:5.8,14:7.6}; // 導線外徑估算值，用來算線槽占用率
+/* ---------- 接點排列工具 ---------- */
+const pole=(ids,xs,y,side,desc)=>ids.map((id,i)=>[id,xs[i],y,side,desc]);
+function row(ids,y,side,w,desc,m=7){const n=ids.length;return ids.map((id,i)=>[id,n===1?w/2:m+(w-2*m)*i/(n-1),y,side,desc]);}
+function nfb(w,h){const xs=[w*.18,w*.5,w*.82];return [...pole(['1','3','5'],xs,10,'top','電源側'),...pole(['2','4','6'],xs,h-10,'bottom','負載側')];}
+function brk(p,h){const w=18*p,xs=[...Array(p)].map((_,i)=>9+18*i);const up=['1','3','5','7'].slice(0,p),dn=['2','4','6','8'].slice(0,p);return [...pole(up,xs,7,'top','電源側'),...pole(dn,xs,h-7,'bottom','負載側')];}
+function mc(h,w=45){const k=w/45,xs=[12*k,22.5*k,33*k];return [...pole(['L1','L2','L3'],xs,7,'top','主接點'),['A1',5,18,'top','線圈'],['13',w-5,18,'top','常開輔助'],
+  ...pole(['T1','T2','T3'],xs,h-7,'bottom','主接點'),['A2',5,h-18,'bottom','線圈'],['14',w-5,h-18,'bottom','常開輔助']];}
+function mc4(h,w){const xs=[8,18,w-18,w-8];return [...pole(['1','3','R1','R3'],xs,7,'top','主接點'),['A1',5,18,'top','線圈'],...pole(['2','4','R2','R4'],xs,h-7,'bottom','主接點'),['A2',5,h-18,'bottom','線圈']];}
+function tor(h){const xs=[12,22.5,33];return [...pole(['L1','L2','L3'],xs,7,'top','主迴路入'),...pole(['T1','T2','T3'],xs,h-7,'bottom','主迴路出'),['95',5,h-16,'bottom','常閉接點'],['96',40,h-16,'bottom','常閉接點']];}
+function strip(n){const t=[];for(let i=1;i<=n;i++){const x=4+6*i-3;t.push([i+'上',x,8,'top','端子 '+i]);t.push([i+'下',x,52,'bottom','端子 '+i]);}return t;}
+function wago4(n){const t=[];for(let i=1;i<=n;i++){const x=1+5.2*(i-.5);t.push([i+'A',x-1,6,'top','端子 '+i+' 上']);t.push([i+'B',x+1,13,'top','端子 '+i+' 上']);t.push([i+'C',x-1,57,'bottom','端子 '+i+' 下']);t.push([i+'D',x+1,64,'bottom','端子 '+i+' 下']);}return t;}
+function wago2(n){const t=[];for(let i=1;i<=n;i++){const x=1+5.2*(i-.5);t.push([i+'A',x,6,'top','端子 '+i+' 上']);t.push([i+'C',x,42.5,'bottom','端子 '+i+' 下']);}return t;}
+function nterm(n,pitch,h,side,y){const t=[];for(let i=1;i<=n;i++)t.push([String(i),pitch*(i-.5),y,side,'第 '+i+' 點']);return t;}
+// 依外型圖與照片：接點位置對到實物的區塊與順序，不追求接點間的精確距離
+function deca(w,h){return [...row(['L1','L2','L3'],7,'top',w,'主接點',9),['13',w*.3,20,'top','常開輔助'],['21',w*.55,20,'top','常閉輔助'],['A1',w*.82,20,'top','線圈'],...row(['T1','T2','T3'],h-7,'bottom',w,'主接點',9),['14',w*.3,h-20,'bottom','常開輔助'],['22',w*.55,h-20,'bottom','常閉輔助'],['A2',w*.82,h-20,'bottom','線圈']];}
+function sockMY(w,h,top,up,lo,bot){
+  const rowAt=(ids,y,side,desc,sh)=>ids.map((id,i)=>[id,w*(i+.5)/ids.length+sh,y,side,desc]);
+  return [...rowAt(top,8,'top','接點',-1.2),...rowAt(up,18,'top','接點',1.2),...rowAt(lo,h-18,'bottom','共點',-1.2),...rowAt(bot,h-8,'bottom','線圈',1.2)];
+}
+const SOCK8=sockMY(23,72,['4','1'],['8','5'],['12','9'],['14','13']);
+const SOCK14=sockMY(31,72,['4','3','2','1'],['8','7','6','5'],['12','11','10','9'],['14','13']);
+const SENS3=[['棕',10,8,'top','+24V'],['藍',25,8,'top','0V'],['黑',40,8,'top','輸出']];
+const LOOK={dark:['#2f3437','#f1f2ee'],mid:['#54595b','#f1f2ee'],gray:['#a9adaa','#15181a'],light:['#e3e1d6','#23211a'],blue:['#2c3f4e','#eef3f5'],red:['#7a2a2a','#fff3f1'],steel:['#8e9794','#10140f']};
+/* ---------- 器具庫：[inv, 分類, 廠牌, 名稱, 寬, 高, 深, 字首, 外殼, 接點, 其他] 尺寸為參考值 ---------- */
+const TPL={};
+function def(id,inv,cat,b,n,w,h,d,pre,look,terms,x={}){TPL[id]={inv:[].concat(inv||[]),cat,b,n,w,h,d,pre,f:LOOK[look][0],i:LOOK[look][1],t:terms,sheet:x.sheet||'plate',gen:x.gen||null,cnt:x.cnt||null,cntLabel:x.cntLabel||null,noOv:!!x.noOv,round:!!x.round,legacy:!!x.legacy,note:x.note||''};}
+const C1='斷路器',C2='電磁接觸器',C3='繼電器／計時',C4='PLC',C5='伺服驅動',C6='電源／濾波',C7='端子台／接地',C8='網路／插座',C9='其他元件',D1='面板：按鈕與顯示',F1='現場：馬達',F2='現場：感測器',F3='現場：接線盒與其他';
+def('fuji-bw50',null,C1,'FUJI','BW50EAG 3P50A',75,100,84,'Q','dark',[...pole(['1','3','5'],[12.5,37.5,62.5],10,'top','電源側'),...pole(['2','4','6'],[12.5,37.5,62.5],90,'bottom','負載側')]);
+[['3P40A',3],['3P16A',3],['3P4A',3],['2P4A',2],['1P6A',1],['1P4A',1],['1P2A',1],['1P1A',1]].forEach(([r,p])=>def('ic60-'+r,null,C1,'施耐德','iC60N '+r,18*p,85,78.5,'Q','light',brk(p,85)));
+def('gv2me16',null,C1,'施耐德','GV2ME16 9-14A',45,89,78.5,'QM','dark',nfb(45,89));
+def('gv2me32',null,C1,'施耐德','GV2ME32 24-32A',45,89,78.5,'QM','dark',nfb(45,89));
+def('lc1d09',null,C2,'施耐德','LC1D09BL DC24V',45,77,95,'K','dark',deca(45,77));
+def('lc1d18',null,C2,'施耐德','LC1D18BL DC24V',45,77,95,'K','dark',deca(45,77));
+def('lc1d38',null,C2,'施耐德','LC1D38BL DC24V',45,85,101,'K','dark',deca(45,85));
+def('lc1d258',null,C2,'施耐德','LC1D258BL DC24V 2NO+2NC',45,91,107,'K','dark',[...row(['1','R1','R3','3'],7,'top',45,'主接點',7),['A1',37,20,'top','線圈'],...row(['2','R2','R4','4'],84,'bottom',45,'主接點',7),['A2',37,71,'bottom','線圈']]);
+def('ladn40',null,C2,'施耐德','LADN40 輔助 4A',45,42,41,'KX','mid',[...row(['53','63','73','83'],7,'top',45,'常開'),...row(['54','64','74','84'],35,'bottom',45,'常開')],{note:'實際裝在接觸器正面'});
+def('cu11',null,C2,'TECO','CU-11 AC220V',45,70,82,'K','light',[...pole(['L1','L2','L3','13'],[6.75,17.25,27.75,38.25],7,'top','主接點／輔助'),...pole(['T1','T2','T3','14'],[6.75,17.25,27.75,38.25],63,'bottom','主接點／輔助'),['A1',4,24,'top','線圈'],['A2',4,46,'bottom','線圈']],{note:'線圈接點位置未從照片確認'});
+def('sp16',null,C2,'士林','S-P16 AC220V',53,81,83.5,'K','light',[...pole(['L1','L2','L3'],[9,21,33],10,'top','主接點'),['A2',16,3,'top','線圈'],['A1',28,3,'top','線圈'],['13',46,8,'top','常開輔助'],['21',46,18,'top','常閉輔助'],...pole(['T1','T2','T3'],[9,21,33],71,'bottom','主接點'),['14',46,63,'bottom','常開輔助'],['22',46,73,'bottom','常閉輔助']]);
+def('my2n-24',null,C3,'OMRON','MY2N DC24V＋PYF08A 座',23,72,66,'KA','blue',SOCK8,{note:'台製座的接點編號以實物為準'});
+def('my2n-220',null,C3,'OMRON','MY2N AC220V＋PYF08A 座',23,72,66,'KA','blue',SOCK8,{note:'台製座的接點編號以實物為準'});
+def('pyf14a',null,C3,'OMRON','PYF14A 座（MY4 用）',31,72,66,'KA','blue',SOCK14);
+def('ly4n',null,C3,'OMRON','LY4N-J DC24V＋PTF14A 座',45.5,78.5,65,'KA','blue',sockMY(45.5,78.5,['4','3','2','1'],['8','7','6','5'],['12','11','10','9'],['14','13']),{note:'清單沒有這個座，尺寸與接點依 PTF14A'});
+def('ly2j',null,C3,'OMRON','LY2J＋PTF08A 座',28.5,78.5,65,'KA','blue',sockMY(28.5,78.5,['4','1'],['6','3'],['5','2'],['8','7']),{note:'清單沒有這個座，尺寸與接點依 PTF08A'});
+def('fotek',null,C3,'FOTEK','MY-6S-2P 計時 6s AC220V',23,72,80,'T','mid',SOCK8,{note:'接點依 MY 座推定'});
+def('g6d',null,C3,'bore','G6D-OC16V 繼電器模組 16P',121.3,86,40,'RM','steel',[...row(['C+','C-','1','2','3','4','5','6','7','8'],8,'top',121.3,'輸出',6),...row(['9','10','11','12','13','14','15','16'],78,'bottom',121.3,'輸出',6)],{note:'尺寸依同型商品圖'});
+def('pnoz',null,C3,'PILZ','PNOZ X2.8P 安全繼電器',22.5,94,121,'SR','light',[...row(['A1','13','23','33'],6,'top',22.5,'電源／安全接點',3),...row(['S33','S34','41','42'],14,'top',22.5,'回授／輔助',4),...row(['S11','S12','S21','S22'],80,'bottom',22.5,'輸入',4),...row(['A2','14','24','34'],88,'bottom',22.5,'電源／安全接點',3)]);
+const FX5U_I=['L','N','FG','S/S','0V','24V',...['0','1','2','3','4','5','6','7','10','11','12','13','14','15','16','17'].map(x=>'X'+x)];
+const FX5U_O=['COM0','Y0','Y1','Y2','Y3','COM1','Y4','Y5','Y6','Y7','COM2','Y10','Y11','Y12','Y13','COM3','Y14','Y15','Y16','Y17'];
+def('fx5u32',null,C4,'三菱','FX5U-32MT/ES',150,90,83,'PLC','dark',[...row(FX5U_I,8,'top',150,'輸入／電源',5),...row(FX5U_O,82,'bottom',150,'輸出',5)]);
+def('fx516ex',null,C4,'三菱','FX5-16EX/ES 16IN',40,90,83,'EX','dark',[...row(['S/S','0','1','2','3','4','5','6','7'],8,'top',40,'輸入',3),...row(['10','11','12','13','14','15','16','17'],82,'bottom',40,'輸入',3)]);
+def('fx54ad',null,C4,'三菱','FX5-4AD-ADP 4CH 類比',17.6,106,74,'AD','dark',[...row(['24+','24-','V1+','I1+','COM1'],8,'top',17.6,'',2),...row(['V2+','I2+','COM2','V3+','COM3'],98,'bottom',17.6,'',2)]);
+def('fx540ssc',null,C4,'三菱','FX5-40SSC-S 4軸運動',50,90,83,'SSC','dark',[...row(['24V','0V','FG'],8,'top',50,'電源',8),['SSCNET',25,62,'bottom','正面接頭'],['IO',25,72,'bottom','正面接頭']]);
+const SVT=['L1','L2','L3','P+','C','D','L11','L21'],SVB=['U','V','W','PE','CN1A','CN1B','CN2','CN3','CN4'];
+def('j4700',null,C5,'三菱','MR-J4-700B 7kW',172,300,200,'SV','blue',[...row(['L1','L2','L3','P+','C','D','U','V','W','PE'],288,'bottom',172,'主迴路（下方端子台）',12),...row(['L11','L21'],268,'bottom',172,'控制電源',12).map(t=>[t[0],t[1]*.35,t[2],t[3],t[4]]),['CN3',150,40,'right','正面接頭'],['CN1A',150,70,'right','正面接頭'],['CN1B',150,92,'right','正面接頭'],['CN2',150,114,'right','正面接頭'],['CN4',150,136,'right','正面接頭']]);
+def('j4200',null,C5,'三菱','MR-J4-200B 2kW',90,168,195,'SV','blue',[...['L1','L2','L3','N-','P3','P4'].map((id,i)=>[id,6+i*2.4,14+i*6,'top','CNP1']),...['P+','C','D','L11','L21'].map((id,i)=>[id,6+i*2.4,62+i*6,'top','CNP2']),...['U','V','W'].map((id,i)=>[id,6+i*2.4,118+i*7,'bottom','CNP3']),['PE',12,158,'bottom','接地'],['CN3',68,62,'right','正面接頭'],['CN1A',68,90,'right','正面接頭'],['CN1B',68,106,'right','正面接頭'],['CN2',68,126,'right','正面接頭'],['CN4',68,146,'right','正面接頭']],{note:'接點區塊依照片，尺寸未查到資料'});
+def('je40',null,C5,'三菱','MR-JE-40B 400W',50,168,135,'SV','blue',[...row(['L1','L3','P+','C','D','U','V','W','PE'],158,'bottom',50,'CNP1／接地',4),['CN3',34,36,'right','正面接頭'],['CN1A',34,66,'right','正面接頭'],['CN1B',34,84,'right','正面接頭'],['CN2',34,108,'right','正面接頭']]);
+def('drl120',null,C6,'台達','DRL-24V120W 電源',30,123.6,116.8,'PS','steel',[...row(['L','N','FG'],115,'bottom',30,'AC 輸入',6),...row(['+V1','+V2','-V1','-V2'],9,'top',30,'DC 24V',4)]);
+def('fn3270',null,C6,'SCHAFFNER','FN3270H-50 3P50A 濾波',85,170,80,'FL','steel',[...row(['L1','L2','L3','PE'],10,'top',85,'LINE',12),...row(['L1\'','L2\'','L3\'','PE\''],160,'bottom',85,'LOAD',12)]);
+def('fn2010',null,C6,'','FN2010-10-06 2P10A 濾波',85,54,40,'FL','steel',[...row(['L','N','PE'],8,'top',85,'LINE',14),...row(['L\'','N\'','PE\''],46,'bottom',85,'LOAD',14)]);
+def('w2202-1401',null,C7,'WAGO','2202-1401 端子台 2對2',0,69.9,39.5,'X','gray',null,{gen:n=>({w:5.2*n+2,h:69.9,t:wago4(n)}),cnt:12,cntLabel:'片數'});
+def('w2202-1201',null,C7,'WAGO','2202-1201 端子台 1對1',0,48.5,39.5,'X','gray',null,{gen:n=>({w:5.2*n+2,h:48.5,t:wago2(n)}),cnt:10,cntLabel:'片數'});
+def('w2202-1611',null,C7,'WAGO','2202-1611 保險絲端子台',0,48,45,'FU','gray',null,{gen:n=>({w:5.2*n+2,h:48,t:wago2(n)}),cnt:3,cntLabel:'片數'});
+def('nht60',null,C7,'賀電','NHT-60 電木端子台 3P',60,50,35,'TB','dark',[...row(['L1','L2','L3'],8,'top',60,'電源側',10),...row(['T1','T2','T3'],42,'bottom',60,'負載側',10)]);
+def('gnd13',null,C7,'','接地銅板 13P',104,18,15,'E','steel',nterm(13,8,18,'top',9));
+def('gnd15',null,C7,'','接地銅板 15P',120,18,15,'E','steel',nterm(15,8,18,'top',9));
+def('mec10',null,C7,'賀電','MEC-15-53 短路銅片 10P',80,14,8,'E','steel',nterm(10,8,14,'top',7));
+[['231-604 針型 4極',4],['231-104 孔型 4極',4],['231-606 針型 6極',6],['231-106 孔型 6極',6],['231-612 針型 12極',12],['231-112 孔型 12極',12]].forEach(([n,p])=>def('w'+n.slice(0,7),null,C7,'WAGO',n,5*p+2,18,20,'CN','gray',nterm(p,5,18,'top',9)));
+def('w852-111',null,C8,'WAGO','852-111 交換器 5埠 100M',23.4,109.2,73.8,'SW','gray',[...row(['24V','0V'],6,'top',23.4,'電源（上方）',6),...['P1','P2','P3','P4','P5'].map((id,i)=>[id,12,28+i*16,'right','正面網路埠'])]);
+def('w852-1111',null,C8,'WAGO','852-1111 交換器 5埠 1000M',23.4,109.2,73.8,'SW','gray',[...row(['24V','0V'],6,'top',23.4,'電源（上方）',6),...['P1','P2','P3','P4','P5'].map((id,i)=>[id,12,28+i*16,'right','正面網路埠'])]);
+def('ac30',null,C8,'CHNT','AC30-124 軌道插座 16A',54,80,50,'XS','light',row(['L','N','E'],8,'top',54,'',12));
+def('eoab',null,C8,'Phoenix contact','EO-AB 軌道插座 15A',54,80,50,'XS','light',row(['L','N','E'],8,'top',54,'',12));
+def('rxlg',null,C9,'鼎億自動化','RXLG 再生電阻 500W 6.7Ω',60,215,30,'R','steel',row(['P','C'],8,'top',60,'',15));
+def('fan4',null,C9,'GULF海灣電氣','風扇 4" 220V',120,120,38,'FAN','dark',row(['L','N'],10,'top',120,'',40));
+def('h66',null,C9,'','H-66 鋁軌',0,35,8,'RL','steel',null,{gen:n=>({w:n,h:35,t:[]}),cnt:300,cntLabel:'長度 mm',noOv:true});
+const PB=(no)=>[...row(['X1','X2'],6,'top',30,'指示燈',8),...row(no,35,'bottom',30,'接點',8)];
+def('yw1b',null,D1,'IDEC','YW1B-V4E02R 緊急停止 2NC',40,40,46,'ES','red',[...row(['1','2'],8,'top',40,'NC1',10),...row(['1\'','2\''],32,'bottom',40,'NC2',10)],{sheet:'door',round:true});
+def('yw1l-r',null,D1,'IDEC','YW1L 照光按鈕 1NC 紅',30,41.4,46,'PB','red',PB(['1','2']),{sheet:'door',round:true});
+def('yw1l-g',null,D1,'IDEC','YW1L 照光按鈕 1NO 綠',30,41.4,46,'PB','blue',PB(['3','4']),{sheet:'door',round:true});
+def('yw1s',null,D1,'IDEC','YW1S-2E10 選擇開關 1NO',30,41.4,46,'SS','dark',row(['3','4'],35,'bottom',30,'接點',8),{sheet:'door',round:true});
+def('py2201-g',null,D1,'','PY2201A-24G 金屬開關 綠光 Ø22',25,25,37,'SB','blue',[...row(['1','2','+'],7,'top',25,'NC／指示燈',4),...row(['3','4','-'],18,'bottom',25,'NO／指示燈',4)],{sheet:'door',round:true,note:'1NO/1NC 環形 LED；接點編號以實物為準'});
+def('py2201-r',null,D1,'','PY2201A-24R 金屬開關 紅光 Ø22',25,25,37,'SB','red',[...row(['1','2','+'],7,'top',25,'NC／指示燈',4),...row(['3','4','-'],18,'bottom',25,'NO／指示燈',4)],{sheet:'door',round:true,note:'1NO/1NC 環形 LED；接點編號以實物為準'});
+def('gs2107',null,D1,'三菱','GS2107 人機 7"',206,155,50,'HMI','dark',row(['24V','0V','FG','LAN'],10,'bottom',206,'',30),{sheet:'door'});
+def('nextech',null,D1,'Nextech','AP 21.5" 圖控介面',520,330,70,'HMI','dark',row(['24V','0V','FG','LAN','RS232'],10,'bottom',520,'',60),{sheet:'door',note:'外型尺寸是估算值'});
+def('lk3214',null,D1,'隆光','LK3214K 二連插座',45,75,35,'XS','light',row(['L','N','E'],8,'top',45,'',8),{sheet:'door'});
+def('hgsr702',null,F1,'三菱','HG-SR702BJK 7kW',130,70,0,'M','dark',[...row(['U','V','W','E'],8,'top',70,'動力',8),['B1',84,8,'top','煞車'],['B2',96,8,'top','煞車'],['ENC',118,8,'top','編碼器']],{sheet:'field'});
+def('hgsr202',null,F1,'三菱','HG-SR202JK 2kW',110,60,0,'M','dark',[...row(['U','V','W','E'],8,'top',70,'動力',8),['ENC',96,8,'top','編碼器']],{sheet:'field'});
+def('hgkn43',null,F1,'三菱','HG-KN43BJK 400W',110,50,0,'M','dark',[...row(['U','V','W','E'],8,'top',56,'動力',6),['B1',66,8,'top','煞車'],['B2',78,8,'top','煞車'],['ENC',98,8,'top','編碼器']],{sheet:'field'});
+def('field-power',null,F1,'','外部電源進線 3P',90,40,0,'PWR','mid',row(['R','S','T','E'],8,'top',90,'電源',12),{sheet:'field'});
+def('e2e',null,F2,'OMRON','E2E-X8B1D18 近接 2線',50,30,0,'SQ','steel',[['棕',15,8,'top','+'],['藍',35,8,'top','-']],{sheet:'field'});
+def('d4mc',null,F2,'OMRON','D4MC-5020 極限 1A1B',60,35,0,'LS','steel',row(['11','12','23','24'],8,'top',60,'',8),{sheet:'field'});
+def('pzg102',null,F2,'基恩斯','PZ-G102B 光電',50,30,0,'PH','steel',SENS3,{sheet:'field'});
+def('pzg101',null,F2,'基恩斯','PZ-G101P 光電 PNP',50,30,0,'PH','steel',SENS3,{sheet:'field'});
+def('eesx676',null,F2,'OMRON','EE-SX676P-WR 光電素子 PNP',50,30,0,'PH','steel',SENS3,{sheet:'field'});
+def('eespx302',null,F2,'OMRON','EE-SPX302 光電素子 NPN',50,30,0,'PH','steel',SENS3,{sheet:'field'});
+def('qlnp',null,F2,'','QL-NP 訊號轉換 NPN→PNP',60,30,0,'CV','steel',row(['+','-','IN','OUT'],8,'top',60,'',8),{sheet:'field'});
+def('glr22',null,F2,'基恩斯','GL-R22L 光柵',60,40,0,'LC','steel',row(['+24V','0V','OSSD1','OSSD2'],8,'top',60,'',8),{sheet:'field'});
+def('ga096',null,F2,'斯邁德','GA0-96H 光柵',60,40,0,'LC','steel',row(['+24V','0V','OUT','SYNC'],8,'top',60,'',8),{sheet:'field'});
+def('tb10',null,F3,'ETAN','TB-PG-10P 接線盒',86,40,0,'JB','mid',nterm(10,8,40,'top',8),{sheet:'field'});
+def('tb15',null,F3,'ETAN','TB-PG-15P 接線盒',126,40,0,'JB','mid',nterm(15,8,40,'top',8),{sheet:'field'});
+def('ths62',null,F3,'天得','THS-62 吊車接線盒',60,60,0,'CB','light',row(['1','2','3','4','5','6'],8,'top',60,'',6),{sheet:'field'});
+// 舊版範例用的器具，只為了能讀回舊暫存，不列在器具庫
+const LEG={legacy:true};
+def('sch_mc',null,C2,'施耐德','TeSys D 接觸器',45,85,100,'K','dark',mc(85),LEG);def('sch_tor',null,C2,'施耐德','LRD 積熱電驛',45,65,90,'F','mid',tor(65),LEG);def('sch_gv',null,C1,'施耐德','GV2 馬達保護',45,90,97,'Q','dark',nfb(45,90),LEG);
+def('sl_mc',null,C2,'士林','S-P 接觸器',45,85,85,'K','light',mc(85),LEG);def('sl_tor',null,C2,'士林','TH-P 積熱電驛',45,65,85,'F','light',tor(65),LEG);def('sl_nfb',null,C1,'士林','BM 無熔絲 3P',75,130,68,'Q','dark',nfb(75,130),LEG);
+def('me_mc',null,C2,'三菱','S-T 接觸器',45,85,85,'K','gray',mc(85),LEG);def('me_tor',null,C2,'三菱','TH-T 積熱電驛',45,65,85,'F','gray',tor(65),LEG);def('me_nf',null,C1,'三菱','NF 無熔絲 3P',75,130,68,'Q','dark',nfb(75,130),LEG);
+def('wg_10',null,C7,'WAGO','2002 端子台 10 片',68,60,35,'X','gray',strip(10),LEG);def('wg_20',null,C7,'WAGO','2002 端子台 20 片',128,60,35,'X','gray',strip(20),LEG);
+def('wg_rl',null,C3,'WAGO','788 繼電器',22,70,60,'KA','steel',[['A1',6,7,'top','線圈'],['A2',16,7,'top','線圈'],['11',4,63,'bottom','共點'],['12',11,63,'bottom','常閉'],['14',18,63,'bottom','常開']],LEG);
+def('de_plc',null,C4,'台達','DVP PLC 14 點',170,100,80,'PLC','blue',[...['S/S','X0','X1','X2','X3','X4','X5','X6','X7','24V','0V'].map((id,i)=>[id,15+i*14,9,'top',i===0?'輸入共點':i>8?'電源':'輸入']),...['C0','Y0','Y1','Y2','Y3','Y4','Y5','C1'].map((id,i)=>[id,20+i*18,91,'bottom',id[0]==='C'?'輸出共點':'輸出'])],LEG);
+def('de_ps',null,C6,'台達','24V 電源供應器',70,120,110,'PS','steel',[['L',15,9,'top','AC 輸入'],['N',35,9,'top','AC 輸入'],['FG',55,9,'top','接地'],['+V',20,111,'bottom','DC 輸出'],['-V',50,111,'bottom','DC 輸出']],LEG);
+const DUCTINV=[['線槽 65×65','PVC-65x65x1700mm',65,65],['線槽 45×65','PVC-45x65x1700mm',45,65],['線槽 33×65','PVC-33x65x1700mm',33,65]];
+const GLANDINV=['M40 浪管接頭','M32 浪管接頭','M25 浪管接頭','M20 電纜固定頭','M20-14 電纜固定頭'];
+// 尺寸核對狀態：2 原廠資料，1 網路商品頁或同系列資料；沒列的都是未核對。接點排列目前都沒有查到可讀的原廠圖。
+const VER={'gv2me16':[2,'Schneider 規格表'],'gv2me32':[2,'Schneider 規格表'],'lc1d38':[2,'Schneider 規格表'],'fx5u32':[2,'Mitsubishi 產品頁'],'j4700':[2,'Mitsubishi 產品頁'],'drl120':[2,'Delta 產品頁'],'w2202-1401':[2,'WAGO 規格表'],'w2202-1201':[2,'WAGO 規格表'],'pnoz':[2,'Pilz 手冊'],
+  'fuji-bw50':[1,'外型圖'],'cu11':[1,'商品尺寸圖'],'sp16':[1,'型錄表'],'ic60-3P40A':[1,'商品頁資料'],'ic60-3P16A':[1,'同系列商品頁資料'],'ic60-3P4A':[1,'同系列商品頁資料'],'ic60-2P4A':[1,'由每極 18 mm 推算'],'ic60-1P6A':[1,'由每極 18 mm 推算'],'ic60-1P4A':[1,'由每極 18 mm 推算'],'ic60-1P2A':[1,'由每極 18 mm 推算'],'ic60-1P1A':[1,'由每極 18 mm 推算'],
+  'lc1d09':[1,'同框架資料'],'lc1d18':[1,'商品頁與規格表片段'],'lc1d258':[1,'商品頁資料'],'je40':[1,'商品頁資料'],'fn3270':[1,'Schaffner 表格與 Mouser'],'w852-111':[1,'商品頁資料'],'w852-1111':[1,'高度來自商品頁，寬深依同系列'],'yw1l-g':[1,'外型圖與商品頁'],'yw1l-r':[1,'同系列外型圖'],'yw1b':[1,'外型圖，深度為面板後方'],'gs2107':[1,'單一商品頁資料'],'my2n-24':[1,'PYF08A 外型圖'],'my2n-220':[1,'PYF08A 外型圖'],'pyf14a':[1,'PYF14A 外型圖片段'],'ly4n':[1,'PTF14A 外型圖'],'ly2j':[1,'PTF08A 外型圖'],'g6d':[1,'同型商品圖'],'fx540ssc':[1,'商品頁資料'],'fx54ad':[1,'同系列商品頁資料'],'py2201-g':[1,'商品外型圖'],'py2201-r':[1,'商品外型圖']};
+// 接點位置看過照片或外型圖的器具
+const TERM_OK=new Set(['fuji-bw50','lc1d09','lc1d18','lc1d38','lc1d258','cu11','sp16','gv2me16','gv2me32','my2n-24','my2n-220','pyf14a','ly4n','ly2j','pnoz','fx5u32','j4700','j4200','je40','drl120','w2202-1401','w2202-1201','w852-111','w852-1111','yw1l-g','yw1l-r','py2201-g','py2201-r','ic60-3P40A','ic60-3P16A','ic60-3P4A','ic60-2P4A','ic60-1P6A','ic60-1P4A','ic60-1P2A','ic60-1P1A']);
+function verText(id,t){if(t.ok)return '已對照型錄或實物';const v=VER[id];return v?(v[0]===2?'原廠資料：':'參考：')+v[1]:'未核對';}
+function resolveTpl(id,count){
+  const b=(S&&S.tpls&&S.tpls[id])||TPL[id];if(!b) return null;
+  if(!b.gen){if(!b.terms)b.terms=(b.t||[]).map(([id2,x,y,side,desc])=>({id:id2,x,y,side,desc}));return b;}
+  const c=count||b.cnt,k=id+'|'+c;
+  if(!resolveTpl.m.has(k)){const g=b.gen(c);resolveTpl.m.set(k,{...b,gen:b.gen,w:g.w,h:g.h,terms:g.t.map(([i2,x,y,side,desc])=>({id:i2,x,y,side,desc}))});}
+  return resolveTpl.m.get(k);
+}
+resolveTpl.m=new Map();
+

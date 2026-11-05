@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>盤面配線模擬器</title>
+<meta name="description" content="在瀏覽器裡擺放電控器具、點接點拉線，依線槽自動走線的 2D 等比例盤面配線模擬器。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23334'/%3E%3Cpath d='M3 4h5v8h5' fill='none' stroke='%23fc3' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>盤面配線模擬器</h1>
+    <div class="seg" role="group" aria-label="操作模式">
+      <button id="mWire" aria-pressed="true" title="快捷鍵 W">接線</button>
+      <button id="mPlace" aria-pressed="false" title="快捷鍵 M">擺放</button>
+    </div>
+    <div class="group">
+      <button class="tool" id="undo" title="Ctrl+Z">復原</button>
+      <button class="tool" id="redo" title="Ctrl+Y">重做</button>
+    </div>
+    <div class="group">
+      <button class="tool" id="bundle" aria-pressed="false" title="線槽內的線收成一束，選取時再看單條">線束模式</button>
+      <button class="tool" id="labels" aria-pressed="false">顯示線號</button>
+    </div>
+    <div class="group">
+      <button class="tool" id="zo" aria-label="縮小">−</button>
+      <button class="tool" id="zi" aria-label="放大">+</button>
+      <button class="tool" id="fit">全部</button>
+      <button class="tool" id="vPlate">底板</button>
+      <button class="tool" id="vDoor">面板</button>
+      <button class="tool" id="vField">現場</button>
+    </div>
+    <span class="spacer"></span>
+    <span id="stats"></span>
+    <div class="group">
+      <button class="tool" id="exportB">匯出專案</button>
+      <button class="tool" id="importB">匯入專案</button>
+      <input type="file" id="importF" accept=".json,application/json" hidden>
+      <button class="tool" id="sample">載入範例</button>
+      <button class="tool" id="clearW">清除所有線</button>
+      <button class="tool" id="oldDraft" hidden>讀回舊版暫存</button>
+    </div>
+  </header>
+  <main>
+    <aside id="left">
+      <div class="scroll">
+        <div id="sizes">
+          <h2>盤面尺寸 (mm)</h2>
+          <div class="fields">
+            <label for="bw">箱寬<input id="bw" type="number" step="10" min="100"></label>
+            <label for="bh">箱高<input id="bh" type="number" step="10" min="100"></label>
+            <label for="bd">箱深<input id="bd" type="number" step="10" min="50"></label>
+            <label for="bk">底板到箱背<input id="bk" type="number" step="5" min="0"></label>
+            <label for="pw">底板寬<input id="pw" type="number" step="10" min="100"></label>
+            <label for="ph">底板高<input id="ph" type="number" step="10" min="100"></label>
+            <label for="dw">面板寬<input id="dw" type="number" step="10" min="100"></label>
+            <label for="dh">面板高<input id="dh" type="number" step="10" min="100"></label>
+            <label for="hy">過門線束 Y<input id="hy" type="number" step="10"></label>
+            <label for="fl">線槽上限 %<input id="fl" type="number" step="5" min="5" max="100"></label>
+          </div>
+        </div>
+        <div>
+          <h2>器具庫</h2>
+          <input id="libQ" type="search" placeholder="搜尋型號、品名、廠牌" aria-label="搜尋器具">
+          <div class="row" style="margin-top:6px;justify-content:flex-start"><button class="tool" id="newTpl">新增自訂器具</button></div>
+        </div>
+        <div id="palette" style="display:flex;flex-direction:column;gap:14px"></div>
+      </div>
+    </aside>
+    <div id="stage">
+      <svg id="svg" xmlns="http://www.w3.org/2000/svg" aria-label="電控箱配線展開圖">
+        <g id="world">
+          <g id="board"></g>
+          <g id="wires"></g>
+          <g id="top"></g>
+          <g id="ov"></g>
+        </g>
+      </svg>
+      <div id="hint"><span id="hintT"></span></div>
+      <div id="tip" hidden></div>
+      <div id="pop" hidden role="dialog" aria-label="選擇線徑與顏色"></div>
+      <div id="toast" hidden role="status"></div>
+      <div id="io" hidden role="dialog" aria-label="匯出內容">
+        <p class="note">這個檢視無法直接存檔。請複製下面的內容，貼到文字檔後存成檔案。</p>
+        <textarea id="ioText" readonly aria-label="匯出內容"></textarea>
+        <div class="row"><button class="tool" id="ioClose">關閉</button><button class="primary" id="ioCopy">複製</button></div>
+      </div>
+    </div>
+    <aside id="right">
+      <div id="detail" hidden></div>
+      <div class="scroll">
+        <div>
+          <h2 id="issuesH">檢查</h2>
+          <div class="issues" id="issues"></div>
+        </div>
+        <div>
+          <h2>篩選</h2>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div class="chips" id="fKind"></div>
+            <div class="chips" id="fColor"></div>
+            <div class="chips" id="fGauge"></div>
+            <select id="fDev" aria-label="依器具篩選"></select>
+          </div>
+        </div>
+        <div>
+          <div class="seg" role="group" aria-label="清單" style="margin-bottom:6px">
+            <button id="tabAll" aria-pressed="true">線號表</button>
+            <button id="tabExt" aria-pressed="false">外線表</button>
+          </div>
+          <div class="row" id="extTools" hidden style="justify-content:flex-start;margin-bottom:6px"><button class="tool" id="extCsv">匯出外線表 CSV</button></div>
+          <h2 id="listH">線號表</h2>
+          <div id="list"></div>
+        </div>
+      </div>
+    </aside>
+  </main>
+</div>
+<div id="ed" hidden role="dialog" aria-label="器具編輯器">
+  <div id="edCard">
+    <h2 id="edTitle">器具編輯器</h2>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="fields">
+        <label for="eName">名稱／型號<input id="eName" maxlength="40"></label>
+        <label for="eBrand">廠牌<input id="eBrand" maxlength="20"></label>
+        <label for="eSheet">安裝位置<select id="eSheet"><option value="plate">底板</option><option value="door">面板</option><option value="field">現場</option></select></label>
+        <label for="ePre">編號字首<input id="ePre" maxlength="6"></label>
+        <label for="eW">寬 mm<input id="eW" type="number" min="5" step="1"></label>
+        <label for="eH">高 mm<input id="eH" type="number" min="5" step="1"></label>
+        <label for="eD">深 mm<input id="eD" type="number" min="0" step="1"></label>
+        <label for="eCol">外殼顏色<input id="eCol" type="color"></label>
+      </div>
+      <div class="fields" style="grid-template-columns:1fr">
+        <label for="eTop">上排接點（逗號分隔）<input id="eTop"></label>
+        <label for="eBot">下排接點（逗號分隔）<input id="eBot"></label>
+      </div>
+      <label class="check"><input type="checkbox" id="eOk">尺寸與接點已對照型錄或實物</label>
+      <p class="note">接點文字改動後會重新平均排列。排好後可在右圖拖曳接點到實際位置。</p>
+    </div>
+    <div><svg id="edPrev" aria-label="器具預覽"></svg></div>
+    <div class="row wide"><button class="tool" id="edCancel">取消</button><button class="primary" id="edSave">儲存器具</button></div>
+  </div>
+</div>
+
+<script src="js/inventory.js"></script>
+<script src="js/devices.js"></script>
+<script src="js/sample.js"></script>
+<script src="js/state.js"></script>
+<script src="js/routing.js"></script>
+<script src="js/render.js"></script>
+<script src="js/panels.js"></script>
+<script src="js/popup.js"></script>
+<script src="js/interact.js"></script>
+<script src="js/editor.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
