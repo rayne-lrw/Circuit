@@ -174,7 +174,7 @@ function computeIssues(){
   if(P.w>B.w||P.h>B.h) out.push({t:`底板 ${P.w}×${P.h} 比電控箱 ${B.w}×${B.h} 大`});
   if(isDoorPanel()&&(S.door.w<B.w||S.door.h<B.h)) out.push({t:`面板 ${S.door.w}×${S.door.h} 蓋不住電控箱 ${B.w}×${B.h}；如果是獨立操作台，點這裡到左側「面板」改選`,k:'doormode'});
   const P0=sheetRect('plate'),D0=sheetRect('door');
-  S.devices.forEach(d=>{if(d.sheet==='field'){if(!zoneAt({x:d.x+tplOf(d).w/2,y:d.y+tplOf(d).h/2}))out.push({t:`${d.tag} 不在任何現場區內`,k:'dev',id:d.id});return;}const R=d.sheet==='door'?D0:P0;if(outside(rectOf('dev',d),R)) out.push({t:`${d.tag} 超出${d.sheet==='door'?doorShort():'底板'}`,k:'dev',id:d.id});});
+  // 器具可以放在底板、面板、現場區以外（例如裝在箱體外側板金），所以不檢查器具是否在範圍內
   S.ducts.forEach(d=>{if(outside(rectOf('duct',d),d.sheet==='door'?D0:P0)) out.push({t:`線槽 ${d.id} 超出${d.sheet==='door'?doorShort():'底板'}`,k:'duct',id:d.id});});
   S.devices.forEach((a,i)=>{
     if(a.sheet==='field'||tplOf(a).noOv) return;
@@ -184,7 +184,8 @@ function computeIssues(){
   });
   // 深度：關門後面板器具投影到底板，兩者深度相加不可超過可用深度
   const room=B.d-B.back,bo=boxOrigin(),dO=doorO();
-  const plateDevs=S.devices.filter(d=>d.sheet==='plate'&&!tplOf(d).noOv),doorDevs=S.devices.filter(d=>d.sheet==='door');
+  // 完全在箱體外的器具（裝在箱外板金）不算深度與關門碰撞
+  const plateDevs=S.devices.filter(d=>d.sheet==='plate'&&!tplOf(d).noOv&&overlap(rectOf('dev',d),BX)),doorDevs=S.devices.filter(d=>d.sheet==='door');
   plateDevs.forEach(d=>{if(tplOf(d).d>room) out.push({t:`${d.tag} 深 ${tplOf(d).d} mm，超過可用深度 ${room} mm`,k:'dev',id:d.id});});
   if(!useDoor()) doorDevs.forEach(d=>out.push({t:`面板已設為不使用，但 ${d.tag} 還在面板上`,k:'dev',id:d.id}));
   // 獨立操作台不是門，不做深度與關門碰撞檢查
