@@ -180,7 +180,7 @@ function computeIssues(){
     if(a.sheet==='field'||tplOf(a).noOv) return;
     const ra=rectOf('dev',a);
     S.devices.slice(i+1).forEach(b=>{if(b.sheet===a.sheet&&!tplOf(b).noOv&&overlap(ra,rectOf('dev',b))) out.push({t:`${a.tag} 與 ${b.tag} 重疊`,k:'dev',id:a.id});});
-    S.ducts.forEach(c=>{if(c.sheet===a.sheet&&overlap(ra,rectOf('duct',c))) out.push({t:`${a.tag} 壓到線槽 ${c.id}`,k:'dev',id:a.id});});
+    // 線槽可以局部切除讓器具，所以器具壓到線槽不警告
   });
   // 深度：關門後面板器具投影到底板，兩者深度相加不可超過可用深度
   const room=B.d-B.back,bo=boxOrigin(),dO=doorO();
