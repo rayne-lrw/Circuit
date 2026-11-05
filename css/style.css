@@ -156,6 +156,7 @@ select.flash{outline:2px solid var(--accent);outline-offset:1px}
 .wire.on .wn{display:block}
 .warnline{stroke:var(--warn);stroke-dasharray:3 3;stroke-width:1;fill:none;pointer-events:none}
 .place .dev,.place .duct,.place .glandg{cursor:move}
+.place #wires,.place #wires .hit{pointer-events:none} /* 擺放模式不操作導線，讓點擊落到下面的線槽與器具 */
 .picked{fill:none;stroke:var(--accent);stroke-width:1.5px;vector-effect:non-scaling-stroke;stroke-dasharray:5 3;pointer-events:none}
 .draft{fill:none;stroke:var(--accent);stroke-width:2px;vector-effect:non-scaling-stroke;stroke-dasharray:6 4;stroke-linejoin:round;pointer-events:none}
 .wp{fill:#fff;stroke:var(--accent);stroke-width:2px;vector-effect:non-scaling-stroke;pointer-events:none}

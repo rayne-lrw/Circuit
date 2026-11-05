@@ -47,6 +47,17 @@ svg.addEventListener('pointerdown',e=>{
   if(mode==='wire'&&e.pointerType!=='mouse') hoverUpdate(e);
   if(mode==='place'&&e.button===0){
     const dg=e.target.closest('[data-dev]'),cg=e.target.closest('[data-duct]'),gg=e.target.closest('[data-gland]'),zg=!dg&&!cg&&!gg&&e.target.closest('.zone-h,.zoneg .field-t')&&e.target.closest('[data-zone]');
+    // Ctrl（Mac 用 Cmd）＋拖曳：原物件留在原地，拖著走的是複本
+    if((e.ctrlKey||e.metaKey)&&(dg||cg||gg||zg)){
+      const k=zg?'zone':gg?'gland':dg?'dev':'duct';
+      const src=zg?S.fields.find(z=>z.id===zg.dataset.zone):gg?S.glands.find(x=>x.id===gg.dataset.gland):dg?devOf(dg.dataset.dev):S.ducts.find(d=>d.id===cg.dataset.duct);
+      const r=pasteClip(makeClip(k,src),0,0),obj=r.main;
+      picked={k,id:obj.id};sel=null;
+      act={t:k==='zone'?'zone':k==='gland'?'gland':'drag',obj,ox:p.x-obj.x,oy:p.y-obj.y,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId,copy:r,src:{k,id:src.id}};
+      if(k==='zone'||r.extras.length) act.mounted=r.extras.map(d=>({d,dx:d.x-obj.x,dy:d.y-obj.y}));
+      computeRoutes();renderBoard();
+      svg.setPointerCapture(e.pointerId);renderWires();renderDetail();updateHint();return;
+    }
     if(zg){
       const obj=S.fields.find(z=>z.id===zg.dataset.zone);
       picked={k:'zone',id:obj.id};sel=null;
@@ -109,12 +120,15 @@ svg.addEventListener('pointerup',e=>{
   const a=act;act=null;
   if(!a) return;
   if(railHit){railHit=null;renderWires();}
+  if(a.copy&&!a.moved){dropClip(a.copy);picked=a.src;recompute();return;} // Ctrl＋點一下沒拖：不複製
   if(a.t==='wp'&&!a.moved&&noteTap(e)&&tryDouble(toWorld(e))) return;
   if(a.t==='drag'||a.t==='wp'||a.t==='gland'||a.t==='zone'){ if(a.moved){commit();} recompute(); return; }
   if(a.moved||a.btn!==0) return;
   if(mode==='wire') clickWire(e,a); else {picked=null;sel=null;renderWires();renderDetail();updateHint();}
 });
 svg.addEventListener('pointercancel',()=>{act=null;});
+svg.addEventListener('pointerenter',()=>{cursorIn=true;});
+svg.addEventListener('pointerleave',()=>{cursorIn=false;});
 svg.addEventListener('pointerleave',()=>{if(!act&&(snap||hoverW)){snap=null;hoverW=null;$('tip').hidden=true;applyWireClasses();}});
 function clickWire(e,a){
   const p=toWorld(e);cursor=p;
@@ -167,6 +181,48 @@ function tryDouble(p){
 svg.addEventListener('wheel',e=>{e.preventDefault();const p=toWorld(e);zoomAt(Math.exp(-e.deltaY*.0015),p.sx,p.sy);},{passive:false});
 svg.addEventListener('contextmenu',e=>{if(draft&&!draft.pop){e.preventDefault();cancelDraft();}});
 
+/* ---------- 複製與貼上 ----------
+   剪貼簿只存在這個頁面。鋁軌連軌上器具、現場區連區內器具一起複製；導線不複製。 */
+let clip=null,cursorIn=false;
+const nextId=(pre,has)=>{let i=1;while(has(pre+i))i++;return pre+i;};
+const newDevId=d=>nextId((resolveTpl(d.tpl,d.count)||{pre:'U'}).pre,id=>S.devices.some(x=>x.id===id));
+const snapCopy=o=>JSON.parse(JSON.stringify(o));
+function makeClip(k,o){
+  const extras=k==='zone'?S.devices.filter(d=>inZone(o,d)):k==='dev'&&isRail(o)?mountedOn(o):[];
+  return {k,o:snapCopy(o),extras:snapCopy(extras),n:0};
+}
+const clipName=c=>(c.k==='zone'?c.o.name:c.k==='dev'?c.o.tag:c.o.id)+(c.extras.length?`（含 ${c.extras.length} 個器具）`:'');
+function pasteClip(c,dx,dy){
+  const sh=o=>{o.x=r1(o.x+dx);o.y=r1(o.y+dy);return o;};
+  let main;
+  if(c.k==='dev'){main=sh(snapCopy(c.o));main.id=main.tag=newDevId(main);S.devices.push(main);}
+  else if(c.k==='duct'){main=sh(snapCopy(c.o));main.id=nextId('D',id=>S.ducts.some(x=>x.id===id));S.ducts.push(main);}
+  else if(c.k==='gland'){const b=boxOrigin();main=snapCopy(c.o);main.x=Math.max(b.x+8,Math.min(b.x+S.box.w-8,r1(main.x+dx)));main.id=nextId('G',id=>S.glands.some(x=>x.id===id));S.glands.push(main);}
+  else{main=sh(snapCopy(c.o));main.id=nextId('Z',id=>S.fields.some(x=>x.id===id));main.name=(c.o.name+'（複製）').slice(0,20);S.fields.push(main);}
+  const extras=c.extras.map(e=>{const d=sh(snapCopy(e));d.id=d.tag=newDevId(d);S.devices.push(d);return d;});
+  return {k:c.k,main,extras};
+}
+function dropClip(r){
+  const ids=new Set(r.extras.map(d=>d.id));if(r.k==='dev')ids.add(r.main.id);
+  S.devices=S.devices.filter(d=>!ids.has(d.id));
+  if(r.k==='duct')S.ducts=S.ducts.filter(x=>x!==r.main);
+  if(r.k==='gland')S.glands=S.glands.filter(x=>x!==r.main);
+  if(r.k==='zone')S.fields=S.fields.filter(x=>x!==r.main);
+}
+// 滑鼠在畫面上就貼在游標處（物件中心對準游標），否則貼在原物件右下，連續貼會一直往右下
+function pasteHere(){
+  const c=clip,o=c.o;let dx,dy;
+  if(cursorIn){
+    const w=c.k==='dev'?tplOf(o).w:c.k==='gland'?0:o.w,h=c.k==='dev'?tplOf(o).h:c.k==='gland'?0:o.h;
+    dx=Math.round((cursor.x-w/2)/5)*5-o.x;dy=c.k==='gland'?0:Math.round((cursor.y-h/2)/5)*5-o.y;
+  }else{c.n++;dx=dy=20*c.n;}
+  const r=pasteClip(c,dx,dy),m=r.main;
+  if(r.k==='dev'||r.k==='duct'){const R=rectOf(r.k,m);m.sheet=sheetAt({x:R.x+R.w/2,y:R.y+R.h/2});if(r.k==='duct'&&m.sheet==='field')m.sheet='plate';}
+  if(r.k==='dev'){r.extras.forEach(d=>d.sheet=m.sheet);if(!isRail(m))railSnap(m,m.x,m.y);}
+  if(mode!=='place') setMode('place');
+  sel=null;picked={k:r.k,id:m.id};commit();recompute();
+  toast(`已貼上 ${r.k==='zone'?m.name:m.id}${r.extras.length?`（含 ${r.extras.length} 個器具）`:''}；可按復原`);
+}
 let moveStep=10;
 const r1=v=>Math.round(v*10)/10;
 function pickedObj(){
@@ -277,6 +333,11 @@ document.addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?$('redo').click():$('undo').click();return;}
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();$('redo').click();return;}
   if(typing) return;
+  if((e.ctrlKey||e.metaKey)&&!e.altKey&&!e.shiftKey){
+    const k=e.key.toLowerCase();
+    if(k==='c'&&mode==='place'&&picked){const o=pickedObj();if(o){clip=makeClip(picked.k,o);e.preventDefault();toast(`已複製 ${clipName(clip)}，按 Ctrl＋V 貼上`);}return;}
+    if(k==='v'&&clip&&!draft){e.preventDefault();pasteHere();return;}
+  }
   if(e.key==='Escape'){if(draft)cancelDraft();else{sel=null;picked=null;renderList();renderWires();renderDetail();updateHint();}return;}
   if(draft&&draft.pop&&e.key==='Enter'){e.preventDefault();finishWire();return;}
   if(draft&&!draft.pop&&e.key==='Backspace'){e.preventDefault();if(draft.wps.length){draft.wps.pop();renderOverlay();updateHint();}else cancelDraft();return;}
