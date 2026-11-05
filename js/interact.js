@@ -476,6 +476,10 @@ $('oldDraft').onclick=()=>{
   $('oldDraft').hidden=true;
 };
 $('libQ').oninput=renderPalette;
+// 器具庫捲下去後出現「回到最上」
+{const sc=document.querySelector('#left .scroll'),tt=$('toTop');
+ sc.addEventListener('scroll',()=>{tt.hidden=sc.scrollTop<300;},{passive:true});
+ tt.onclick=()=>{const rm=matchMedia('(prefers-reduced-motion: reduce)').matches;sc.scrollTo({top:0,behavior:rm?'auto':'smooth'});};}
 $('palette').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
   if(b.dataset.add){
