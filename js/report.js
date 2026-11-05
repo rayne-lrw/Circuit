@@ -33,8 +33,9 @@ function bomRows(){
   for(const d of S.devices){
     if(d.tpl==='field-power') continue; // 只是進線示意，不是材料
     const t=resolveTpl(d.tpl,d.count);if(!t) continue;
-    if(!devs.has(d.tpl)) devs.set(d.tpl,{t,list:[]});
-    devs.get(d.tpl).list.push(d);
+    const key=t.gen?d.tpl:t.b+'|'+t.n; // 同名同廠牌合併（例如伺服電池在不同驅動器上的兩種外形）
+    if(!devs.has(key)) devs.set(key,{t,list:[]});
+    devs.get(key).list.push(d);
   }
   const ord=CAT_ORDER(),rank=c=>{const i=ord.indexOf(c);return i<0?99:i;};
   [...devs.values()].sort((a,b)=>rank(a.t.cat)-rank(b.t.cat)||natCmp(a.t.n,b.t.n)).forEach(({t,list})=>{

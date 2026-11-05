@@ -80,14 +80,16 @@ const riders=d=>S.devices.filter(x=>x.on===d.id);
 const attachOf=d=>tplOf(d).attach||null;
 function hostOk(h,o){if(!h||h===o||h.on||h.sheet!==o.sheet)return false;const t=tplOf(h);if(t.attach||t.noOv)return false;return attachOf(o)==='below'?t.cat===C5:t.cat===C2;}
 // 伺服電池的安裝位置：預設掛在下方距左緣 6 mm（MR-J4-200B 外型圖）；
-// MR-J4-700B 依外型圖裝在正面右側 CN2L、CN4 附近，轉成直的
-const BAT_AT={j4700:{x:147,y:155,rot:90}};
+// MR-J4-700B 依外型圖直立裝在正面右側區塊中間（CN1A、CN1B 左邊），露出 21×69.3 那一面
+const BAT_AT={j4700:{x:116.4,y:74.2,tpl:'mrbat6v1-f'}};
+const BAT_BASE='mrbat6v1';
 const batFront=(r,h)=>attachOf(r)==='below'&&!!BAT_AT[h.tpl];
 function placeOn(r,h){
   const ht=tplOf(h);
   if(attachOf(r)==='below'){
     const a=BAT_AT[h.tpl];
-    if(a&&a.rot)r.rot=a.rot;else delete r.rot;
+    if(r.tpl===BAT_BASE||r.tpl==='mrbat6v1-f') r.tpl=a&&a.tpl||BAT_BASE;
+    delete r.rot;
     const t=tplOf(r);
     if(a){r.x=r1(h.x+a.x);r.y=r1(h.y+a.y);}else{r.x=r1(h.x+Math.min(6,Math.max(0,ht.w-t.w)));r.y=r1(h.y+ht.h);}
   }else{const t=tplOf(r);r.x=r1(h.x+(ht.w-t.w)/2);r.y=r1(h.y+(ht.h-t.h)/2);}
