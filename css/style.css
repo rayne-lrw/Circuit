@@ -155,6 +155,8 @@ select.flash{outline:2px solid var(--accent);outline-offset:1px}
 .duct-teeth{stroke:var(--duct-edge);stroke-width:3;stroke-dasharray:4 4;fill:none;opacity:.55}
 .duct-label{font-family:var(--mono);font-size:6px;fill:var(--ink);opacity:.72;paint-order:stroke;stroke:var(--duct);stroke-width:2px}
 .dev rect.body,.dev circle.body{stroke:rgba(0,0,0,.55);stroke-width:.6}
+.dev.rider rect.body{fill-opacity:.38;stroke-dasharray:2 1.2}
+.dev.rider .tag,.dev.rider .sub{opacity:.75}
 .tag{font-family:var(--mono);font-weight:600;font-size:10px}
 .sub{font-family:var(--sans);font-size:4.4px}
 .term{fill:#c9a24a;stroke:#3a2e10;stroke-width:.4}

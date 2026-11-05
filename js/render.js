@@ -43,11 +43,12 @@ function renderBoard(){
   const order=[...S.devices].sort((a,b)=>rank(a)-rank(b));
   for(const d of order){
     const t=tplOf(d);
-    h+=`<g class="dev" data-dev="${d.id}">`;
+    h+=`<g class="dev${d.on?' rider':''}" data-dev="${d.id}">`; // 裝在接觸器正面的附件畫成半透明，看得到底下的線圈與輔助接點
     if(t.round) h+=`<rect class="body" x="${d.x}" y="${d.y}" width="${t.w}" height="${t.h}" rx="${Math.min(t.w,t.h)/2}" fill="${t.f}"/>`;
     else h+=`<rect class="body" x="${d.x}" y="${d.y}" width="${t.w}" height="${t.h}" rx="2.5" fill="${t.f}"/>`;
     const cy=d.y+t.h/2,small=t.w<28||t.h<26,tagSize=small?Math.max(4.5,Math.min(t.w/3.6,8)):10;
-    if(t.noOv) h+=`<text class="sub" x="${d.x+t.w/2}" y="${cy+1.5}" text-anchor="middle" fill="${t.i}">${esc(d.tag)} 鋁軌 ${t.w} mm</text>`;
+    if(d.on) h+=`<text class="tag" style="font-size:5px" x="${d.x+t.w/2}" y="${d.y+5.5}" text-anchor="middle" fill="${t.i}">${esc(d.tag)}</text>`; // 附件編號放上緣，不和接觸器的編號疊在一起
+    else if(t.noOv) h+=`<text class="sub" x="${d.x+t.w/2}" y="${cy+1.5}" text-anchor="middle" fill="${t.i}">${esc(d.tag)} 鋁軌 ${t.w} mm</text>`;
     else{
       h+=`<text class="tag" style="font-size:${tagSize}px" x="${d.x+t.w/2}" y="${cy+tagSize*.25}" text-anchor="middle" fill="${t.i}">${esc(d.tag)}</text>`;
       if(!small) h+=`<text class="sub" x="${d.x+t.w/2}" y="${cy+8}" text-anchor="middle" fill="${t.i}">${esc(t.b)}</text>`;
