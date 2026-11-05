@@ -364,6 +364,7 @@ $('dm').onchange=e=>{
 };sizeInput('fl',v=>S.fillLimit=Math.min(100,Math.max(5,v)));
 $('issues').addEventListener('click',e=>{
   const b=e.target.closest('[data-iss]');if(!b)return;const x=ISSUES[Number(b.dataset.iss)];if(!x)return;
+  if(x.k==='doormode'){const dm=$('dm');dm.scrollIntoView({block:'center'});dm.focus();dm.classList.add('flash');setTimeout(()=>dm.classList.remove('flash'),1600);return;}
   if(x.k==='wire'){if(mode!=='wire')setMode('wire');picked=null;sel=x.id;}
   else{if(mode!=='place')setMode('place');sel=null;picked={k:x.k,id:x.id};}
   recompute();

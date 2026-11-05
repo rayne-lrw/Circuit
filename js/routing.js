@@ -172,7 +172,7 @@ function computeIssues(){
   const BX={...boxOrigin(),w:B.w,h:B.h};
   S.fields.forEach(z=>{if(overlap(z,BX)||(useDoor()&&overlap(z,sheetRect('door')))) out.push({t:`${z.name}與電控箱或面板重疊`,k:'zone',id:z.id});});
   if(P.w>B.w||P.h>B.h) out.push({t:`底板 ${P.w}×${P.h} 比電控箱 ${B.w}×${B.h} 大`});
-  if(isDoorPanel()&&(S.door.w<B.w||S.door.h<B.h)) out.push({t:`面板 ${S.door.w}×${S.door.h} 蓋不住電控箱 ${B.w}×${B.h}`});
+  if(isDoorPanel()&&(S.door.w<B.w||S.door.h<B.h)) out.push({t:`面板 ${S.door.w}×${S.door.h} 蓋不住電控箱 ${B.w}×${B.h}；如果是獨立操作台，點這裡到左側「面板」改選`,k:'doormode'});
   const P0=sheetRect('plate'),D0=sheetRect('door');
   S.devices.forEach(d=>{if(d.sheet==='field'){if(!zoneAt({x:d.x+tplOf(d).w/2,y:d.y+tplOf(d).h/2}))out.push({t:`${d.tag} 不在任何現場區內`,k:'dev',id:d.id});return;}const R=d.sheet==='door'?D0:P0;if(outside(rectOf('dev',d),R)) out.push({t:`${d.tag} 超出${d.sheet==='door'?doorShort():'底板'}`,k:'dev',id:d.id});});
   S.ducts.forEach(d=>{if(outside(rectOf('duct',d),d.sheet==='door'?D0:P0)) out.push({t:`線槽 ${d.id} 超出${d.sheet==='door'?doorShort():'底板'}`,k:'duct',id:d.id});});
