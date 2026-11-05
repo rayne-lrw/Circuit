@@ -69,5 +69,11 @@ const doorShort=()=>S.doorMode==='console'?'操作台':'面板';
 const sheetAt=p=>useDoor()&&inR(p,sheetRect('door'))?'door':zoneAt(p)?'field':'plate';
 const boxBottom=()=>boxOrigin().y+S.box.h;
 const wireKind=w=>{const a=devOf(w.a.d),b=devOf(w.b.d);if(!a||!b)return 'in';if(a.sheet==='field'||b.sheet==='field')return 'ext';if(a.sheet==='door'||b.sheet==='door')return 'door';return 'in';};
+/* 端子台端子號：WAGO 2202 系列每片一個號碼存在 d.labels，只用來顯示；
+   接點本身仍是 1A、1B…，所以改號碼不會影響已接好的線 */
+const SLOT_RE=/^(\d+)([A-D])$/;
+const hasSlots=t=>!!(t&&t.gen&&t.cntLabel==='片數');
+function termLabel(d,t){if(!d||!d.labels)return t;const m=SLOT_RE.exec(t);return (m&&d.labels[m[1]-1])||t;}
+const epText=e=>`${e.d}·${termLabel(devOf(e.d),e.t)}`;
 const KINDS={in:'箱內',door:'過門',ext:'外線'};
 

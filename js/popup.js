@@ -22,7 +22,7 @@ function openPop(){
 }
 function fillPop(){
   const ex=draftIsExt();
-  $('pop').innerHTML=`<div class="ends">${esc(draft.a.d)}·${esc(draft.a.t)} → ${esc(draft.end.d)}·${esc(draft.end.t)}${draft.wps.length?`（${draft.wps.length} 中繼點）`:''}${ex?'　外線':''}</div>
+  $('pop').innerHTML=`<div class="ends">${esc(epText(draft.a))} → ${esc(epText(draft.end))}${draft.wps.length?`（${draft.wps.length} 中繼點）`:''}${ex?'　外線':''}</div>
   ${ex?`<div class="fields"><label for="pCable">電纜編號<input id="pCable" maxlength="12" value="${esc(draft.ext.cable)}"></label><label for="pCore">芯線<input id="pCore" maxlength="10" value="${esc(draft.ext.core)}"></label><label for="pSpec" style="grid-column:1/-1">電纜規格<select id="pSpec">${cableOptions(draft.ext.spec)}</select></label></div>`:''}
   <div><h3>線徑 mm²</h3><div class="chips">${GAUGES.map(([g])=>`<button class="chip" data-pg="${g}" aria-pressed="${last.gauge===g}">${g}</button>`).join('')}</div></div>
   <div><h3>顏色</h3>${colorChips(last.color,'pn')}</div>

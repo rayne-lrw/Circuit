@@ -37,7 +37,7 @@ function renderFilters(){
 const specName=c=>c||'未指定電纜規格';
 function wireRow(w){
   const r=ROUTES.get(w.id),c=colorOf(w);
-  return `<button class="w${sel===w.id?' sel':''}" data-wl="${w.id}"><span class="sw" style="background:${swatch(c)}"></span><span>${w.no}</span><span class="ep">${esc(w.a.d)}·${esc(w.a.t)} → ${esc(w.b.d)}·${esc(w.b.t)}</span><span class="g">${r&&r.warn?'<span class="flag">注意</span>':w.gauge}</span></button>`;
+  return `<button class="w${sel===w.id?' sel':''}" data-wl="${w.id}"><span class="sw" style="background:${swatch(c)}"></span><span>${w.no}</span><span class="ep">${esc(epText(w.a))} → ${esc(epText(w.b))}</span><span class="g">${r&&r.warn?'<span class="flag">注意</span>':w.gauge}</span></button>`;
 }
 function renderList(){
   renderFilters();
@@ -78,7 +78,7 @@ function renderDetail(){
     const c=colorOf(w),kind=wireKind(w);
     box.hidden=false;
     box.innerHTML=`<div class="big"><span class="sw" style="background:${swatch(c)}"></span> ${w.no}　${esc(c.n)}　${w.gauge} mm²　${KINDS[kind]}</div>
-    <dl><dt>起點</dt><dd>${esc(w.a.d)}·${esc(w.a.t)}</dd><dt>終點</dt><dd>${esc(w.b.d)}·${esc(w.b.t)}</dd><dt>路徑</dt><dd>${r.via.length?esc(r.via.join(' → ')):'直接跨接'}${r.gland?' → '+esc(r.gland):''}</dd><dt>中繼點</dt><dd>${w.wps.length} 個</dd><dt>圖面線長</dt><dd>${(r.len/1000).toFixed(2)} m</dd></dl>
+    <dl><dt>起點</dt><dd>${esc(epText(w.a))}</dd><dt>終點</dt><dd>${esc(epText(w.b))}</dd><dt>路徑</dt><dd>${r.via.length?esc(r.via.join(' → ')):'直接跨接'}${r.gland?' → '+esc(r.gland):''}</dd><dt>中繼點</dt><dd>${w.wps.length} 個</dd><dt>圖面線長</dt><dd>${(r.len/1000).toFixed(2)} m</dd></dl>
     ${r.warn?`<span class="flag">${esc(r.warn)}：請加中繼點或調整線槽</span>`:''}
     ${kind==='ext'?`<div class="fields"><label for="xCable">電纜編號<input id="xCable" maxlength="12" value="${esc((w.ext&&w.ext.cable)||'')}"></label><label for="xCore">芯線<input id="xCore" maxlength="10" value="${esc((w.ext&&w.ext.core)||'')}"></label>
       <label for="xSpec" style="grid-column:1/-1">電纜規格<select id="xSpec">${cableOptions(w.ext&&w.ext.spec)}</select></label>
@@ -101,6 +101,7 @@ function renderDetail(){
       const d=devOf(picked.id),t=tplOf(d),n=S.wires.filter(w=>w.a.d===d.id||w.b.d===d.id).length;
       box.innerHTML=`<div class="big">${esc(d.tag)}</div><dl><dt>器具</dt><dd>${esc(t.b)} ${esc(t.n)}</dd><dt>尺寸</dt><dd>${+t.w.toFixed(1)} × ${+t.h.toFixed(1)} × ${t.d} mm</dd><dt>核對</dt><dd>尺寸 ${esc(verText(d.tpl,t))}；接點${t.ok?'已對照':TERM_OK.has(d.tpl)?'依照片或外型圖':'未核對'}</dd>${d.rot?`<dt>旋轉</dt><dd>${d.rot}°</dd>`:''}<dt>位置</dt><dd>${d.sheet==='door'?doorShort():d.sheet==='field'?esc(devRef(d).name||'現場'):'底板'}　X ${d.x}　Y ${d.y}</dd><dt>接線</dt><dd>${n} 條</dd>${t.noOv?`<dt>軌上器具</dt><dd>${mountedOn(d).map(x=>esc(x.tag)).join(' ')||'無'}</dd>`:''}${gapsOf(d)}${t.note?`<dt>備註</dt><dd>${esc(t.note)}</dd>`:''}</dl>
       ${t.gen?`<div class="fields"><label for="dCount">${esc(t.cntLabel)}<input id="dCount" type="number" min="1" value="${d.count||t.cnt}"></label></div>`:''}
+      ${hasSlots(t)?slotHtml(d):''}
       <div class="fields"><label for="dX">X（距${d.sheet==='door'?doorShort():d.sheet==='field'?esc(devRef(d).name||'現場區'):'底板'}左緣）<input id="dX" type="number" step="1" value="${r1(d.x-devRef(d).x)}"></label><label for="dY">Y（距上緣）<input id="dY" type="number" step="1" value="${r1(d.y-devRef(d).y)}"></label></div>${moveHtml(false)}
       <div class="row"><button class="tool" id="rotDev">旋轉 90°</button><button class="tool" id="editTpl">編輯器具</button><button class="tool danger" id="delPicked">刪除器具${n?`與 ${n} 條線`:''}</button></div>`;
       ['X','Y'].forEach(c=>{$('d'+c).onchange=e=>{const v=Number(e.target.value);if(e.target.value===''||!isFinite(v))return;const R=devRef(d),mt=mountedOn(d),ox=d.x,oy=d.y;if(c==='X')d.x=r1(R.x+v);else d.y=r1(R.y+v);shiftAll(mt,d.x-ox,d.y-oy,d.sheet);commit();recompute();};});
@@ -136,6 +137,18 @@ function renderDetail(){
   }
   box.hidden=true;
 }
+/* 端子台：每片一格端子號 */
+function slotHtml(d){
+  const n=d.count||resolveTpl(d.tpl).cnt,L=d.labels||[];
+  let h='';for(let i=0;i<n;i++) h+=`<label><span>${i+1}</span><input data-slot="${i}" maxlength="10" value="${esc(L[i]||'')}" placeholder="${i+1}" aria-label="第 ${i+1} 片端子號"></label>`;
+  return `<div><div class="sub-h">端子號（每片一格，空白就顯示原編號）</div><div class="slots">${h}</div>
+    <div class="row" style="justify-content:flex-start;align-items:center;margin-top:6px"><button class="tool" id="slotSeq">依序編號</button><span class="note">從</span><input id="slotFrom" type="number" value="1" step="1" aria-label="起始號碼" style="width:64px;border:1px solid var(--line);background:var(--panel-2);border-radius:5px;padding:4px 6px;font-family:var(--mono);font-size:12.5px"><button class="tool" id="slotClr">清除端子號</button></div></div>`;
+}
+function setSlots(d,L){
+  while(L.length&&!L[L.length-1])L.pop();
+  if(L.length)d.labels=L;else delete d.labels;
+  commit();renderBoard();renderWires();renderList();renderOverlay(); // 不重畫右側，讓 Tab 可以接著填下一格
+}
 function renderStats(){
   let t=0;ROUTES.forEach(r=>{t+=r.len;});
   $('stats').textContent=`${S.devices.length} 器具 · ${S.wires.length} 線 · 共 ${(t/1000).toFixed(1)} m`+(ISSUES.length?` · ${ISSUES.length} 項待處理`:'');
@@ -144,7 +157,7 @@ function updateHint(){
   let s='';
   if(mode==='place') s=(picked?'拖曳可移動，方向鍵或右側按鈕可依輸入距離移動，按 R 可旋轉，導線會自動重算；拖進面板或現場區會跟著換位置。Delete 可刪除。':'拖曳器具、線槽或出線口來擺放；左側可新增器具。')+'Ctrl＋拖曳可複製，Ctrl＋C／Ctrl＋V 複製貼上。拖到 H-66 鋁軌上會自動對齊並靠齊相鄰器具，按住 Alt 不吸附。';
   else if(draft&&draft.pop) s='選好線徑與顏色後按 Enter 建立，Esc 取消。';
-  else if(draft) s=`起點 ${draft.a.d}·${draft.a.t}：點接點完成；點空白處加中繼點`+(draft.wps.length?`（已有 ${draft.wps.length} 個，Backspace 退回）`:'')+`；按住 Alt 可不吸附，Esc 取消。`;
+  else if(draft) s=`起點 ${epText(draft.a)}：點接點完成；點空白處加中繼點`+(draft.wps.length?`（已有 ${draft.wps.length} 個，Backspace 退回）`:'')+`；按住 Alt 可不吸附，Esc 取消。`;
   else if(sel) s='雙擊這條線可加中繼點；拖曳白點可調整，雙擊白點可刪除。';
   else s='滑鼠靠近接點會自動吸附放大，點一下開始接線。接到現場區就是外線，接到面板就會走過門線束。';
   $('hintT').textContent=s;

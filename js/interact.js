@@ -23,7 +23,7 @@ function showTip(id,sx,sy){
   if(!id){tip.hidden=true;return;}
   const w=S.wires.find(x=>x.id===id),r=ROUTES.get(id);if(!w||!r){tip.hidden=true;return;}
   const c=colorOf(w),kind=wireKind(w);
-  tip.innerHTML=`<b>${w.no}</b>　${esc(c.n)}　${w.gauge} mm²　${KINDS[kind]}<br>${esc(w.a.d)}·${esc(w.a.t)} → ${esc(w.b.d)}·${esc(w.b.t)}<br>${r.via.length?'經 '+esc(r.via.join(' → ')):'直接跨接'}${r.gland?' → '+esc(r.gland):''}　${(r.len/1000).toFixed(2)} m`+(w.ext&&w.ext.cable?`<br>電纜 ${esc(w.ext.cable)}　芯 ${esc(w.ext.core)}`:'')+(r.warn?`<br><span class="flag">${esc(r.warn)}</span>`:'');
+  tip.innerHTML=`<b>${w.no}</b>　${esc(c.n)}　${w.gauge} mm²　${KINDS[kind]}<br>${esc(epText(w.a))} → ${esc(epText(w.b))}<br>${r.via.length?'經 '+esc(r.via.join(' → ')):'直接跨接'}${r.gland?' → '+esc(r.gland):''}　${(r.len/1000).toFixed(2)} m`+(w.ext&&w.ext.cable?`<br>電纜 ${esc(w.ext.cable)}　芯 ${esc(w.ext.core)}`:'')+(r.warn?`<br><span class="flag">${esc(r.warn)}</span>`:'');
   tip.hidden=false;
   const st=$('stage').getBoundingClientRect();
   const tw=tip.offsetWidth,th=tip.offsetHeight;
@@ -494,12 +494,23 @@ $('list').addEventListener('click',e=>{const b=e.target.closest('[data-wl]');if(
 $('list').addEventListener('pointerover',e=>{const b=e.target.closest('[data-wl]');const v=b?b.dataset.wl:null;if(v!==listHover){listHover=v;applyWireClasses();}});
 $('list').addEventListener('pointerleave',()=>{listHover=null;applyWireClasses();});
 $('detail').addEventListener('change',e=>{if(e.target.id==='mvD'){const v=Number(e.target.value);if(v>0)moveStep=v;else e.target.value=moveStep;}});
+$('detail').addEventListener('change',e=>{
+  if(e.target.dataset.slot===undefined) return;
+  const d=picked&&devOf(picked.id);if(!d) return;
+  const L=(d.labels||[]).slice();L[Number(e.target.dataset.slot)]=e.target.value.trim().slice(0,10);
+  for(let i=0;i<L.length;i++) if(L[i]==null) L[i]='';
+  setSlots(d,L);
+});
 $('detail').addEventListener('input',e=>{if(e.target.id==='mvD'){const v=Number(e.target.value);if(v>0)moveStep=v;}});
 $('detail').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
   if(b.id==='delWire'||b.id==='delPicked'){deleteSel();return;}
   if(b.dataset.mv){moveBy(b.dataset.mv,true);return;}
   if(b.id==='rotDev'){rotatePicked();return;}
+  if(b.id==='slotSeq'||b.id==='slotClr'){
+    const d=devOf(picked.id),n=d.count||resolveTpl(d.tpl).cnt,f=Math.round(Number($('slotFrom').value)||1);
+    setSlots(d,b.id==='slotClr'?[]:Array.from({length:n},(_,i)=>String(f+i)));renderDetail();return;
+  }
   if(b.id==='editTpl'){const d=devOf(picked.id);openEditor(d.tpl,d);return;}
   const w=sel&&S.wires.find(x=>x.id===sel);if(!w)return;
   if(b.id==='clearWp') w.wps=[];

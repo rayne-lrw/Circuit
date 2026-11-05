@@ -107,6 +107,10 @@ select.flash{outline:2px solid var(--accent);outline-offset:1px}
 .newc input[type=color]{width:34px;height:28px;padding:1px;border:1px solid var(--line);border-radius:5px;background:var(--panel-2)}
 .newc input:not([type=color]){border:1px solid var(--line);background:var(--panel-2);border-radius:5px;padding:4px 6px;width:100%;font-size:12.5px}
 .newc .tool{padding:4px 8px;font-size:12.5px}
+.slots{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+.slots label{display:flex;align-items:center;gap:3px;font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.slots label span{width:16px;text-align:right;flex:none}
+.slots input{min-width:0;width:100%;border:1px solid var(--line);background:var(--panel-2);border-radius:4px;padding:2px 4px;font-family:var(--mono);font-size:12px;color:var(--fg)}
 .sub-h{font-size:12px;font-weight:500;color:var(--muted);margin:2px 0 4px}
 .issues{display:flex;flex-direction:column;gap:3px}
 .issue{border:0;background:var(--warn-bg);color:var(--warn);border-radius:4px;padding:4px 7px;text-align:left;font-size:12.5px;line-height:1.45}

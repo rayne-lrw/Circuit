@@ -51,7 +51,7 @@ function normalize(o){
   const num=(v,d)=>Number.isFinite(Number(v))&&v!==null&&v!==''?Number(v):d, safe=v=>typeof v==='string'&&/^[\w-]{1,32}$/.test(v), txt=(v,n)=>String(v==null?'':v).slice(0,n);
   const tpls={};if(o.tpls&&typeof o.tpls==='object')Object.keys(o.tpls).forEach(k=>{if(safe(k)){const c=cleanTpl(o.tpls[k]);if(c)tpls[k]=c;}});
   const known=id=>tpls[id]||TPL[id];
-  const devices=o.devices.filter(d=>d&&safe(d.id)&&known(d.tpl)).map(d=>{const t=known(d.tpl),r={id:d.id,tag:d.id,tpl:d.tpl,x:num(d.x,0),y:num(d.y,0),sheet:['plate','door','field'].includes(d.sheet)?d.sheet:(t.sheet||'plate')};if([90,180,270].includes(d.rot))r.rot=d.rot;if(t.gen)r.count=Math.max(1,Math.min(t.cntLabel&&t.cntLabel.includes('mm')?2000:96,num(d.count,t.cnt)));return r;});
+  const devices=o.devices.filter(d=>d&&safe(d.id)&&known(d.tpl)).map(d=>{const t=known(d.tpl),r={id:d.id,tag:d.id,tpl:d.tpl,x:num(d.x,0),y:num(d.y,0),sheet:['plate','door','field'].includes(d.sheet)?d.sheet:(t.sheet||'plate')};if([90,180,270].includes(d.rot))r.rot=d.rot;if(t.gen)r.count=Math.max(1,Math.min(t.cntLabel&&t.cntLabel.includes('mm')?2000:96,num(d.count,t.cnt)));if(t.gen&&t.cntLabel==='片數'&&Array.isArray(d.labels)&&d.labels.some(Boolean))r.labels=d.labels.slice(0,96).map(v=>txt(v,10));return r;});
   const ducts=o.ducts.filter(d=>d&&safe(d.id)).map(d=>({id:d.id,x:num(d.x,0),y:num(d.y,0),w:Math.max(10,num(d.w,40)),h:Math.max(10,num(d.h,40)),dp:Math.max(10,num(d.dp,40)),sheet:d.sheet==='door'?'door':'plate'}));
   const termsOf=dv=>{const b=tpls[dv.tpl]||TPL[dv.tpl];if(b.gen)return b.gen(dv.count).t.map(x=>x[0]);return (b.terms||b.t).map(x=>x.id||x[0]);};
   const has=e=>{const d=e&&devices.find(x=>x.id===e.d);return d&&termsOf(d).includes(e.t);};

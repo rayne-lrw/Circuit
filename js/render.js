@@ -55,7 +55,8 @@ function renderBoard(){
     for(const p of t.terms){
       const x=d.x+p.x,y=d.y+p.y;
       h+=`<circle class="term" cx="${x}" cy="${y}" r="${tr}"/>`;
-      h+=`<text class="tl" x="${x+(p.side==='left'?5:p.side==='right'?-5:0)}" y="${y+(p.side==='top'?5.8:p.side==='bottom'?-3.6:1)}" text-anchor="middle" fill="${t.i}">${esc(p.id)}</text>`;
+      const lb=termLabel(d,p.id),sm=lb!==p.id&&SLOT_RE.exec(p.id);
+      if(!(sm&&(sm[2]==='B'||sm[2]==='D'))) h+=`<text class="tl" x="${x+(p.side==='left'?5:p.side==='right'?-5:0)}" y="${y+(p.side==='top'?5.8:p.side==='bottom'?-3.6:1)}" text-anchor="middle" fill="${t.i}"${sm?` style="font-size:${Math.min(3.2,7.2/Math.max(2,[...lb].length)).toFixed(2)}px"`:''}>${esc(lb)}</text>`; // 同一片上下兩點只標一次；端子號依長度縮小字體，避免和隔壁重疊
     }
     h+='</g>';
   }
@@ -148,7 +149,7 @@ function renderOverlay(){
     if(w&&r){
       const ends=[[r.pts[0],w.a],[r.pts[r.pts.length-1],w.b]];
       for(const [p,e] of ends){
-        const t=`${e.d}·${e.t}`,tw=[...t].reduce((s,c)=>s+(c.charCodeAt(0)>255?14:8),0)+14;
+        const t=epText(e),tw=[...t].reduce((s,c)=>s+(c.charCodeAt(0)>255?14:8),0)+14;
         h+=`<g transform="translate(${p.x} ${p.y}) ${inv}"><circle class="end-ring" r="8"/><rect class="pill-bg" x="10" y="-11" width="${tw}" height="22" rx="4"/><text class="pill-t" x="17" y="5">${esc(t)}</text></g>`;
       }
       w.wps.forEach(p=>h+=`<circle class="wp" cx="${p.x}" cy="${p.y}" r="${(focus===sel?6:3.5)/k}"/>`);
@@ -165,7 +166,7 @@ function renderOverlay(){
   }
   if(snap&&mode==='wire'&&!(draft&&draft.pop)){
     const n=countAt(snap.d,snap.t);
-    const t=`${snap.tag}·${snap.t}`+(snap.desc?` ${snap.desc}`:'')+(n?` 已接 ${n}`:'');
+    const t=`${snap.tag}·${termLabel(devOf(snap.d),snap.t)}`+(snap.desc?` ${snap.desc}`:'')+(n?` 已接 ${n}`:'');
     const tw=[...t].reduce((s,c)=>s+(c.charCodeAt(0)>255?14:8),0)+16;
     const flip=snap.x*k+view.x+tw+30>$('svg').clientWidth;
     const dx=(cursor.x-snap.x)*k,dy=(cursor.y-snap.y)*k;

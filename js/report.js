@@ -120,14 +120,14 @@ function lenSections(){
 function wireTable(){
   return [...S.wires].sort((a,b)=>natCmp(a.no,b.no)).map(w=>{
     const r=ROUTES.get(w.id)||{via:[],len:0};
-    return [w.no,w.gauge,colorOf(w).n,KINDS[wireKind(w)],w.a.d,w.a.t,w.b.d,w.b.t,r.via.join('→'),r.gland||'',m1(wireLen(w)),w.ext?.cable||'',w.ext?.core||''];
+    return [w.no,w.gauge,colorOf(w).n,KINDS[wireKind(w)],w.a.d,termLabel(devOf(w.a.d),w.a.t),w.b.d,termLabel(devOf(w.b.d),w.b.t),r.via.join('→'),r.gland||'',m1(wireLen(w)),w.ext?.cable||'',w.ext?.core||''];
   });
 }
 const WIRE_HEAD=['線號','線徑mm²','線色','種類','起點器具','起點接點','終點器具','終點接點','經過線槽','出線口','估算長度m','電纜','芯線'];
 function extTable(){
   return S.wires.filter(w=>wireKind(w)==='ext').sort((a,b)=>natCmp(a.ext?.cable,b.ext?.cable)||natCmp(a.no,b.no)).map(w=>{
     const af=devOf(w.a.d).sheet==='field',f=af?w.a:w.b,n=af?w.b:w.a,t=tplOf(devOf(f.d));
-    return [w.ext?.cable,w.ext?.core,specName(w.ext?.spec),w.no,w.gauge,colorOf(w).n,`${n.d}·${n.t}`,ROUTES.get(w.id)?.gland||'',zoneOf(devOf(f.d))?.name||'',`${f.d}·${f.t}`,t.n,t.note||''];
+    return [w.ext?.cable,w.ext?.core,specName(w.ext?.spec),w.no,w.gauge,colorOf(w).n,epText(n),ROUTES.get(w.id)?.gland||'',zoneOf(devOf(f.d))?.name||'',epText(f),t.n,t.note||''];
   });
 }
 const EXT_HEAD=['電纜編號','芯線','電纜規格','線號','線徑mm²','線色','箱內端','出線口','現場區','現場端','現場設備','備註'];
