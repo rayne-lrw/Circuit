@@ -74,6 +74,23 @@ const wireKind=w=>{const a=devOf(w.a.d),b=devOf(w.b.d);if(!a||!b)return 'in';if(
 const SLOT_RE=/^(\d+)([A-D])$/;
 const hasSlots=t=>!!(t&&t.gen&&t.cntLabel==='片數');
 function termLabel(d,t){if(!d||!d.labels)return t;const m=SLOT_RE.exec(t);return (m&&d.labels[m[1]-1])||t;}
+/* 出線口：可裝在箱體四面。side=bottom/top 用 x 定位，left/right 用 y 定位 */
+const GSIDE={bottom:'箱底',top:'箱頂',left:'左側',right:'右側'};
+function glandPt(g){
+  const o=boxOrigin(),B={x:o.x,y:o.y,w:S.box.w,h:S.box.h},s=g.side||'bottom';
+  if(s==='top') return {x:g.x,y:B.y,side:s,nx:0,ny:-1};
+  if(s==='left') return {x:B.x,y:g.y,side:s,nx:-1,ny:0};
+  if(s==='right') return {x:B.x+B.w,y:g.y,side:s,nx:1,ny:0};
+  return {x:g.x,y:B.y+B.h,side:'bottom',nx:0,ny:1};
+}
+// 把出線口移到點 p 最近的那一面，離角落至少 8 mm
+function glandTo(g,p){
+  const o=boxOrigin(),B={x:o.x,y:o.y,w:S.box.w,h:S.box.h},cl=(v,a,b)=>Math.max(a+8,Math.min(b-8,Math.round(v/5)*5));
+  const d={bottom:Math.abs(p.y-B.y-B.h),top:Math.abs(p.y-B.y),left:Math.abs(p.x-B.x),right:Math.abs(p.x-B.x-B.w)};
+  const s=Object.keys(d).reduce((a,b)=>d[b]<d[a]?b:a);
+  g.side=s;
+  if(s==='bottom'||s==='top'){g.x=cl(p.x,B.x,B.x+B.w);g.y=g.y??B.y+B.h/2;}else{g.y=cl(p.y,B.y,B.y+B.h);g.x=g.x??B.x+B.w/2;}
+}
 /* 正面附件（例如 LADN 輔助接點）：d.on 記住裝在哪個接觸器上，跟著接觸器移動 */
 const riders=d=>S.devices.filter(x=>x.on===d.id);
 // 附件種類：front 疊在接觸器正面中央（深度相加）；below 掛在伺服驅動器下方（深度不相加）

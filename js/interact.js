@@ -109,8 +109,7 @@ svg.addEventListener('pointermove',e=>{
     act.mounted.forEach(m=>{m.d.x=r1(z.x+m.dx);m.d.y=r1(z.y+m.dy);});
     computeRoutes();renderBoard();renderWires();
   }else if(act.t==='gland'){
-    const p=toWorld(e),o=boxOrigin();
-    act.obj.x=Math.max(o.x+8,Math.min(o.x+S.box.w-8,Math.round((p.x-act.ox)/5)*5));
+    glandTo(act.obj,toWorld(e)); // 吸到最近的箱面
     computeRoutes();renderBoard();renderWires();
   }else if(act.t==='wp'){
     const p=toWorld(e);act.wp.x=Math.round(p.x/5)*5;act.wp.y=Math.round(p.y/5)*5;
@@ -201,7 +200,7 @@ function pasteClip(c,dx,dy){
   const idm={};
   if(c.k==='dev'){main=sh(snapCopy(c.o));main.id=main.tag=newDevId(main);idm[c.o.id]=main.id;S.devices.push(main);}
   else if(c.k==='duct'){main=sh(snapCopy(c.o));main.id=nextId('D',id=>S.ducts.some(x=>x.id===id));S.ducts.push(main);}
-  else if(c.k==='gland'){const b=boxOrigin();main=snapCopy(c.o);main.x=Math.max(b.x+8,Math.min(b.x+S.box.w-8,r1(main.x+dx)));main.id=nextId('G',id=>S.glands.some(x=>x.id===id));S.glands.push(main);}
+  else if(c.k==='gland'){main=snapCopy(c.o);const P=glandPt(main);glandTo(main,{x:P.x+(P.ny?dx:0),y:P.y+(P.nx?dy:0)});main.id=nextId('G',id=>S.glands.some(x=>x.id===id));S.glands.push(main);}
   else{main=sh(snapCopy(c.o));main.id=nextId('Z',id=>S.fields.some(x=>x.id===id));main.name=(c.o.name+'（複製）').slice(0,20);S.fields.push(main);}
   const extras=c.extras.map(e=>{const d=sh(snapCopy(e));d.id=d.tag=newDevId(d);idm[e.id]=d.id;S.devices.push(d);return d;});
   // 正面附件改接到複本的接觸器；只複製附件本身時先拆開
@@ -220,9 +219,10 @@ function pasteHere(){
   const c=clip,o=c.o;let dx,dy;
   if(cursorIn){
     const w=c.k==='dev'?tplOf(o).w:c.k==='gland'?0:o.w,h=c.k==='dev'?tplOf(o).h:c.k==='gland'?0:o.h;
-    dx=Math.round((cursor.x-w/2)/5)*5-o.x;dy=c.k==='gland'?0:Math.round((cursor.y-h/2)/5)*5-o.y;
+    dx=c.k==='gland'?0:Math.round((cursor.x-w/2)/5)*5-o.x;dy=c.k==='gland'?0:Math.round((cursor.y-h/2)/5)*5-o.y;
   }else{c.n++;dx=dy=20*c.n;}
   const r=pasteClip(c,dx,dy),m=r.main;
+  if(r.k==='gland'&&cursorIn) glandTo(m,cursor);
   if(r.k==='dev'||r.k==='duct'){const R=rectOf(r.k,m);m.sheet=sheetAt({x:R.x+R.w/2,y:R.y+R.h/2});if(r.k==='duct'&&m.sheet==='field')m.sheet='plate';}
   if(r.k==='dev'){r.extras.forEach(d=>d.sheet=m.sheet);if(attachOf(m))hostSnap(m,m.x,m.y);else if(!isRail(m))railSnap(m,m.x,m.y);}
   if(mode!=='place') setMode('place');
@@ -240,7 +240,7 @@ function moveBy(dir,keepFocus){
   const o=pickedObj();if(!o) return false;
   const n=moveStep,dx=dir==='l'?-n:dir==='r'?n:0,dy=dir==='u'?-n:dir==='d'?n:0;
   if(picked.k==='zone'){S.devices.filter(d=>inZone(o,d)).forEach(d=>{d.x=r1(d.x+dx);d.y=r1(d.y+dy);});o.x=r1(o.x+dx);o.y=r1(o.y+dy);}
-  else if(picked.k==='gland'){if(!dx) return false;const b=boxOrigin();o.x=Math.max(b.x+8,Math.min(b.x+S.box.w-8,r1(o.x+dx)));}
+  else if(picked.k==='gland'){const P=glandPt(o),along=P.ny?dx:dy;if(!along) return false;glandTo(o,{x:P.x+(P.ny?dx:0),y:P.y+(P.nx?dy:0)});}
   else{const mt=picked.k==='dev'?carried(o):[];o.x=r1(o.x+dx);o.y=r1(o.y+dy);syncSheet(o);shiftAll(mt,dx,dy,o.sheet);}
   commit();recompute();
   if(keepFocus){const el=document.querySelector(`#detail [data-mv="${dir}"]`);if(el)el.focus();}

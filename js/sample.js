@@ -67,7 +67,7 @@ function normalize(o){
   const plate={w:Math.max(100,num(o.plate&&o.plate.w,600)),h:Math.max(100,num(o.plate&&o.plate.h,800))};
   const bx=o.box||{},box={w:Math.max(100,num(bx.w,plate.w+100)),h:Math.max(100,num(bx.h,plate.h+100)),d:Math.max(50,num(bx.d,300)),back:Math.max(0,num(bx.back,20))};
   const dr=o.door||{},door={w:Math.max(100,num(dr.w,box.w)),h:Math.max(100,num(dr.h,box.h))};
-  const glands=(Array.isArray(o.glands)?o.glands:[{id:'G1',x:plate.w/2,spec:'M25 浪管接頭'}]).filter(g=>g&&safe(g.id)).map(g=>({id:g.id,x:num(g.x,100),spec:cleanSpec(g.spec)||'M25 浪管接頭'}));
+  const glands=(Array.isArray(o.glands)?o.glands:[{id:'G1',x:plate.w/2,spec:'M25 浪管接頭'}]).filter(g=>g&&safe(g.id)).map(g=>({id:g.id,side:['bottom','top','left','right'].includes(g.side)?g.side:'bottom',y:num(g.y,(plate.h)/2),x:num(g.x,100),spec:cleanSpec(g.spec)||'M25 浪管接頭'}));
   const nextNo=Math.max(num(o.nextNo,1),1+Math.max(0,...wires.map(w=>Number(w.no.replace(/\D/g,''))||0)));
   const fields=(Array.isArray(o.fields)?o.fields:[]).filter(z=>z&&safe(z.id)).slice(0,30).map(z=>({id:z.id,name:txt(z.name,20)||z.id,x:num(z.x,0),y:num(z.y,0),w:Math.max(50,num(z.w,600)),h:Math.max(50,num(z.h,210))}));
   if(!fields.length) fields.push(defaultField(box,plate,door));

@@ -64,7 +64,8 @@ function renderBoard(){
   }
   const by=boxBottom();
   for(const g of S.glands){
-    h+=`<g class="glandg" data-gland="${g.id}"><circle class="gland" cx="${g.x}" cy="${by}" r="7"/><text class="gland-t" x="${g.x+10}" y="${by+13}">${esc(g.id)} ${esc(g.spec.split(' ')[0])}</text></g>`;
+    const P=glandPt(g),lx=P.side==='left'?P.x-10:P.x+10,ly=P.side==='bottom'?P.y+13:P.side==='top'?P.y-8:P.y+15,an=P.side==='left'?' text-anchor="end"':'';
+    h+=`<g class="glandg" data-gland="${g.id}"><circle class="gland" cx="${P.x}" cy="${P.y}" r="7"/><text class="gland-t" x="${lx}" y="${ly}"${an}>${esc(g.id)} ${esc(g.spec.split(' ')[0])}</text></g>`;
   }
   $('board').innerHTML=h;
 }
@@ -120,7 +121,7 @@ function pickedBox(){
   if(!picked) return null;
   if(picked.k==='dev'){const d=devOf(picked.id);if(!d)return null;const t=tplOf(d);return {x:d.x,y:d.y,w:t.w,h:t.h};}
   if(picked.k==='zone'){const z=S.fields.find(x=>x.id===picked.id);return z?{x:z.x,y:z.y,w:z.w,h:z.h}:null;}
-  if(picked.k==='gland'){const g=S.glands.find(x=>x.id===picked.id);return g?{x:g.x-8,y:boxBottom()-8,w:16,h:16}:null;}
+  if(picked.k==='gland'){const g=S.glands.find(x=>x.id===picked.id);if(!g)return null;const P=glandPt(g);return {x:P.x-8,y:P.y-8,w:16,h:16};}
   const d=S.ducts.find(x=>x.id===picked.id);return d?{x:d.x,y:d.y,w:d.w,h:d.h}:null;
 }
 function passes(w){

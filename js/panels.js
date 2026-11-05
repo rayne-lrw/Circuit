@@ -15,7 +15,7 @@ function renderPalette(){
   const ductRows=DUCTINV.filter(([n,m])=>!q||(n+m).toLowerCase().includes(q)).map(([n,m,w,d])=>`<button class="lib" data-duct-add="h" data-dw="${w}" data-dd="${d}"><span class="nm">${n} 水平</span><small>寬 ${w}</small><span class="bd">${m}</span></button><button class="lib" data-duct-add="v" data-dw="${w}" data-dd="${d}"><span class="nm">${n} 垂直</span><small>寬 ${w}</small><span class="bd">${m}</span></button>`).join('');
   if(ductRows) h+=`<div class="brand"><h2>線槽</h2>${ductRows}</div>`;
   const glandRows=GLANDINV.filter(n=>!q||n.toLowerCase().includes(q)).map(n=>`<button class="lib" data-gland-add="${esc(n)}"><span class="nm">${esc(n)}</span><small>出線口</small></button>`).join('');
-  if(glandRows) h+=`<div class="brand"><h2>出線口（箱底）</h2>${glandRows}</div>`;
+  if(glandRows) h+=`<div class="brand"><h2>出線口（可裝在箱體四面）</h2>${glandRows}</div>`;
   if(!q||'現場區'.includes(q)) h+=`<div class="brand"><h2>現場區</h2><button class="lib" data-zone-add=""><span class="nm">新增現場區</span><small>可移動</small><span class="bd">依機台或區域分開放現場設備</span></button></div>`;
   const rest=INV.filter(r=>!q||r.join(' ').toLowerCase().includes(q));
   const groups={};rest.forEach(r=>(groups[r[0]]=groups[r[0]]||[]).push(r));
@@ -127,7 +127,13 @@ function renderDetail(){
       ['w','h'].forEach(f=>{$('z'+f).onchange=e=>{const v=Number(e.target.value);if(!(v>=50))return;z[f]=Math.round(v);commit();recompute();};});
     }else if(picked.k==='gland'){
       const g=S.glands.find(x=>x.id===picked.id),n=[...ROUTES.values()].filter(r=>r.gland===g.id).length;
-      box.innerHTML=`<div class="big">出線口 ${esc(g.id)}</div><dl><dt>規格</dt><dd>${esc(g.spec)}</dd><dt>外線</dt><dd>${n} 芯</dd><dt>X</dt><dd>${r1(g.x)}</dd></dl>${moveHtml(true)}<div class="row"><button class="tool danger" id="delPicked">刪除出線口</button></div>`;
+      box.innerHTML=`<div class="big">出線口 ${esc(g.id)}</div><dl><dt>規格</dt><dd>${esc(g.spec)}</dd><dt>外線</dt><dd>${n} 芯</dd><dt>位置</dt><dd>${GSIDE[g.side||'bottom']}</dd></dl>
+      <div class="fields"><label for="gSide">裝在<select id="gSide">${Object.entries(GSIDE).map(([k,n])=>`<option value="${k}"${(g.side||'bottom')===k?' selected':''}>${n}</option>`).join('')}</select></label>
+      <label for="gPos">${g.side==='left'||g.side==='right'?'距箱頂':'距箱體左緣'} mm<input id="gPos" type="number" step="5" value="${r1((g.side==='left'||g.side==='right')?g.y-boxOrigin().y:g.x-boxOrigin().x)}"></label></div>
+      <p class="note">拖曳出線口會吸到最近的箱面。</p>${moveHtml(!(g.side==='left'||g.side==='right'))}<div class="row"><button class="tool danger" id="delPicked">刪除出線口</button></div>`;
+      const bo=boxOrigin(),vert=()=>g.side==='left'||g.side==='right';
+      $('gSide').onchange=e=>{const P=glandPt(g),c={x:bo.x+S.box.w/2,y:bo.y+S.box.h/2},s=e.target.value;glandTo(g,{x:s==='left'?bo.x:s==='right'?bo.x+S.box.w:(P.ny?P.x:c.x),y:s==='top'?bo.y:s==='bottom'?bo.y+S.box.h:(P.nx?P.y:c.y)});commit();recompute();};
+      $('gPos').onchange=e=>{const v=Number(e.target.value);if(e.target.value===''||!isFinite(v))return;const P=glandPt(g);glandTo(g,vert()?{x:P.x,y:bo.y+v}:{x:bo.x+v,y:P.y});commit();recompute();};
     }else{
       const d=S.ducts.find(x=>x.id===picked.id);
       const u=DUCTUSE.get(d.id)||{n:0,pct:0,lanes:0};

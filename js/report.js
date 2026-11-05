@@ -8,13 +8,15 @@ const SHEET_N={plate:'底板',door:'面板',field:'現場'};
 const spare=()=>Math.max(0,Number(S.spare)||0);
 const isCable=w=>wireKind(w)==='ext'&&!!(w.ext&&w.ext.cable);
 // 折線在箱底以上的長度；外線出了出線口就不算
+// 折線在箱體範圍內的長度；外線出了出線口（任何一面）就不算
 function inBoxLen(pts){
-  const by=boxBottom()+.01;let L=0;
+  const o=boxOrigin(),X0=o.x-.01,X1=o.x+S.box.w+.01,Y0=o.y-.01,Y1=o.y+S.box.h+.01;let L=0;
+  const clip=(a0,a1,lo,hi)=>Math.max(0,Math.min(Math.max(a0,a1),hi)-Math.max(Math.min(a0,a1),lo));
   for(let i=1;i<pts.length;i++){
-    const a=pts[i-1],b=pts[i];
-    if(Math.abs(a.y-b.y)<.01){if(a.y<=by)L+=Math.abs(a.x-b.x);continue;}
-    const y0=Math.min(a.y,b.y),y1=Math.max(a.y,b.y);
-    L+=Math.max(0,(Math.min(y1,by)-y0)/(y1-y0))*(Math.abs(a.x-b.x)+y1-y0);
+    const a=pts[i-1],b=pts[i],dx=Math.abs(a.x-b.x),dy=Math.abs(a.y-b.y);
+    if(dy<.01){if(a.y>=Y0&&a.y<=Y1)L+=clip(a.x,b.x,X0,X1);continue;}
+    if(dx<.01){if(a.x>=X0&&a.x<=X1)L+=clip(a.y,b.y,Y0,Y1);continue;}
+    L+=Math.min(clip(a.x,b.x,X0,X1)/dx,clip(a.y,b.y,Y0,Y1)/dy)*(dx+dy); // 斜線：取兩軸在範圍內比例較小者
   }
   return L;
 }

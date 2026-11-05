@@ -140,12 +140,24 @@ function endpoint(e,off){
   return {x:d.x+t.x+(v?off:0),y:d.y+t.y+(v?0:off),side:t.side,dev:d.id,sheet:d.sheet};
 }
 function wpAnchor(p){const s=sheetAt(p);return {x:p.x,y:p.y,sheet:s,inDuct:locate(p,s)};}
-function gates(from,to,ctr,fieldX,glandId){
+function gates(from,to,ctr,fieldP,glandId){
   if(from==='field'||to==='field'){
-    const g=(glandId&&S.glands.find(x=>x.id===glandId))||S.glands.reduce((b,x)=>!b||Math.abs(x.x-fieldX)<Math.abs(b.x-fieldX)?x:b,null);
-    const gx=g?g.x:S.plate.w/2,i=ctr.g++,y=boxBottom();
-    const a={x:gx+((i%14)-6.5)*1.6,y,sheet:'plate',must:true,side:'bottom',midY:y+12+(i%24)*2.2,gland:g?g.id:null};
-    return [a];
+    // 沒指定就選離現場設備最近的出線口
+    const dist=g=>{const P=glandPt(g);return Math.hypot(P.x-fieldP.x,P.y-fieldP.y);};
+    const g=(glandId&&S.glands.find(x=>x.id===glandId))||S.glands.reduce((b,x)=>!b||dist(x)<dist(b)?x:b,null);
+    const i=ctr.g++,k=(i%24)*2.2,sp=((i%14)-6.5)*1.6,by=boxBottom();
+    if(!g||(g.side||'bottom')==='bottom'){
+      const gx=g?g.x:S.plate.w/2;
+      const a={x:gx+sp,y:by,sheet:'plate',must:true,side:'bottom',midY:by+12+k,gland:g?g.id:null};
+      return to==='field'?[a]:[a];
+    }
+    // 側面或頂部：先往箱外拉出一段，再沿箱外繞到箱底下方，不穿過箱體
+    const P=glandPt(g),o=boxOrigin(),bx0=o.x,bx1=o.x+S.box.w;
+    const a={x:P.x+(P.ny?sp:0),y:P.y+(P.nx?sp:0),sheet:'plate',must:true,side:P.side,gland:g.id};
+    const out={x:a.x+P.nx*(12+k),y:a.y+P.ny*(12+k),sheet:'field',side:'bottom',midY:by+12+k};
+    const pts=[a,out];
+    if(P.side==='top'){const sx=fieldP.x<(bx0+bx1)/2?bx0-12-k:bx1+12+k;pts.push({x:sx,y:out.y,sheet:'field',side:'bottom',midY:by+12+k});}
+    return from==='field'?pts.reverse():pts;
   }
   const i=ctr.h++,y=S.hinge+(i-(ctr.hn-1)/2)*2.6,H1={x:S.plate.w,y,sheet:'plate',must:true,side:null},H2={x:doorO().x,y,sheet:'door',side:null};
   return from==='plate'?[H1,H2]:[H2,H1];
@@ -153,11 +165,11 @@ function gates(from,to,ctr,fieldX,glandId){
 function buildAnchors(ea,eb,wps,ctr,glandId){
   const sa=ea.sheet,sb=eb.sheet;
   const chain=sa===sb?[sa]:(sa!=='plate'&&sb!=='plate')?[sa,'plate',sb]:[sa,sb];
-  const fieldX=sa==='field'?ea.x:eb.x;
+  const fieldP=sa==='field'?ea:eb;
   const out=[ea];
   chain.forEach((sh,i)=>{
     wps.forEach(p=>{const a=wpAnchor(p);if(a.sheet===sh)out.push(a);});
-    if(i<chain.length-1) gates(sh,chain[i+1],ctr,fieldX,glandId).forEach(x=>out.push(x));
+    if(i<chain.length-1) gates(sh,chain[i+1],ctr,fieldP,glandId).forEach(x=>out.push(x));
   });
   out.push(eb);
   return out;
