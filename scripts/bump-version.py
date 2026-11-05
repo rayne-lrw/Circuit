@@ -11,7 +11,7 @@ import re, datetime, pathlib
 
 p = pathlib.Path(__file__).resolve().parent.parent / 'index.html'
 s = p.read_text(encoding='utf-8')
-v = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).strftime('%Y%m%d.%H%M')
+v = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).strftime('%Y%m%d.%H%M%S')
 s = re.sub(r'((?:src|href)="(?:js|css)/[\w.-]+\.(?:js|css))(?:\?v=[\w.]+)?"', lambda m: f'{m.group(1)}?v={v}"', s)
 s = re.sub(r'<span id="ver"[^>]*>[^<]*</span>', f'<span id="ver" title="目前版本；更新後這個號碼會改變">v{v}</span>', s)
 p.write_text(s, encoding='utf-8')
