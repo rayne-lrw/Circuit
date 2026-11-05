@@ -102,6 +102,8 @@ function renderWires(){
     const [k,id]=s.split('|'),o=k==='dev'?devOf(id):S.ducts.find(d=>d.id===id);if(!o) return;
     const r=rectOf(k,o);t+=`<rect class="issue-rect" x="${r.x-1}" y="${r.y-1}" width="${r.w+2}" height="${r.h+2}" rx="2"/>`;
   });
+  const rh=railHit&&devOf(railHit);
+  if(rh){const rt=tplOf(rh);t+=`<rect class="rail-hit" x="${rh.x-1}" y="${rh.y-1}" width="${rt.w+2}" height="${rt.h+2}" rx="2"/>`;}
   if(picked){
     const b=pickedBox(); if(b) t+=`<rect class="picked" x="${b.x-2}" y="${b.y-2}" width="${b.w+4}" height="${b.h+4}" rx="3"/>`;
   }
@@ -122,6 +124,8 @@ function passes(w){
   return true;
 }
 function applyWireClasses(){
+  // 線束模式下，選到的線要從線束拉開，所以選取改變時重算線道
+  if(bundle&&sel!==bundleSel){computeRoutes();renderWires();return;}
   const focus=listHover||hoverW||sel;
   const g=$('wires');g.classList.toggle('focus',!!focus);
   g.querySelectorAll('.wire').forEach(el=>{

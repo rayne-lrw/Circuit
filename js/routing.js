@@ -200,7 +200,7 @@ function computeIssues(){
 }
 const key=(e)=>e.d+'|'+e.t;
 function computeRoutes(){
-  ROUTES.clear();DUCTUSE.clear();
+  ROUTES.clear();DUCTUSE.clear();bundleSel=sel;
   const J=junctions();
   const use=new Map();
   S.wires=S.wires.filter(w=>{const a=devOf(w.a.d),b=devOf(w.b.d);return a&&b&&termOf(a,w.a.t)&&termOf(b,w.b.t);});
@@ -252,9 +252,10 @@ function computeRoutes(){
     const section=Math.min(d.w,d.h)*(d.dp||40);
     DUCTUSE.set(d.id,{n:list.length,lanes:T,pitch:T>1?Math.min(3.4,avail/(T-1)):3.4,pct:Math.round(peak/section*100)});
     if(bundle){
-      const p=Math.min(.7,avail/Math.max(T,1));
-      up.forEach(e=>lanes.set(e.id+'|'+d.id,c+(e.l-(T-1)/2)*p));
-      dn.forEach(e=>lanes.set(e.id+'|'+d.id,c+((T-1-e.l)-(T-1)/2)*p));
+      // 選取的那條線放回自己的線道，其他維持收攏
+      const p=Math.min(.7,avail/Math.max(T,1)),sp=T>1?Math.min(3.4,avail/(T-1)):0;
+      up.forEach(e=>lanes.set(e.id+'|'+d.id,e.id===sel&&T>1?lo+pad+e.l*sp:c+(e.l-(T-1)/2)*p));
+      dn.forEach(e=>lanes.set(e.id+'|'+d.id,e.id===sel&&T>1?hi-pad-e.l*sp:c+((T-1-e.l)-(T-1)/2)*p));
     }else{
       const p=T>1?Math.min(3.4,avail/(T-1)):0;
       up.forEach(e=>lanes.set(e.id+'|'+d.id,T===1?c:lo+pad+e.l*p));

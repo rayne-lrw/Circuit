@@ -40,6 +40,7 @@
       <button class="tool" id="exportB">匯出專案</button>
       <button class="tool" id="importB">匯入專案</button>
       <input type="file" id="importF" accept=".json,application/json" hidden>
+      <button class="tool" id="printB" title="列印圖面與各表格；要 PDF 就在列印視窗選「另存為 PDF」">列印</button>
       <button class="tool" id="sample">載入範例</button>
       <button class="tool" id="clearW">清除所有線</button>
       <button class="tool" id="oldDraft" hidden>讀回舊版暫存</button>
@@ -97,7 +98,7 @@
           <h2 id="issuesH">檢查</h2>
           <div class="issues" id="issues"></div>
         </div>
-        <div>
+        <div id="filters">
           <h2>篩選</h2>
           <div style="display:flex;flex-direction:column;gap:6px">
             <div class="chips" id="fKind"></div>
@@ -110,8 +111,10 @@
           <div class="seg" role="group" aria-label="清單" style="margin-bottom:6px">
             <button id="tabAll" aria-pressed="true">線號表</button>
             <button id="tabExt" aria-pressed="false">外線表</button>
+            <button id="tabBom" aria-pressed="false">材料表</button>
+            <button id="tabLen" aria-pressed="false">線長</button>
           </div>
-          <div class="row" id="extTools" hidden style="justify-content:flex-start;margin-bottom:6px"><button class="tool" id="extCsv">匯出外線表 CSV</button></div>
+          <div class="row" id="listTools" style="justify-content:flex-start;margin-bottom:6px"><button class="tool" id="listCsv">匯出線號表 CSV</button></div>
           <h2 id="listH">線號表</h2>
           <div id="list"></div>
         </div>
@@ -119,6 +122,7 @@
     </aside>
   </main>
 </div>
+<div id="print" aria-hidden="true"></div>
 <div id="ed" hidden role="dialog" aria-label="器具編輯器">
   <div id="edCard">
     <h2 id="edTitle">器具編輯器</h2>
@@ -153,6 +157,7 @@
 <script src="js/render.js"></script>
 <script src="js/panels.js"></script>
 <script src="js/popup.js"></script>
+<script src="js/report.js"></script>
 <script src="js/interact.js"></script>
 <script src="js/editor.js"></script>
 <script src="js/main.js"></script>

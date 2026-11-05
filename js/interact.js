@@ -57,6 +57,7 @@ svg.addEventListener('pointerdown',e=>{
       const obj=dg?devOf(dg.dataset.dev):S.ducts.find(d=>d.id===cg.dataset.duct);
       picked={k:dg?'dev':'duct',id:obj.id};sel=null;
       act={t:'drag',obj,ox:p.x-obj.x,oy:p.y-obj.y,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId};
+      if(dg&&isRail(obj)) act.mounted=mountedOn(obj).map(d=>({d,dx:d.x-obj.x,dy:d.y-obj.y}));
       svg.setPointerCapture(e.pointerId);renderWires();renderDetail();updateHint();return;
     }
   }
@@ -78,6 +79,9 @@ svg.addEventListener('pointermove',e=>{
     const r=picked.k==='dev'?rectOf('dev',o):rectOf('duct',o);
     o.sheet=sheetAt({x:r.x+r.w/2,y:r.y+r.h/2});
     if(picked.k==='duct'&&o.sheet==='field') o.sheet='plate';
+    railHit=null;
+    if(act.mounted) act.mounted.forEach(m=>{m.d.x=r1(o.x+m.dx);m.d.y=r1(o.y+m.dy);m.d.sheet=o.sheet;});
+    else if(picked.k==='dev'&&!e.altKey) railHit=railSnap(o,p.x-act.ox,p.y-act.oy);
     computeRoutes();renderBoard();renderWires();
   }else if(act.t==='gland'){
     const p=toWorld(e),o=boxOrigin();
@@ -93,6 +97,7 @@ svg.addEventListener('pointermove',e=>{
 svg.addEventListener('pointerup',e=>{
   const a=act;act=null;
   if(!a) return;
+  if(railHit){railHit=null;renderWires();}
   if(a.t==='wp'&&!a.moved&&noteTap(e)&&tryDouble(toWorld(e))) return;
   if(a.t==='drag'||a.t==='wp'||a.t==='gland'){ if(a.moved){commit();} recompute(); return; }
   if(a.moved||a.btn!==0) return;
@@ -161,10 +166,52 @@ function moveBy(dir,keepFocus){
   const o=pickedObj();if(!o) return false;
   const n=moveStep,dx=dir==='l'?-n:dir==='r'?n:0,dy=dir==='u'?-n:dir==='d'?n:0;
   if(picked.k==='gland'){if(!dx) return false;const b=boxOrigin();o.x=Math.max(b.x+8,Math.min(b.x+S.box.w-8,r1(o.x+dx)));}
-  else{o.x=r1(o.x+dx);o.y=r1(o.y+dy);syncSheet(o);}
+  else{const mt=picked.k==='dev'?mountedOn(o):[];o.x=r1(o.x+dx);o.y=r1(o.y+dy);syncSheet(o);shiftAll(mt,dx,dy,o.sheet);}
   commit();recompute();
   if(keepFocus){const el=document.querySelector(`#detail [data-mv="${dir}"]`);if(el)el.focus();}
   return true;
+}
+/* ---------- H-66 鋁軌（DIN 35 mm）----------
+   器具以高度中心對齊鋁軌中心；同一支軌上的器具會互相靠齊。
+   伺服、濾波器、風扇、再生電阻、接地銅板一般用螺絲鎖底板，不吸附。 */
+const NO_DIN=new Set(['fn3270','fn2010','gnd13','gnd15','mec10','rxlg','fan4']);
+const isRail=d=>!!d&&tplOf(d).noOv;
+const railH=r=>{const t=tplOf(r);return t.w>=t.h;};
+function dinOk(d){
+  if(!d||d.sheet!=='plate'||d.rot===90||d.rot===270||NO_DIN.has(d.tpl)) return false;
+  const t=tplOf(d);return !t.noOv&&t.cat!==C5&&t.cat!==C9;
+}
+// 掛在這支鋁軌上的器具：高度中心對到軌道中心，水平中心落在軌道範圍內
+function mountedOn(r){
+  if(!isRail(r)||!railH(r)) return [];
+  const rt=tplOf(r),cy=r.y+rt.h/2;
+  return S.devices.filter(d=>{
+    if(d===r||d.sheet!==r.sheet||!dinOk(d)) return false;
+    const t=tplOf(d),cx=d.x+t.w/2;
+    return Math.abs(d.y+t.h/2-cy)<.6&&cx>=r.x&&cx<=r.x+rt.w;
+  });
+}
+function shiftAll(list,dx,dy,sheet){list.forEach(d=>{d.x=r1(d.x+dx);d.y=r1(d.y+dy);d.sheet=sheet;});}
+// 拖曳時呼叫：x、y 是未對齊格點的位置。吸附成功回傳鋁軌 id
+function railSnap(o,x,y){
+  if(!dinOk(o)) return null;
+  const t=tplOf(o),cx=x+t.w/2,cyD=y+t.h/2,reach=Math.max(12,t.h*.3);
+  let best=null,bd=reach;
+  for(const r of S.devices){
+    if(!isRail(r)||r.sheet!==o.sheet||!railH(r)) continue;
+    const rt=tplOf(r),d=Math.abs(cyD-(r.y+rt.h/2));
+    if(cx>=r.x&&cx<=r.x+rt.w&&d<bd){bd=d;best=r;}
+  }
+  if(!best) return null;
+  const rt=tplOf(best);
+  o.y=r1(best.y+rt.h/2-t.h/2);o.x=Math.round(x);
+  // 靠齊：左右邊緣離相鄰器具或軌道端點很近時貼齊
+  const tol=Math.max(3,8/view.k);let fix=null,fd=tol;
+  const edge=(v)=>{const d=Math.abs(v-o.x);if(d<fd){fd=d;fix=v;}};
+  mountedOn(best).forEach(n=>{if(n===o)return;const nw=tplOf(n).w;edge(n.x+nw);edge(n.x-t.w);});
+  edge(best.x);edge(best.x+rt.w-t.w);
+  if(fix!==null) o.x=r1(fix);
+  return best.id;
 }
 function syncSheet(o){
   const r=picked.k==='dev'?rectOf('dev',o):rectOf('duct',o);
@@ -262,15 +309,8 @@ async function saveFile(name,data,okMsg){
 }
 const stamp=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}`;};
 $('exportB').onclick=()=>saveFile(`配線專案-${stamp()}.json`,JSON.stringify(S,null,1),'已匯出專案檔');
-$('extCsv').onclick=()=>{
-  const q=v=>{let s=String(v==null?'':v);if(/^[=+\-@]/.test(s))s="'"+s;return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
-  const rows=[['電纜編號','芯線','電纜規格','線號','線徑mm²','線色','箱內端','出線口','現場端','現場設備','備註']];
-  S.wires.filter(w=>wireKind(w)==='ext').sort((a,b)=>String(a.ext?.cable).localeCompare(String(b.ext?.cable))).forEach(w=>{
-    const af=devOf(w.a.d).sheet==='field',f=af?w.a:w.b,n=af?w.b:w.a,fd=devOf(f.d),t=tplOf(fd);
-    rows.push([w.ext?.cable,w.ext?.core,specName(w.ext?.spec),w.no,w.gauge,colorOf(w).n,`${n.d}·${n.t}`,ROUTES.get(w.id)?.gland||'',`${f.d}·${f.t}`,t.n,t.note||'']);
-  });
-  saveFile(`外線表-${stamp()}.csv`,'﻿'+rows.map(r=>r.map(q).join(',')).join('\r\n'),'已匯出外線表');
-};
+$('listCsv').onclick=exportCsv;
+$('printB').onclick=()=>{try{window.print();}catch(_){toast('這個檢視無法列印，請下載後用瀏覽器開啟');}};
 $('importB').onclick=()=>$('importF').click();
 $('importF').onchange=e=>{
   const f=e.target.files[0];e.target.value='';if(!f) return;
@@ -361,5 +401,8 @@ $('right').addEventListener('click',e=>{
 });
 $('tabAll').onclick=()=>{tab='all';renderList();};
 $('tabExt').onclick=()=>{tab='ext';renderList();};
+$('tabBom').onclick=()=>{tab='bom';renderList();};
+$('tabLen').onclick=()=>{tab='len';renderList();};
+$('list').addEventListener('change',e=>{if(e.target.id==='spareIn'){const v=Number(e.target.value);if(!(v>=0)){e.target.value=spare();return;}S.spare=Math.min(5000,Math.round(v));commit();renderList();}});
 $('fDev').onchange=e=>{filt.dev=e.target.value;renderList();applyWireClasses();};
 

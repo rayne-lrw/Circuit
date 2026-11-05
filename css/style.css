@@ -73,6 +73,17 @@ select{border:1px solid var(--line);background:var(--panel-2);border-radius:5px;
 .w.sel{background:var(--panel-2);box-shadow:inset 2px 0 0 var(--accent)}
 .w .ep{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
 .w .g{color:var(--muted);font-variant-numeric:tabular-nums}
+.bom-h{font-size:12px;font-weight:600;color:var(--muted);padding:8px 2px 3px;border-bottom:1px solid var(--line)}
+.bom{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1px 8px;padding:4px 2px;border-bottom:1px solid var(--line);font-size:12.5px;line-height:1.4}
+.bom .nm{overflow-wrap:anywhere}
+.bom .nm small{display:block;color:var(--muted);font-size:11.5px}
+.bom .q{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.bom .tg{grid-column:1/-1;font-family:var(--mono);font-size:11px;color:var(--muted);overflow-wrap:anywhere}
+.rtab{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:4px}
+.rtab th,.rtab td{text-align:left;padding:3px 4px;border-bottom:1px solid var(--line)}
+.rtab th{font-weight:500;color:var(--muted);white-space:nowrap}
+.rtab .n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.rtab tr.tot td{font-weight:600}
 .cable-h{font-size:12.5px;font-weight:500;padding:7px 5px 2px;overflow-wrap:anywhere}
 .flag{color:var(--warn);background:var(--warn-bg);border-radius:4px;padding:1px 5px;font-size:11.5px;font-family:var(--sans)}
 #detail{border-bottom:1px solid var(--line);padding:10px;display:flex;flex-direction:column;gap:7px;font-size:13px;line-height:1.5;max-height:58%;overflow:auto;flex:none}
@@ -151,6 +162,31 @@ dt{color:var(--muted)} dd{margin:0;font-family:var(--mono);overflow-wrap:anywher
 .pill-bg{fill:#b0005a}
 .pill-t{fill:#fff;font-family:var(--mono);font-size:13px;font-weight:600}
 .end-ring{fill:none;stroke:#b0005a;stroke-width:2.5}
+.rail-hit{fill:none;stroke:var(--accent);stroke-width:2px;vector-effect:non-scaling-stroke;pointer-events:none}
+
+/* 列印：圖面頁 A4 橫向，表格頁 A4 直向；一律用淺色 */
+#print{display:none}
+@page{size:A4 portrait;margin:12mm}
+@page land{size:A4 landscape;margin:10mm}
+@media print{
+  :root,:root:not([data-theme="light"]),:root[data-theme="dark"]{--bg:#fff;--fg:#000;--muted:#444;--line:#999;--stage:#fff;--panel:#fff;--panel-2:#fff;color-scheme:light}
+  html,body{height:auto;background:#fff}
+  #app,#ed{display:none!important}
+  #print{display:block;color:#000;font-family:var(--sans);font-size:8.5pt}
+  .pg{break-after:page}
+  .pg:last-child{break-after:auto}
+  .pg.land{page:land}
+  .ph{display:flex;justify-content:space-between;align-items:baseline;gap:12px;border-bottom:1pt solid #000;padding-bottom:3pt;margin-bottom:6pt}
+  .ph b{font-size:12pt}
+  .ph span{font-family:var(--mono);font-size:8pt}
+  .pdraw{display:block;width:100%;height:170mm}
+  #print h3{font-size:9.5pt;margin:10pt 0 3pt}
+  .pnote{font-size:8pt;color:#444;margin:4pt 0}
+  #print .rtab{font-size:8pt}
+  #print .rtab th,#print .rtab td{border:.5pt solid #999;padding:1.5pt 3pt;color:#000}
+  #print thead{display:table-header-group}
+  #print tr{break-inside:avoid}
+}
 
 @media (max-width:980px){
   html,body{height:auto}

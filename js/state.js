@@ -14,7 +14,7 @@ function syncUndo(){$('undo').disabled=!hist.u.length;$('redo').disabled=!hist.r
 
 let mode='wire', sel=null, picked=null, bundle=false, showNo=false, tab='all';
 let view={k:1,x:0,y:0,manual:false};
-let draft=null;   // {a:{d,t},wps:[],end?:{d,t},pop:false,ext:{}}
+let draft=null, railHit=null, bundleSel=null;   // {a:{d,t},wps:[],end?:{d,t},pop:false,ext:{}}
 let snap=null, hoverW=null, cursor={x:0,y:0,sx:0,sy:0}, listHover=null;
 let last={gauge:1.25,color:'white'};
 const filt={color:null,gauge:null,dev:'',kind:null};

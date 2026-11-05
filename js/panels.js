@@ -40,8 +40,11 @@ function wireRow(w){
 }
 function renderList(){
   renderFilters();
-  $('tabAll').setAttribute('aria-pressed',tab==='all');$('tabExt').setAttribute('aria-pressed',tab==='ext');
-  $('extTools').hidden=tab!=='ext';
+  [['tabAll','all'],['tabExt','ext'],['tabBom','bom'],['tabLen','len']].forEach(([id,t])=>$(id).setAttribute('aria-pressed',tab===t));
+  $('listCsv').textContent=`匯出${{all:'線號表',ext:'外線表',bom:'材料表',len:'線長統計'}[tab]} CSV`;
+  $('filters').hidden=tab==='bom'||tab==='len';
+  if(tab==='bom'){renderBom();return;}
+  if(tab==='len'){renderLen();return;}
   if(tab==='ext'){
     const ex=S.wires.filter(w=>wireKind(w)==='ext'&&passes(w)),by=new Map();
     ex.forEach(w=>{const k=(w.ext&&w.ext.cable)||'未編號';if(!by.has(k))by.set(k,[]);by.get(k).push(w);});
@@ -94,11 +97,11 @@ function renderDetail(){
     box.hidden=false;
     if(picked.k==='dev'){
       const d=devOf(picked.id),t=tplOf(d),n=S.wires.filter(w=>w.a.d===d.id||w.b.d===d.id).length;
-      box.innerHTML=`<div class="big">${esc(d.tag)}</div><dl><dt>器具</dt><dd>${esc(t.b)} ${esc(t.n)}</dd><dt>尺寸</dt><dd>${+t.w.toFixed(1)} × ${+t.h.toFixed(1)} × ${t.d} mm</dd><dt>核對</dt><dd>尺寸 ${esc(verText(d.tpl,t))}；接點${t.ok?'已對照':TERM_OK.has(d.tpl)?'依照片或外型圖':'未核對'}</dd>${d.rot?`<dt>旋轉</dt><dd>${d.rot}°</dd>`:''}<dt>位置</dt><dd>${d.sheet==='door'?'面板':d.sheet==='field'?'現場':'底板'}　X ${d.x}　Y ${d.y}</dd><dt>接線</dt><dd>${n} 條</dd>${gapsOf(d)}${t.note?`<dt>備註</dt><dd>${esc(t.note)}</dd>`:''}</dl>
+      box.innerHTML=`<div class="big">${esc(d.tag)}</div><dl><dt>器具</dt><dd>${esc(t.b)} ${esc(t.n)}</dd><dt>尺寸</dt><dd>${+t.w.toFixed(1)} × ${+t.h.toFixed(1)} × ${t.d} mm</dd><dt>核對</dt><dd>尺寸 ${esc(verText(d.tpl,t))}；接點${t.ok?'已對照':TERM_OK.has(d.tpl)?'依照片或外型圖':'未核對'}</dd>${d.rot?`<dt>旋轉</dt><dd>${d.rot}°</dd>`:''}<dt>位置</dt><dd>${d.sheet==='door'?'面板':d.sheet==='field'?'現場':'底板'}　X ${d.x}　Y ${d.y}</dd><dt>接線</dt><dd>${n} 條</dd>${t.noOv?`<dt>軌上器具</dt><dd>${mountedOn(d).map(x=>esc(x.tag)).join(' ')||'無'}</dd>`:''}${gapsOf(d)}${t.note?`<dt>備註</dt><dd>${esc(t.note)}</dd>`:''}</dl>
       ${t.gen?`<div class="fields"><label for="dCount">${esc(t.cntLabel)}<input id="dCount" type="number" min="1" value="${d.count||t.cnt}"></label></div>`:''}
       <div class="fields"><label for="dX">X（距${d.sheet==='door'?'面板':d.sheet==='field'?'現場區':'底板'}左緣）<input id="dX" type="number" step="1" value="${r1(d.x-sheetRect(d.sheet).x)}"></label><label for="dY">Y（距上緣）<input id="dY" type="number" step="1" value="${r1(d.y-sheetRect(d.sheet).y)}"></label></div>${moveHtml(false)}
       <div class="row"><button class="tool" id="rotDev">旋轉 90°</button><button class="tool" id="editTpl">編輯器具</button><button class="tool danger" id="delPicked">刪除器具${n?`與 ${n} 條線`:''}</button></div>`;
-      ['X','Y'].forEach(c=>{$('d'+c).onchange=e=>{const v=Number(e.target.value);if(e.target.value===''||!isFinite(v))return;const R=sheetRect(d.sheet);if(c==='X')d.x=r1(R.x+v);else d.y=r1(R.y+v);commit();recompute();};});
+      ['X','Y'].forEach(c=>{$('d'+c).onchange=e=>{const v=Number(e.target.value);if(e.target.value===''||!isFinite(v))return;const R=sheetRect(d.sheet),mt=mountedOn(d),ox=d.x,oy=d.y;if(c==='X')d.x=r1(R.x+v);else d.y=r1(R.y+v);shiftAll(mt,d.x-ox,d.y-oy,d.sheet);commit();recompute();};});
       if(t.gen) $('dCount').onchange=e=>{const v=Number(e.target.value);if(!(v>=1))return;const before=S.wires.length;d.count=Math.min(t.cntLabel.includes('mm')?2000:96,Math.round(v));commit();recompute();snapshotPrev=JSON.stringify(S);save();if(S.wires.length<before)toast(`接點變少，移除了 ${before-S.wires.length} 條線；可按復原`);};
     }else if(picked.k==='gland'){
       const g=S.glands.find(x=>x.id===picked.id),n=[...ROUTES.values()].filter(r=>r.gland===g.id).length;
@@ -124,7 +127,7 @@ function renderStats(){
 }
 function updateHint(){
   let s='';
-  if(mode==='place') s=picked?'拖曳可移動，方向鍵或右側按鈕可依輸入距離移動，按 R 可旋轉，導線會自動重算；拖進面板或現場區會跟著換位置。Delete 可刪除。':'拖曳器具、線槽或出線口來擺放；左側可新增器具。';
+  if(mode==='place') s=(picked?'拖曳可移動，方向鍵或右側按鈕可依輸入距離移動，按 R 可旋轉，導線會自動重算；拖進面板或現場區會跟著換位置。Delete 可刪除。':'拖曳器具、線槽或出線口來擺放；左側可新增器具。')+'拖到 H-66 鋁軌上會自動對齊並靠齊相鄰器具，按住 Alt 不吸附。';
   else if(draft&&draft.pop) s='選好線徑與顏色後按 Enter 建立，Esc 取消。';
   else if(draft) s=`起點 ${draft.a.d}·${draft.a.t}：點接點完成；點空白處加中繼點`+(draft.wps.length?`（已有 ${draft.wps.length} 個，Backspace 退回）`:'')+`；按住 Alt 可不吸附，Esc 取消。`;
   else if(sel) s='雙擊這條線可加中繼點；拖曳白點可調整，雙擊白點可刪除。';

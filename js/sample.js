@@ -65,7 +65,7 @@ function normalize(o){
   const dr=o.door||{},door={w:Math.max(100,num(dr.w,box.w)),h:Math.max(100,num(dr.h,box.h))};
   const glands=(Array.isArray(o.glands)?o.glands:[{id:'G1',x:plate.w/2,spec:'M25 浪管接頭'}]).filter(g=>g&&safe(g.id)).map(g=>({id:g.id,x:num(g.x,100),spec:cleanSpec(g.spec)||'M25 浪管接頭'}));
   const nextNo=Math.max(num(o.nextNo,1),1+Math.max(0,...wires.map(w=>Number(w.no.replace(/\D/g,''))||0)));
-  return {state:{box,plate,door,hinge:num(o.hinge,plate.h/2),fillLimit:Math.min(100,Math.max(5,num(o.fillLimit,50))),glands,tpls,devices,ducts,wires,nextNo},
+  return {state:{box,plate,door,hinge:num(o.hinge,plate.h/2),fillLimit:Math.min(100,Math.max(5,num(o.fillLimit,50))),spare:Math.min(5000,Math.max(0,num(o.spare,0))),glands,tpls,devices,ducts,wires,nextNo},
     dropped:(o.devices.length-devices.length)+(o.ducts.length-ducts.length)+(o.wires.length-wires.length)};
 }
 
