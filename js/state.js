@@ -14,7 +14,7 @@ function syncUndo(){const v=mode==='view';$('undo').disabled=v||!hist.u.length;$
 
 let mode='wire', sel=null, picked=null, bundle=false, showNo=false, tab='all';
 let view={k:1,x:0,y:0,manual:false};
-let draft=null, railHit=null, bundleSel=null, multi=[], renameOffer=null;   // {a:{d,t},wps:[],end?:{d,t},pop:false,ext:{}}
+let draft=null, railHit=null, bundleSel=null, multi=[], renameOffer=null, swapOffer=null;   // {a:{d,t},wps:[],end?:{d,t},pop:false,ext:{}}
 let snap=null, hoverW=null, cursor={x:0,y:0,sx:0,sy:0}, listHover=null;
 let last={gauge:1.25,color:'white',direct:false};
 const filt={color:null,gauge:null,dev:'',kind:null};
@@ -115,7 +115,9 @@ const famIds=id=>{const d=devOf(id);if(!d)return [id];return [d.id,...(d.on?[d.o
 const effDepth=d=>tplOf(d).d+Math.max(0,...riders(d).filter(r=>attachOf(r)==='front').map(r=>tplOf(r).d));
 /* 器具編號：d.tag 是顯示用、可以改；d.id 是內部識別，導線用它接，改編號不影響接線 */
 const tagOf=id=>{const d=devOf(id);return d?d.tag:id;};
+// 新器具配編號時避開所有編號與內部識別碼；改編號時只看編號（內部識別碼使用者看不到）
 const tagUsed=(v,except)=>S.devices.some(d=>d!==except&&(d.tag===v||d.id===v));
+const tagOwner=(v,except)=>S.devices.find(d=>d!==except&&d.tag===v)||null;
 /* 並線：接在同一個接點上的其他線；端子台同一片的上下各點算同一個接點 */
 /* 短路片：d.jumpers=[{at:起始片,p:片數}]，被接起來的幾片算同一個電位。回傳該片所屬的組（組內最小的片號） */
 function slotGroup(d,i){
