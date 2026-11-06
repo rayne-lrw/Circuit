@@ -28,6 +28,8 @@ function tagPlace(d,t,fs,small){
   if(gw>=4){const f=Math.min(fs,gw/1.1,(t.h-6)/n);return {x:gx,y:cy,fs:f,rot:true};}
   return {x:cx,y:cy,fs};
 }
+const GAPM=new WeakMap();
+function minGap(t){if(GAPM.has(t))return GAPM.get(t);let m=99;const T=t.terms;for(let i=0;i<T.length;i++)for(let j=i+1;j<T.length;j++){const d=Math.hypot(T[i].x-T[j].x,T[i].y-T[j].y);if(d>.01&&d<m)m=d;}GAPM.set(t,m);return m;}
 function renderBoard(){
   const P=S.plate,B=S.box,bo=boxOrigin(),dr=sheetRect('door'),fr=sheetRect('field');let h='';
   h+=`<rect class="boxr" x="${bo.x}" y="${bo.y}" width="${B.w}" height="${B.h}" rx="4"/>`;
@@ -74,7 +76,7 @@ function renderBoard(){
         :`<text class="tag" style="font-size:${L.fs.toFixed(2)}px" x="${tx}" y="${ty+L.fs*.25}" text-anchor="middle" fill="${t.i}">${esc(d.tag)}</text>`;
       if(!small&&!L.rot&&L.sub!==false) h+=`<text class="sub" x="${d.x+L.x}" y="${d.y+L.y+Math.max(5.5,L.fs*.8)}" text-anchor="middle" fill="${t.i}"${L.fs<10?` style="font-size:${Math.max(3,L.fs*.44).toFixed(2)}px"`:''}>${esc(t.b)}</text>`;
     }
-    const tr=t.terms.length>30?1.3:t.terms.length>14?1.7:2.3;
+    const tr=Math.min(t.terms.length>30?1.3:t.terms.length>14?1.7:2.3,minGap(t)*.36); // 接點很密（例如 D-sub）時縮小圓點
     for(const p of t.terms){
       const x=d.x+p.x,y=d.y+p.y;
       h+=`<circle class="term" cx="${x}" cy="${y}" r="${tr}"/>`;
