@@ -170,8 +170,13 @@ def('pzg101',null,F2,'基恩斯','PZ-G101P 光電 PNP',50,30,0,'PH','steel',SENS
 def('eesx676',null,F2,'OMRON','EE-SX676P-WR 光電素子 PNP',50,30,0,'PH','steel',SENS3,{sheet:'field'});
 def('eespx302',null,F2,'OMRON','EE-SPX302 光電素子 NPN',50,30,0,'PH','steel',SENS3,{sheet:'field'});
 def('qlnp',null,F2,'','QL-NP 訊號轉換 NPN→PNP',60,30,0,'CV','steel',row(['+','-','IN','OUT'],8,'top',60,'',8),{sheet:'field'});
-def('glr22',null,F2,'基恩斯','GL-R22L 光柵',60,40,0,'LC','steel',row(['+24V','0V','OSSD1','OSSD2'],8,'top',60,'',8),{sheet:'field'});
-def('ga096',null,F2,'斯邁德','GA0-96H 光柵',60,40,0,'LC','steel',row(['+24V','0V','OUT','SYNC'],8,'top',60,'',8),{sheet:'field'});
+// 光柵與量測光柵：接收器（RX）與投光器（TX）各一台，接點依配線圖用線色命名
+const GRATING=[['棕','+24V'],['藍','0V'],['黑','輸出 1（接 PLC 輸入）'],['白','輸出 2（接 PLC 輸入）'],['灰','同步（接另一台的灰線）'],['SHD','隔離網（接地）']];
+const MEASURE=[['棕','+24V'],['藍','0V'],['黑','RS-232 輸出（接 PLC RS-232 第 2 腳）'],['白','同步（接另一台的白線）'],['綠','接地']];
+def('glr22',null,F2,'基恩斯','GL-R22L 光柵 接收器 RX',60,40,0,'LC','steel',row(GRATING.map(x=>x[0]),8,'top',60,'',6).map((t,i)=>(t[4]=GRATING[i][1],t)),{sheet:'field'});
+def('glr22-t',null,F2,'基恩斯','GL-R22L 光柵 投光器 TX',60,40,0,'LC','steel',row(GRATING.map(x=>x[0]),8,'top',60,'',6).map((t,i)=>(t[4]=['黑','白'].includes(t[0])?'未使用':GRATING[i][1],t)),{sheet:'field'});
+def('ga096',null,F2,'斯邁德','GA0-96H 量測光柵 接收器 RX',60,40,0,'LC','steel',row(MEASURE.map(x=>x[0]),8,'top',60,'',7).map((t,i)=>(t[4]=MEASURE[i][1],t)),{sheet:'field'});
+def('ga096-t',null,F2,'斯邁德','GA0-96H 量測光柵 投光器 TX',60,40,0,'LC','steel',row(MEASURE.map(x=>x[0]),8,'top',60,'',7).map((t,i)=>(t[4]=t[0]==='黑'?'未使用':MEASURE[i][1],t)),{sheet:'field'});
 def('tb10',null,F3,'ETAN','TB-PG-10P 接線盒',86,40,0,'JB','mid',nterm(10,8,40,'top',8),{sheet:'field'});
 def('tb15',null,F3,'ETAN','TB-PG-15P 接線盒',126,40,0,'JB','mid',nterm(15,8,40,'top',8),{sheet:'field'});
 def('ths62',null,F3,'天得','THS-62 吊車接線盒',60,60,0,'CB','light',row(['1','2','3','4','5','6'],8,'top',60,'',6),{sheet:'field'});
