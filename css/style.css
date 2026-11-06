@@ -190,7 +190,7 @@ label.check input{margin:2px 0 0;flex:none}
 .field-t{font-family:var(--sans);font-size:13px;font-weight:700;fill:var(--muted);pointer-events:none}
 .zone-h{fill:transparent;pointer-events:none}
 .place .zone-h{fill:var(--muted);fill-opacity:.12;pointer-events:all;cursor:move}
-.harness{fill:#8d938f;opacity:.25}
+.harness{fill:#8d938f;fill-opacity:.25}
 .harness-t{font-family:var(--sans);font-size:8.5px;fill:var(--muted)}
 .gland{fill:#30383a;stroke:#fff;stroke-width:.8}
 .gland-t{font-family:var(--mono);font-size:7px;font-weight:600;fill:var(--ink)}
@@ -199,13 +199,13 @@ label.check input{margin:2px 0 0;flex:none}
 .hole{fill:var(--stage);stroke:var(--plate-edge);stroke-width:.5}
 .dim{font-family:var(--mono);font-size:9px;fill:var(--ink)}
 .tick{stroke:var(--ink);stroke-width:.5}
-.duct-label.over{fill:#c00000;font-weight:600;opacity:1}
+.duct-label.over{fill:#c00000;font-weight:600;fill-opacity:1}
 .duct-body{fill:var(--duct);stroke:var(--duct-edge);stroke-width:.8}
-.duct-teeth{stroke:var(--duct-edge);stroke-width:3;stroke-dasharray:4 4;fill:none;opacity:.55}
-.duct-label{font-family:var(--mono);font-size:6px;fill:var(--ink);opacity:.72;paint-order:stroke;stroke:var(--duct);stroke-width:2px}
+.duct-teeth{stroke:var(--duct-edge);stroke-width:3;stroke-dasharray:4 4;fill:none;stroke-opacity:.55}
+.duct-label{font-family:var(--mono);font-size:6px;fill:var(--ink);fill-opacity:.72;paint-order:stroke;stroke:var(--duct);stroke-width:2px}
 .dev rect.body,.dev circle.body{stroke:rgba(0,0,0,.55);stroke-width:.6}
 .dev.rider rect.body{fill-opacity:.38;stroke-dasharray:2 1.2}
-.dev.rider .tag,.dev.rider .sub{opacity:.75}
+.dev.rider .tag,.dev.rider .sub{fill-opacity:.75}
 .deco line,.deco rect{fill:none;stroke:#e8eef0;stroke-width:.6;pointer-events:none}
 .deco text{font-family:var(--sans);font-size:3.4px;fill:#e8eef0;pointer-events:none}
 .tag{font-family:var(--mono);font-weight:600;font-size:10px}
@@ -213,17 +213,20 @@ label.check input{margin:2px 0 0;flex:none}
 .term{fill:#c9a24a;stroke:#3a2e10;stroke-width:.4}
 .tl{font-family:var(--mono);font-size:3.2px;display:none;pointer-events:none}
 .z2 .tl{display:block}
-.wire{transition:opacity .08s}
 .wire path{fill:none;stroke-linejoin:round;stroke-linecap:round}
 .wire .hit{stroke:transparent;stroke-width:12px;vector-effect:non-scaling-stroke;pointer-events:stroke}
 .wire .vis{pointer-events:none}
 .wn{font-family:var(--mono);font-size:3.4px;font-weight:500;fill:#14181a;paint-order:stroke;stroke:#fff;stroke-width:1px;display:none;pointer-events:none}
 .z2 .wn,.labels-on .wn{display:block}
 .ct{font-family:var(--mono);font-size:6px;font-weight:600;fill:#14181a;paint-order:stroke;stroke:#fff;stroke-width:1.6px;pointer-events:none}
-#wires.focus .wire:not(.on){opacity:.13}
-#wires.focus .wire.rel:not(.on){opacity:.5}
-.wire.off{opacity:.05;pointer-events:none}
-#wires.focus .wire.off:not(.on){opacity:.03}
+/* 淡化：不用整組的 opacity（每條線要先畫到暫存畫布再疊，選一條線時點陣化慢 6～7 倍，放大會黑屏），
+   改成直接調每條線段與文字本身的透明度 */
+#wires.focus .wire:not(.on){--wo:.13}
+#wires.focus .wire.rel:not(.on){--wo:.5}
+.wire.off{--wo:.05;pointer-events:none}
+#wires.focus .wire.off:not(.on){--wo:.03}
+.wire .vis,.wire .warnline{stroke-opacity:var(--wo,1)}
+.wire .wn{fill-opacity:var(--wo,1);stroke-opacity:var(--wo,1)}
 .wire.on .wn{display:block}
 #svg:not(.place) .wire.on .wn{pointer-events:all;cursor:grab} /* 選取中的線可以拖曳線號 */
 body.viewing .wire.on .wn{pointer-events:none}
@@ -233,12 +236,14 @@ body.viewing .wire.on .wn{pointer-events:none}
 .cab .cab-v.ext{stroke:#b9b29a}
 .cab .hit{stroke:transparent;stroke-width:12px;vector-effect:non-scaling-stroke;pointer-events:stroke;cursor:pointer}
 .cab.on .cab-o{stroke:var(--accent)}
-#wires.focus .cab:not(.on){opacity:.35}
+#wires.focus .cab:not(.on){--co:.35}
+.cab .cab-o,.cab .cab-v{stroke-opacity:var(--co,1)}
+.cab-t{fill-opacity:var(--co,1)}
 .cab-t{font-family:var(--mono);font-size:3.6px;font-weight:600;fill:#14181a;pointer-events:none}
 .bo{fill:#fff;stroke:#2b2f2e;stroke-width:.7;cursor:move;pointer-events:all}
 .bo.set{fill:#ffd34d}
 .bo[data-on="1"]{stroke:var(--accent);stroke-width:1}
-#wires.focus .bos{opacity:.5}
+#wires.focus .bos .bo{fill-opacity:.5;stroke-opacity:.5}
 .view .bo{cursor:default}
 .place #wires .bo{pointer-events:all}
 .warnline{stroke:var(--warn);stroke-dasharray:3 3;stroke-width:1;fill:none;pointer-events:none}
@@ -297,5 +302,4 @@ body.viewing .wire.on .wn{pointer-events:none}
   #right{order:2;max-height:460px}
   #left{order:3;max-height:420px}
 }
-@media (prefers-reduced-motion:reduce){.wire{transition:none}}
 body{margin:0}
