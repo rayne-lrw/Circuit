@@ -22,8 +22,8 @@ function tagPlace(d,t,fs,small){
     const lb=String(termLabel(d,p.id)),lw=[...lb].reduce((s,c)=>s+(c.charCodeAt(0)>255?3.2:1.95),0),b=[p.x-2.5,p.x+2.5,p.y-2.5,p.y+2.5];
     const vl=t.vlab&&!d.rot&&t.vlab.includes(p.id);
     const L=vl?(p.side==='bottom'?[p.x-1.5,p.x+1.5,p.y-2.6-lw,p.y]:[p.x-1.5,p.x+1.5,p.y,p.y+2.6+lw])
-      :p.side==='top'?[p.x-lw/2,p.x+lw/2,p.y+3,p.y+7]:p.side==='bottom'?[p.x-lw/2,p.x+lw/2,p.y-6.5,p.y-2]
-      :p.side==='left'?[p.x+5-lw/2,p.x+5+lw/2,p.y-1.5,p.y+2.5]:[p.x-5-lw/2,p.x-5+lw/2,p.y-1.5,p.y+2.5];
+      :(p.ls||p.side)==='top'?[p.x-lw/2,p.x+lw/2,p.y+3,p.y+7]:(p.ls||p.side)==='bottom'?[p.x-lw/2,p.x+lw/2,p.y-6.5,p.y-2]
+      :(p.ls||p.side)==='left'?[p.x+5-lw/2,p.x+5+lw/2,p.y-1.5,p.y+2.5]:[p.x-5-lw/2,p.x-5+lw/2,p.y-1.5,p.y+2.5];
     return [Math.min(b[0],L[0]),Math.max(b[1],L[1]),Math.min(b[2],L[2]),Math.max(b[3],L[3])];
   });
   const hit=(x,y,f,sub)=>{const hw=n*f/2,top=y-f*.75,bot=y+(sub?8.5+f*.1:f*.35);return boxes.some(b=>b[1]>x-hw-pad&&b[0]<x+hw+pad&&b[3]>top-pad&&b[2]<bot+pad);};
@@ -104,7 +104,8 @@ function renderBoard(){
       const lb=termLabel(d,p.id),sm=lb!==p.id&&SLOT_RE.exec(p.id);
       // 極距很密的端子（例如 FX5U 左側 5 極端子）：標籤照手冊直寫
       if(t.vlab&&!d.rot&&t.vlab.includes(p.id)&&(p.side==='top'||p.side==='bottom')){const up=p.side==='bottom',ty=y+(up?-2.6:2.6);h+=`<text class="tl" x="${x}" y="${ty}" text-anchor="${up?'start':'end'}" dominant-baseline="central" transform="rotate(-90 ${x} ${ty})" fill="${t.i}" style="font-size:2.4px">${esc(lb)}</text>`;continue;}
-      if(!(sm&&(sm[2]==='B'||sm[2]==='D'))) h+=`<text class="tl" x="${x+(p.side==='left'?5:p.side==='right'?-5:0)}" y="${y+(p.side==='top'?5.8:p.side==='bottom'?-3.6:1)}" text-anchor="middle" fill="${t.i}"${sm?` style="font-size:${Math.min(3.2,7.2/Math.max(2,[...lb].length)).toFixed(2)}px"`:''}>${esc(lb)}</text>`; // 同一片上下兩點只標一次；端子號依長度縮小字體，避免和隔壁重疊
+      const ls=p.ls||p.side; // 接點文字位置（可以和出線方向不同）
+      if(!(sm&&(sm[2]==='B'||sm[2]==='D'))) h+=`<text class="tl" x="${x+(ls==='left'?5:ls==='right'?-5:0)}" y="${y+(ls==='top'?5.8:ls==='bottom'?-3.6:1)}" text-anchor="middle" fill="${t.i}"${sm?` style="font-size:${Math.min(3.2,7.2/Math.max(2,[...lb].length)).toFixed(2)}px"`:''}>${esc(lb)}</text>`; // 同一片上下兩點只標一次；端子號依長度縮小字體，避免和隔壁重疊
     }
     // 短路片：以每片上下接點的中點連成一條，旋轉後也對得上
     (d.jumpers||[]).forEach(j=>{
@@ -144,6 +145,7 @@ function pointAt(p,s){ // 沿折線走 s mm 的位置與該段方向
   return p[0]?{x:p[0].x,y:p[0].y,v:false}:null;
 }
 function labelSpots(w,r){
+  if([w.a.d,w.b.d].some(id=>{const d=devOf(id);return d&&d.hideNo;})) return []; // 二極體可以設定不顯示接到它的線號
   const p=labPath(w,r);if(!p||p.length<2) return [];
   const L=pathLen(p),end=Math.min(13,L/2);
   if(w.lab!=null) return [pointAt(p,w.lab*L)];

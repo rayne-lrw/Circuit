@@ -106,9 +106,11 @@ function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil){
     if(!manual&&!w.direct&&!local&&!r.warn&&p.length>1){
       const A=endpoint(w.a,0),B=endpoint(w.b,0);
       let i=1;while(i<p.length&&Math.hypot(p[i].x-p[0].x,p[i].y-p[0].y)<.5)i++;
-      if(i<p.length&&A.side&&devOf(w.a.d).sheet!=='field'&&dirOf(p[0],p[i])!==A.side) msgs.push(`起點出線方向應為 ${A.side}，實際 ${dirOf(p[0],p[i])}`);
+      if(A.ox||A.oy){i++;while(i<p.length&&Math.hypot(p[i].x-p[i-1].x,p[i].y-p[i-1].y)<.5)i++;} // 有出線偏移：第一段是橫移，看下一段
+      if(i<p.length&&A.side&&devOf(w.a.d).sheet!=='field'&&dirOf(p[(A.ox||A.oy)?i-1:0],p[i])!==A.side) msgs.push(`起點出線方向應為 ${A.side}，實際 ${dirOf(p[0],p[i])}`);
       let j=p.length-2;while(j>=0&&Math.hypot(p[j].x-p[p.length-1].x,p[j].y-p[p.length-1].y)<.5)j--;
-      if(j>=0&&B.side&&devOf(w.b.d).sheet!=='field'&&dirOf(p[p.length-1],p[j])!==B.side) msgs.push(`終點進線方向應為 ${B.side}，實際 ${dirOf(p[p.length-1],p[j])}`);
+      if(B.ox||B.oy){j--;while(j>=0&&Math.hypot(p[j].x-p[j+1].x,p[j].y-p[j+1].y)<.5)j--;}
+      if(j>=0&&B.side&&devOf(w.b.d).sheet!=='field'&&dirOf(p[(B.ox||B.oy)?j+1:p.length-1],p[j])!==B.side) msgs.push(`終點進線方向應為 ${B.side}，實際 ${dirOf(p[p.length-1],p[j])}`);
     }
     // 中繼點在反方向：第一段直接往中繼點那邊出線，不可先往接點方向拉出去
     if(expectBack&&w.no in expectBack){const E=endpoint(w.a,0),O={top:'bottom',bottom:'top',left:'right',right:'left'}[E.side],d=dirOf(p[0],p[1]);

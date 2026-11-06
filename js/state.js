@@ -33,7 +33,7 @@ function rotated(b,r){
   let m=ROTM.get(b);if(!m){m={};ROTM.set(b,m);}
   if(!m[r]){
     const nx={top:'right',right:'bottom',bottom:'left',left:'top'};let w=b.w,h=b.h,ts=b.terms.map(t=>({...t}));
-    for(let i=0;i<r/90;i++){const H=h;ts=ts.map(t=>({...t,x:H-t.y,y:t.x,side:nx[t.side]||t.side}));[w,h]=[h,w];}
+    for(let i=0;i<r/90;i++){const H=h;ts=ts.map(t=>({...t,x:H-t.y,y:t.x,side:nx[t.side]||t.side,...(t.ox!=null?{ox:-(t.oy||0),oy:t.ox}:{}),...(t.ls?{ls:nx[t.ls]}:{})}));[w,h]=[h,w];}
     m[r]={...b,w,h,terms:ts};
   }
   return m[r];

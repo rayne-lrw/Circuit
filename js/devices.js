@@ -119,7 +119,12 @@ def('fx5-232bd',null,C4,'三菱','FX5-232-BD RS-232 擴充板',38,51.4,6.6,'BD',
   ...[['CD','1','CD（DCD）'],['RD','2','RD（RXD）'],['SD','3','SD（TXD）'],['ER','4','ER（DTR）'],['SG','5','SG（GND）']].map(([id,n,d],i)=>[id,+(6.1+3.8*i).toFixed(1),40.8,'bottom',`第${n}腳 ${d}`]),
   ['DR',8,44.7,'bottom','第6腳 DR（DSR）']],
   {front:true,hostCat:C4,at:{fx5u32:{x:60,y:17}},vlab:['CD','RD','SD','ER','SG','DR'],note:'拖到 FX5U 上會自動裝在正面中間（通道 2），跟著 PLC 移動；D-sub 9 針，7～9 腳不使用；深度依外型圖凸出約 6.6 mm'});
-def('fx516ex',null,C4,'三菱','FX5-16EX/ES 16IN',40,90,83,'EX','dark',[...[['S/S',7.1],['1',14.3],['3',21.4],['5',28.6],['6',35.7],['7',42.9],['10',50.4],['11',57.5],['13',64.7],['15',71.8],['17',79]].map(([id,y])=>[id,29,y,'right',id==='S/S'?'輸入共點':'輸入']),...[['0',10.9],['2',17.9],['4',25],['12',61.1],['14',68.3],['16',75.4]].map(([id,y])=>[id,36,y,'right','輸入'])],{note:'接點位置依端子排列示意圖，左右兩排錯開'});
+// FX5-16EX：兩排錯開的端子，接點文字在左邊；出線先往左偏到端子文字左側，中線以上往上、中線以下往下。
+// 往上的越下面的接點偏得越左、往下的越上面的接點偏得越左，彼此不交叉
+{const T=[...[['S/S',7.1],['1',14.3],['3',21.4],['5',28.6],['6',35.7],['7',42.9],['10',50.4],['11',57.5],['13',64.7],['15',71.8],['17',79]].map(([id,y])=>[id,29,y]),...[['0',10.9],['2',17.9],['4',25],['12',61.1],['14',68.3],['16',75.4]].map(([id,y])=>[id,36,y])];
+ const up=T.filter(t=>t[2]<45).sort((a,b)=>a[2]-b[2]),dn=T.filter(t=>t[2]>=45).sort((a,b)=>b[2]-a[2]);
+ const ex=new Map();up.forEach((t,i)=>ex.set(t[0],21-i*1.3));dn.forEach((t,i)=>ex.set(t[0],21-i*1.3));
+ def('fx516ex',null,C4,'三菱','FX5-16EX/ES 16IN',40,90,83,'EX','dark',T.map(([id,x,y])=>[id,x,y,y<45?'top':'bottom',id==='S/S'?'輸入共點':'輸入',{ox:+(ex.get(id)-x).toFixed(2),oy:0,ls:'right'}]),{note:'接點位置依端子排列示意圖，左右兩排錯開；出線往左偏再上下出線'});}
 def('fx54ad',null,C4,'三菱','FX5-4AD-ADP 4CH 類比',17.6,106,74,'AD','dark',['V1+','I1+','COM1','V2+','I2+','COM2','V3+','I3+','COM3','V4+','I4+','COM4','FG'].map((id,i)=>[id,8,28.8+i*4.29,'right',id==='FG'?'接地':'類比輸入']),{note:'24V 由 CPU 內部供電，模組上沒有電源端子；本體深 74 mm，含上方突出部 89.1 mm'});
 def('fx540ssc',null,C4,'三菱','FX5-40SSC-S 4軸運動',50,90,83,'SSC','dark',[...[['24V',6],['0V',13],['FG',20]].map(([id,x])=>[id,x,83,'bottom',id==='FG'?'接地':'電源']),['SSCNET',37.5,80,'bottom','正面接頭']],{note:'DIN 軌中心在高度正中；電源端子在左下，SSCNET 在右下'});
 // 伺服電池：掛在驅動器下方（依 MR-J4-200B 外型圖：距左緣 6 mm、高 21 mm），只有一個接頭
@@ -200,7 +205,7 @@ const TERM_OK=new Set(['ladn40','fx516ex','fx54ad','fn2010','fuji-bw50','lc1d09'
 function verText(id,t){if(t.ok)return '已對照型錄或實物';const v=VER[id];return v?(v[0]===2?'原廠資料：':'參考：')+v[1]:'未核對';}
 function resolveTpl(id,count){
   const b=(S&&S.tpls&&S.tpls[id])||TPL[id];if(!b) return null;
-  if(!b.gen){if(!b.terms)b.terms=(b.t||[]).map(([id2,x,y,side,desc])=>({id:id2,x,y,side,desc}));return b;}
+  if(!b.gen){if(!b.terms)b.terms=(b.t||[]).map(([id2,x,y,side,desc,ex])=>({id:id2,x,y,side,desc,...(ex||{})}));return b;}
   const c=count||b.cnt,k=id+'|'+c;
   if(!resolveTpl.m.has(k)){const g=b.gen(c);resolveTpl.m.set(k,{...b,gen:b.gen,w:g.w,h:g.h,terms:g.t.map(([i2,x,y,side,desc])=>({id:i2,x,y,side,desc}))});}
   return resolveTpl.m.get(k);

@@ -112,7 +112,9 @@ function routeLeg(A,B,J,noDuct){
   // 線圈二極體到線圈的自動短線：直接轉一個彎接過去，不照接點方向繞
   if(A.dev&&B.dev&&(tplOf(devOf(A.dev)).coil||tplOf(devOf(B.dev)).coil)&&famIds(A.dev).includes(B.dev)) return {direct:true,pts:Math.abs(A.x-B.x)<.01||Math.abs(A.y-B.y)<.01?[A,B]:[A,{x:A.x,y:B.y},B]};
   if(A.dev&&B.dev&&A.sheet===B.sheet&&famIds(A.dev).includes(B.dev)&&!A.stub&&!B.stub) return {direct:true,pts:directPts(A,B)};
-  if((B.stub&&!A.stub&&A.dev===B.dev)||(A.stub&&!B.stub&&A.dev===B.dev)) return {direct:true,pts:[A,B]}; // 接點↔出線點
+  if((B.stub&&!A.stub&&A.dev===B.dev)||(A.stub&&!B.stub&&A.dev===B.dev)){ // 接點↔出線點；有偏移時先在接點旁橫移再轉出去
+    const T=A.stub?B:A,Q=A.stub?A:B;if(!(T.ox||T.oy)||Math.abs(T.x-Q.x)<.01||Math.abs(T.y-Q.y)<.01) return {direct:true,pts:[A,B]};
+    const v=T.side==='top'||T.side==='bottom',m=v?{x:Q.x,y:T.y}:{x:T.x,y:Q.y};return {direct:true,pts:A.stub?[A,m,B]:[A,m,B]};}
   if(A.sheet!==B.sheet) return {direct:true,pts:directPts(A,B)};
   // 指定不進線槽（例如動力線直接拉）：直接連到下一點，穿過其他器具時提示
   if(noDuct){const d=directPts(A,B);return {direct:true,pts:d,warn:A.sheet==='plate'&&!clean(d,A,B,true)?'直接拉線穿過其他器具':null};}
@@ -187,7 +189,7 @@ function locate(p,sheet){return S.ducts.find(d=>d.sheet===sheet&&inR(p,d))||null
 function endpoint(e,off){
   const d=devOf(e.d),t=termOf(d,e.t);
   const v=t.side==='top'||t.side==='bottom';
-  return {x:d.x+t.x+(v?off:0),y:d.y+t.y+(v?0:off),side:t.side,dev:d.id,sheet:d.sheet};
+  return {x:d.x+t.x+(v?off:0),y:d.y+t.y+(v?0:off),side:t.side,dev:d.id,sheet:d.sheet,ox:t.ox||0,oy:t.oy||0};
 }
 function wpAnchor(p){const s=sheetAt(p);return {x:p.x,y:p.y,sheet:s,inDuct:locate(p,s),wp:true};}
 function gates(from,to,ctr,fieldP,glandId){
@@ -218,7 +220,8 @@ function stubOf(P){
   if(!P.side||!P.dev) return null;
   const d=devOf(P.dev),r=rectOf('dev',d),s=P.side;
   const L=(s==='top'?P.y-r.y:s==='bottom'?r.y+r.h-P.y:s==='left'?P.x-r.x:r.x+r.w-P.x)+STUB;
-  const q={x:P.x+(s==='left'?-L:s==='right'?L:0),y:P.y+(s==='top'?-L:s==='bottom'?L:0),sheet:P.sheet,side:s,dev:P.dev,stub:true};
+  // 有出線偏移的接點（例如 16EX）：先橫移到偏移位置，再沿出線方向出去
+  const q={x:P.x+(P.ox||0)+(s==='left'?-L:s==='right'?L:0),y:P.y+(P.oy||0)+(s==='top'?-L:s==='bottom'?L:0),sheet:P.sheet,side:s,dev:P.dev,stub:true,ox:P.ox,oy:P.oy};
   q.inDuct=locate(q,q.sheet); // 出線點已經在線槽裡就直接進線槽
   return q;
 }
