@@ -50,6 +50,7 @@ function exits(P){
     const blocked=!!segHits(P.x,P.y,ex,ey,P.dev?famIds(P.dev):null); // 接觸器與正面附件互相不算阻擋
     let cost=bd+(blocked?3000:0);
     if(P.side&&dir!==P.side) cost+=500; // 不從接點正常出線方向走，等於線要壓過自身器具
+    if(P.gland&&P.side&&dir!==OPP[P.side]) cost+=300; // 出線口：進箱後優先直直往箱內走，不沿著箱壁橫移
     out.push({duct:best,along:ba,cost,blocked});
   }
   return out;
@@ -79,8 +80,10 @@ function aroundPts(A,B){
   const s=B.side,d=devOf(B.dev);if(!d||!s) return null;
   const r=rectOf('dev',d),v={top:[0,-1],bottom:[0,1],left:[-1,0],right:[1,0]}[s];
   if((A.x-B.x)*v[0]+(A.y-B.y)*v[1]>=-.01) return null; // 起點已經在出線方向那一側
-  if(s==='top'||s==='bottom'){const lx=Math.abs(A.x-(r.x-STUB))<Math.abs(A.x-(r.x+r.w+STUB))?r.x-STUB:r.x+r.w+STUB;return [A,{x:lx,y:A.y},{x:lx,y:B.y},B];}
-  const ly=Math.abs(A.y-(r.y-STUB))<Math.abs(A.y-(r.y+r.h+STUB))?r.y-STUB:r.y+r.h+STUB;return [A,{x:A.x,y:ly},{x:B.x,y:ly},B];
+  // 器具裝在箱外時，不從箱體那一側繞（會繞進箱子裡）
+  const o=boxOrigin(),inBoxX=v=>v>o.x&&v<o.x+S.box.w,inBoxY=v=>v>o.y&&v<o.y+S.box.h,ob=B.sheet==='plate'&&outBox(B);
+  if(s==='top'||s==='bottom'){let c=[r.x-STUB,r.x+r.w+STUB].sort((p,q)=>Math.abs(A.x-p)-Math.abs(A.x-q));if(ob&&inBoxX(c[0])&&!inBoxX(c[1])&&inBoxY(B.y))c.reverse();const lx=c[0];return [A,{x:lx,y:A.y},{x:lx,y:B.y},B];}
+  let c=[r.y-STUB,r.y+r.h+STUB].sort((p,q)=>Math.abs(A.y-p)-Math.abs(A.y-q));if(ob&&inBoxY(c[0])&&!inBoxY(c[1]))c.reverse();const ly=c[0];return [A,{x:A.x,y:ly},{x:B.x,y:ly},B];
 }
 function directPts(A,B){
   if(B.stub&&!A.stub||(B.stub&&A.stub&&A.dev!==B.dev)){const p=aroundPts(A,B);if(p)return p;}
@@ -197,7 +200,8 @@ function gates(from,to,ctr,fieldP,glandId){
     // 沒指定就選離現場設備最近的出線口
     const dist=g=>{const P=glandPt(g);return Math.hypot(P.x-fieldP.x,P.y-fieldP.y);};
     const g=(glandId&&S.glands.find(x=>x.id===glandId))||S.glands.reduce((b,x)=>!b||dist(x)<dist(b)?x:b,null);
-    const i=ctr.g++,k=(i%24)*2.2,sp=((i%14)-6.5)*1.6,by=boxBottom();
+    // 同一個出線口的多條線在出線口直徑範圍內錯開（M20 約 ±4 mm），外面再依序往外拉開，不會偏到出線口旁邊
+    const i=ctr.g++,k=(i%24)*2.2,sp=((i%8)-3.5)*1.1,by=boxBottom();
     if(!g||(g.side||'bottom')==='bottom'){
       const gx=g?g.x:S.plate.w/2;
       const a={x:gx+sp,y:by,sheet:'plate',must:true,side:'bottom',midY:by+12+k,gland:g?g.id:null};
