@@ -13,12 +13,18 @@ const INDEX='file://'+path.resolve(__dirname,'..','index.html');
     const out=[];
     const scan=async(label)=>{const bad=await p.evaluate(()=>{const W=innerWidth,H=innerHeight,res=[];
       document.querySelectorAll('.menu:not([hidden]),#pop:not([hidden]),#tip:not([hidden]),#toast:not([hidden]),#setDlg:not([hidden]) .card,#ed:not([hidden]) #edCard,#io:not([hidden]),#detail:not([hidden]),.totop:not([hidden])').forEach(el=>{const r=el.getBoundingClientRect();if(r.width&&(r.left<-0.5||r.right>W+0.5))res.push((el.id||el.className)+` x ${Math.round(r.left)}~${Math.round(r.right)} / ${W}`);});
-      if(document.documentElement.scrollWidth>W)res.push('page scrollWidth '+document.documentElement.scrollWidth);return res;});
+      if(document.documentElement.scrollWidth>W)res.push('page scrollWidth '+document.documentElement.scrollWidth);
+      // 勾選框要和文字第一行對齊、靠左
+      document.querySelectorAll('label.check').forEach(l=>{const i=l.querySelector('input');if(!i||!l.offsetParent)return;const a=l.getBoundingClientRect(),c=i.getBoundingClientRect();
+        const lh=parseFloat(getComputedStyle(l).lineHeight)||18; // 對齊文字第一行、靠左
+        if(c.top<a.top-1||c.bottom>a.top+lh+3||c.left-a.left>1)res.push('勾選框沒對齊：'+l.textContent.trim().slice(0,12));});
+      return res;});
       if(bad.length)out.push(label+': '+bad.join(' | '));};
     await scan('初始');
     await p.click('#fileB');await scan('檔案選單');await p.keyboard.press('Escape');
     await p.click('#clearB');await scan('清除選單');await p.click('[data-clr="devs"]');await scan('清除確認');await p.keyboard.press('Escape');
     await p.click('#setOpen');await scan('盤面設定');await p.keyboard.press('Escape');
+    await p.evaluate(()=>{sel=S.wires[0].id;renderDetail();});await scan('導線詳細');await p.evaluate(()=>{sel=null;renderDetail();});
     await p.evaluate(()=>{draft={a:{d:'Q2',t:'2'},wps:[],end:{d:'Q3',t:'1'}};const r=$('svg').getBoundingClientRect();cursor={x:0,y:0,sx:r.width-5,sy:5};openPop();});await scan('建線彈窗');await p.evaluate(()=>cancelDraft());
     await p.evaluate(()=>{setMode('place');picked={k:'dev',id:'X1'};renderDetail();});await scan('器具詳細');
     await p.evaluate(()=>{openEditor('lc1d09',null);});await scan('器具編輯器');await p.evaluate(()=>{$('ed').hidden=true;});
