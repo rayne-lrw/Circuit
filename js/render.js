@@ -163,6 +163,7 @@ function renderWires(){
     }
   }
   $('wires').innerHTML=h+`<g class="bos">${boH}</g>`;
+  $('wires').dataset.k=''; // 重畫過，樣式要重新套
   let t='';
   cableLabel.forEach(c=>t+=`<text class="ct" x="${c.x}" y="${c.y}" text-anchor="middle">${esc(c.t)}</text>`);
   for(const d of S.ducts){
@@ -203,8 +204,13 @@ function passes(w){
 function applyWireClasses(){
   // 線束模式下，選到的線要從線束拉開，所以選取改變時重算線道
   if(bundle&&sel!==bundleSel){computeRoutes();renderWires();return;}
-  const focus=listHover||hoverW||sel;
-  const g=$('wires');g.classList.toggle('focus',!!focus);
+  // 滑鼠只是經過（沒有點選）：不改任何導線的樣式，只在最上層畫一條高亮線。
+  // 改所有導線的透明度、搬動元素會讓整張圖重畫，畫面放大時重畫量很大，容易閃黑。
+  const focus=listHover||sel,g=$('wires');
+  const key=focus+'|'+JSON.stringify(filt);
+  if(g.dataset.k===key){renderOverlay();return;}
+  g.dataset.k=key;
+  g.classList.toggle('focus',!!focus);
   // 點選或在清單上停留時，兩端接點上的並線一起淡淡亮起
   const fw=(listHover||sel)&&S.wires.find(x=>x.id===(listHover||sel)),rel=new Set();
   if(fw){const pr=parallelOf(fw);[...pr.a,...pr.b].forEach(x=>rel.add(x.id));}
@@ -222,6 +228,7 @@ function applyWireClasses(){
 function renderOverlay(){
   const k=view.k,inv=`scale(${1/k})`;let h='';
   const focus=listHover||hoverW||sel;
+  if(hoverW&&hoverW!==sel&&hoverW!==listHover){const r=ROUTES.get(hoverW);if(r)(r.tails||[r.pts]).forEach(p=>h+=`<path class="hov" d="${pathD(p)}"/>`);}
   if(focus){
     const w=S.wires.find(x=>x.id===focus),r=ROUTES.get(focus);
     if(w&&r){
