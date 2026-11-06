@@ -23,19 +23,21 @@ function segHits(ax,ay,bx,by,exclude){
 function exits(P){
   if(P.inDuct) return [{duct:P.inDuct,along:axis(P.inDuct)==='h'?P.x:P.y,cost:0,blocked:false}];
   const out=[];
+  const OPP={top:'bottom',bottom:'top',left:'right',right:'left'};
   for(const dir of ['top','bottom','left','right']){
+    if(P.dev&&P.side&&dir===OPP[P.side]) continue; // 器具接點不可反方向出線，會從器具本體上穿過去
     const vert=dir==='top'||dir==='bottom';
     let best=null,bd=1e9,ba=0;
     for(const d of S.ducts){
       if(d.sheet!==P.sheet) continue;
       // 往上下找：橫向線槽從側面進；直向線槽從端頭進。往左右同理。
       const across=axis(d)===(vert?'h':'v');
-      let dist;
+      let dist;const tol=3; // 容許 3 mm：線槽之間的小縫、同一接點多條線錯開，都不該找不到線槽
       if(vert){
-        if(P.x<d.x||P.x>d.x+d.w) continue;
+        if(P.x<d.x-tol||P.x>d.x+d.w+tol) continue;
         dist=dir==='top'?P.y-(d.y+d.h):d.y-P.y;
       }else{
-        if(P.y<d.y||P.y>d.y+d.h) continue;
+        if(P.y<d.y-tol||P.y>d.y+d.h+tol) continue;
         dist=dir==='left'?P.x-(d.x+d.w):d.x-P.x;
       }
       if(dist<-0.01||dist>=bd) continue;
@@ -71,7 +73,17 @@ function ductPath(a,b,J){
   while(cur>=0){const p=prev[cur];if(seq[0]!==p.duct)seq.unshift(p.duct);cur=p.i;}
   return {ducts:seq,cost:bc};
 }
+// 要接到出線點，但起點在器具的另一側：從器具旁邊繞過去，不穿過器具本體
+function aroundPts(A,B){
+  const s=B.side,d=devOf(B.dev);if(!d) return null;
+  const r=rectOf('dev',d),v={top:[0,-1],bottom:[0,1],left:[-1,0],right:[1,0]}[s];
+  if((A.x-B.x)*v[0]+(A.y-B.y)*v[1]>=-.01) return null; // 起點已經在出線方向那一側
+  if(s==='top'||s==='bottom'){const lx=Math.abs(A.x-(r.x-STUB))<Math.abs(A.x-(r.x+r.w+STUB))?r.x-STUB:r.x+r.w+STUB;return [A,{x:lx,y:A.y},{x:lx,y:B.y},B];}
+  const ly=Math.abs(A.y-(r.y-STUB))<Math.abs(A.y-(r.y+r.h+STUB))?r.y-STUB:r.y+r.h+STUB;return [A,{x:A.x,y:ly},{x:B.x,y:ly},B];
+}
 function directPts(A,B){
+  if(B.stub&&!A.stub||(B.stub&&A.stub&&A.dev!==B.dev)){const p=aroundPts(A,B);if(p)return p;}
+  if(A.stub&&!B.stub){const p=aroundPts(B,A);if(p)return p.reverse();}
   const av=A.side==='top'||A.side==='bottom', bv=B.side==='top'||B.side==='bottom';
   if(Math.abs(A.x-B.x)<.01||Math.abs(A.y-B.y)<.01) if(!(A.side&&A.side===B.side)) return [A,B];
   if(av&&bv){
@@ -96,6 +108,8 @@ function clean(pts,A,B,loose){
   return true;
 }
 function routeLeg(A,B,J,noDuct){
+  if(A.dev&&B.dev&&A.sheet===B.sheet&&famIds(A.dev).includes(B.dev)&&!A.stub&&!B.stub) return {direct:true,pts:directPts(A,B)};
+  if((B.stub&&!A.stub&&A.dev===B.dev)||(A.stub&&!B.stub&&A.dev===B.dev)) return {direct:true,pts:[A,B]}; // 接點↔出線點
   if(A.sheet!==B.sheet) return {direct:true,pts:directPts(A,B)};
   // 指定不進線槽（例如動力線直接拉）：直接連到下一點，穿過其他器具時提示
   if(noDuct){const d=directPts(A,B);return {direct:true,pts:d,warn:A.sheet==='plate'&&!clean(d,A,B,true)?'直接拉線穿過其他器具':null};}
@@ -113,9 +127,7 @@ function routeLeg(A,B,J,noDuct){
   return {ducts:best.ducts,warn:best.blocked?'穿過其他器具':null};
 }
 function realize(wid,anchors,legs,lane0){
-  // 中繼點點在線槽裡：這段線槽改走中繼點的位置，不用自動分配的線道
-  const ovr=new Map();anchors.forEach(a=>{if(a.wp&&a.inDuct&&!ovr.has(a.inDuct))ovr.set(a.inDuct,axis(a.inDuct)==='h'?a.y:a.x);});
-  const lane=(id,d)=>ovr.has(d)?ovr.get(d):lane0(id,d);
+  const lane=lane0;
   const pts=[{x:anchors[0].x,y:anchors[0].y}],runs=[];
   let cur=pts[0],last=null,open=null;
   legs.forEach((leg,i)=>{
@@ -139,8 +151,6 @@ function realize(wid,anchors,legs,lane0){
     else if(!to.inDuct&&axis(last)==='v'&&(to.y<last.y||to.y>last.y+last.h)){const ey=to.y<last.y?last.y+2:last.y+last.h-2;pts.push({x:cur.x,y:ey});pts.push({x:to.x,y:ey});cur={x:to.x,y:ey};}
     const p=axis(last)==='h'?{x:to.x,y:cur.y}:{x:cur.x,y:to.y};
     pts.push(p);cur=p;
-    // 同一段線槽裡的下一個中繼點不在同一條線上：橫移過去，之後沿新的位置走
-    if(to.wp&&to.inDuct&&(Math.abs(p.x-to.x)>.01||Math.abs(p.y-to.y)>.01)){pts.push({x:to.x,y:to.y});cur={x:to.x,y:to.y};}
     if(!to.inDuct){open.i1=pts.length-1;runs.push(open);open=null;pts.push({x:to.x,y:to.y});cur=to;last=null;}
   });
   return {pts,runs};
@@ -178,26 +188,41 @@ function gates(from,to,ctr,fieldP,glandId){
     const a={x:P.x+(P.ny?sp:0),y:P.y+(P.nx?sp:0),sheet:'plate',must:true,side:P.side,gland:g.id};
     const out={x:a.x+P.nx*(12+k),y:a.y+P.ny*(12+k),sheet:'field',side:'bottom',midY:by+12+k};
     const pts=[a,out];
-    if(P.side==='top'){const sx=fieldP.x<(bx0+bx1)/2?bx0-12-k:bx1+12+k;pts.push({x:sx,y:out.y,sheet:'field',side:'bottom',midY:by+12+k});}
+    if(P.side==='top'){const sx=fieldP.x<(bx0+bx1)/2?bx0-12-k:bx1+12+k;out.side=null;pts.push({x:sx,y:out.y,sheet:'field',side:'bottom',midY:by+12+k});} // 頂部：出箱後先水平移到側面，再往下
     return from==='field'?pts.reverse():pts;
   }
   const i=ctr.h++,y=S.hinge+(i-(ctr.hn-1)/2)*2.6,H1={x:S.plate.w,y,sheet:'plate',must:true,side:null},H2={x:doorO().x,y,sheet:'door',side:null};
   return from==='plate'?[H1,H2]:[H2,H1];
 }
+// 出線點：從接點沿出線方向拉到器具外框外 6 mm。路徑從這裡開始算，最後也從這裡沿接點方向接進去
+const STUB=6;
+function stubOf(P){
+  if(!P.side||!P.dev) return null;
+  const d=devOf(P.dev),r=rectOf('dev',d),s=P.side;
+  const L=(s==='top'?P.y-r.y:s==='bottom'?r.y+r.h-P.y:s==='left'?P.x-r.x:r.x+r.w-P.x)+STUB;
+  const q={x:P.x+(s==='left'?-L:s==='right'?L:0),y:P.y+(s==='top'?-L:s==='bottom'?L:0),sheet:P.sheet,side:s,dev:P.dev,stub:true};
+  q.inDuct=locate(q,q.sheet); // 出線點已經在線槽裡就直接進線槽
+  return q;
+}
 function buildAnchors(ea,eb,wps,ctr,glandId){
   const sa=ea.sheet,sb=eb.sheet;
   const chain=sa===sb?[sa]:(sa!=='plate'&&sb!=='plate')?[sa,'plate',sb]:[sa,sb];
   const fieldP=sa==='field'?ea:eb;
-  const out=[ea];
+  // 同一組器具（主體與正面附件、伺服電池）之間的線直接在器具前面連，不拉出線點
+  const fam=ea.dev&&eb.dev&&ea.sheet===eb.sheet&&famIds(ea.dev).includes(eb.dev);
+  const out=[ea],qa=fam?null:stubOf(ea),qb=fam?null:stubOf(eb);
+  if(fam&&!wps.length){out.push(eb);out.local=true;return out;}
+  if(qa) out.push(qa);
   chain.forEach((sh,i)=>{
     wps.forEach(p=>{const a=wpAnchor(p);if(a.sheet===sh)out.push(a);});
     if(i<chain.length-1) gates(sh,chain[i+1],ctr,fieldP,glandId).forEach(x=>out.push(x));
   });
+  if(qb) out.push(qb);
   out.push(eb);
   return out;
 }
 
-const ROUTES=new Map(); const DUCTUSE=new Map(); let ISSUES=[];
+const ROUTES=new Map(),ROUTES_MANUAL=new Set(); const DUCTUSE=new Map(); let ISSUES=[];
 function rectOf(k,o){if(k==='dev'){const t=tplOf(o);return {x:o.x,y:o.y,w:t.w,h:t.h};}return {x:o.x,y:o.y,w:o.w,h:o.h};}
 const overlap=(a,b)=>a.x+a.w>b.x+1&&b.x+b.w>a.x+1&&a.y+a.h>b.y+1&&b.y+b.h>a.y+1;
 const outside=(r,P)=>r.x<P.x-.01||r.y<P.y-.01||r.x+r.w>P.x+P.w+.01||r.y+r.h>P.y+P.h+.01;
@@ -240,7 +265,7 @@ function computeIssues(){
 }
 const key=(e)=>e.d+'|'+e.t;
 function computeRoutes(){
-  ROUTES.clear();DUCTUSE.clear();bundleSel=sel;
+  ROUTES.clear();DUCTUSE.clear();ROUTES_MANUAL.clear();bundleSel=sel;
   const J=junctions();
   const use=new Map();
   S.wires=S.wires.filter(w=>{const a=devOf(w.a.d),b=devOf(w.b.d);return a&&b&&termOf(a,w.a.t)&&termOf(b,w.b.t);});
@@ -251,8 +276,10 @@ function computeRoutes(){
   const center_=(_,d)=>center(d);
   const items=S.wires.map(w=>{
     const anchors=buildAnchors(endpoint(w.a,off(w.a)),endpoint(w.b,off(w.b)),w.wps,ctr,w.gland);
-    const legs=[];for(let i=0;i<anchors.length-1;i++) legs.push(routeLeg(anchors[i],anchors[i+1],J,!!w.direct));
-    return {w,anchors,legs,first:realize(w.id,anchors,legs,center_)};
+    // 有中繼點：手動路徑，完全照中繼點走，不套用線槽規則
+    const manual=w.wps.length>0;
+    const legs=[];for(let i=0;i<anchors.length-1;i++) legs.push(routeLeg(anchors[i],anchors[i+1],J,!!w.direct||manual));
+    return {w,anchors,legs,manual,first:realize(w.id,anchors,legs,center_)};
   });
   // 線道分配
   const perDuct=new Map();
@@ -268,8 +295,28 @@ function computeRoutes(){
       else{const e={id:it.w.id,lo,hi,score:s,g:it.w.gauge};seenD.set(r.d,e);if(!perDuct.has(r.d))perDuct.set(r.d,[]);perDuct.get(r.d).push(e);}
     }
   }
+  // 手動路徑：依實際線段落在哪條線槽，計入占用率（不分配線道）
+  const manualUse=new Map(),manualVia=new Map();
+  for(const it of items){
+    if(!it.manual) continue;
+    const pts=simplify(it.first.pts),via=[];
+    for(let i=1;i<pts.length;i++){
+      const a=pts[i-1],b=pts[i];
+      for(const d of S.ducts){
+        const R={x:d.x-.5,y:d.y-.5,w:d.w+1,h:d.h+1};
+        if(!inR(a,R)||!inR(b,R)) continue;
+        const ax=axis(d),lo=Math.min(ax==='h'?a.x:a.y,ax==='h'?b.x:b.y),hi=Math.max(ax==='h'?a.x:a.y,ax==='h'?b.x:b.y);
+        if(hi-lo<1) continue;
+        if(!manualUse.has(d))manualUse.set(d,[]);manualUse.get(d).push({id:it.w.id,lo,hi,g:it.w.gauge});
+        if(via[via.length-1]!==d.id)via.push(d.id);
+      }
+    }
+    manualVia.set(it.w.id,via);
+  }
+  manualUse.forEach((l,d)=>{if(!perDuct.has(d))perDuct.set(d,[]);});
   const lanes=new Map();
-  for(const [d,list] of perDuct){
+  for(const [d,list0] of perDuct){
+    const list=list0,mlist=manualUse.get(d)||[];
     // 依起點排序可用最少線道；再把總長短的線道放外側，出線時少跨過別條線
     const place=(arr)=>{
       const ls=[];
@@ -287,10 +334,10 @@ function computeRoutes(){
     const a=axis(d),lo=a==='h'?d.y:d.x,hi=lo+(a==='h'?d.h:d.w),pad=3.5,avail=hi-lo-2*pad;
     const c=(lo+hi)/2;
     // 占用率取線槽內最擠那一段的導線截面積
-    const ev=[];list.forEach(e=>{const ar=Math.PI/4*odOf(e.g)**2;ev.push([e.lo,ar],[e.hi+.01,-ar]);});
+    const ev=[];[...list,...mlist].forEach(e=>{const ar=Math.PI/4*odOf(e.g)**2;ev.push([e.lo,ar],[e.hi+.01,-ar]);});
     ev.sort((x,y)=>x[0]-y[0]);let cur=0,peak=0;ev.forEach(([,v])=>{cur+=v;peak=Math.max(peak,cur);});
     const section=Math.min(d.w,d.h)*(d.dp||40);
-    DUCTUSE.set(d.id,{n:list.length,lanes:T,pitch:T>1?Math.min(3.4,avail/(T-1)):3.4,pct:Math.round(peak/section*100)});
+    DUCTUSE.set(d.id,{n:list.length+new Set(mlist.map(e=>e.id)).size,lanes:T,pitch:T>1?Math.min(3.4,avail/(T-1)):3.4,pct:Math.round(peak/section*100)});
     if(bundle){
       // 選取的那條線放回自己的線道，其他維持收攏
       const p=Math.min(.7,avail/Math.max(T,1)),sp=T>1?Math.min(3.4,avail/(T-1)):0;
@@ -306,8 +353,10 @@ function computeRoutes(){
     const f=realize(it.w.id,it.anchors,it.legs,(id,d)=>lanes.get(id+'|'+d.id)??center(d));
     const pts=simplify(f.pts);
     let len=0;for(let i=1;i<pts.length;i++)len+=Math.abs(pts[i].x-pts[i-1].x)+Math.abs(pts[i].y-pts[i-1].y);
-    const via=[];f.runs.forEach(r=>{if(via[via.length-1]!==r.d.id)via.push(r.d.id);});
-    const warn=(it.legs.find(l=>l.warn)||{}).warn||null;
+    const via=it.manual?manualVia.get(it.w.id)||[]:[];if(!it.manual)f.runs.forEach(r=>{if(via[via.length-1]!==r.d.id)via.push(r.d.id);});
+    let warn=(it.legs.find(l=>l.warn)||{}).warn||null;
+    if(it.manual&&warn==='直接拉線穿過其他器具')warn='手動路徑穿過其他器具';
+    ROUTES_MANUAL.add(it.manual?it.w.id:null);
     const g=it.anchors.find(a=>a.gland);
     ROUTES.set(it.w.id,{pts,len,via,warn,gland:g?g.gland:null});
   }
@@ -316,7 +365,7 @@ function computeRoutes(){
 function previewPts(a,wps,end,noDuct){
   const J=junctions();
   const anchors=buildAnchors(endpoint(a,0),end,wps,{h:0,g:0,hn:1},null);
-  const legs=[];for(let i=0;i<anchors.length-1;i++) legs.push(routeLeg(anchors[i],anchors[i+1],J,noDuct));
+  const legs=[];for(let i=0;i<anchors.length-1;i++) legs.push(routeLeg(anchors[i],anchors[i+1],J,noDuct||wps.length>0));
   return simplify(realize('_',anchors,legs,(_,d)=>center(d)).pts);
 }
 
