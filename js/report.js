@@ -153,6 +153,7 @@ function renderLen(){
   $('list').innerHTML=`<div class="fields" style="margin-bottom:8px"><label for="spareIn">每條預留 mm<input id="spareIn" type="number" min="0" step="10" value="${spare()}"></label></div>
     <p class="note" style="margin-bottom:6px">${esc(LEN_NOTE())}</p>`+
     (secs.length?secs.map(s=>`<div class="bom-h">${esc(s.h)}</div>`+tableHtml(s.head,s.rows,s.num)).join(''):'<p class="note">還沒有導線。</p>');
+  lockInputs($('list'));
 }
 
 /* CSV */

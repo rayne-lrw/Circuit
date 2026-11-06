@@ -32,6 +32,10 @@ function showTip(id,sx,sy){
 }
 function hoverUpdate(e){
   const p=toWorld(e);cursor=p;
+  if(mode==='view'){ // 檢視：只顯示導線提示
+    const g=e.target.closest&&e.target.closest('.wire'),hw=g?g.dataset.wid:null;
+    if(hw!==hoverW){hoverW=hw;applyWireClasses();}showTip(hw,p.sx,p.sy);return;
+  }
   if(mode!=='wire'||(draft&&draft.pop)){if(snap){snap=null;renderOverlay();}return;}
   const s=findSnap(p,e.altKey);
   const was=snap;snap=s;
@@ -126,12 +130,18 @@ svg.addEventListener('pointerup',e=>{
   if(a.t==='wp'&&!a.moved&&noteTap(e)&&tryDouble(toWorld(e))) return;
   if(a.t==='drag'||a.t==='wp'||a.t==='gland'||a.t==='zone'){ if(a.moved){commit();} recompute(); return; }
   if(a.moved||a.btn!==0) return;
-  if(mode==='wire') clickWire(e,a); else {picked=null;sel=null;renderWires();renderDetail();updateHint();}
+  if(mode==='wire') clickWire(e,a); else if(mode==='view') viewClick(a); else {picked=null;sel=null;renderWires();renderDetail();updateHint();}
 });
 svg.addEventListener('pointercancel',()=>{act=null;});
 svg.addEventListener('pointerenter',()=>{cursorIn=true;});
 svg.addEventListener('pointerleave',()=>{cursorIn=false;});
 svg.addEventListener('pointerleave',()=>{if(!act&&(snap||hoverW)){snap=null;hoverW=null;$('tip').hidden=true;applyWireClasses();}});
+// 檢視模式點一下：選線或看器具，不做任何修改
+function viewClick(a){
+  const t=a.target&&a.target.closest?a.target:null,g=t&&t.closest('.wire'),dg=!g&&t&&t.closest('[data-dev]'),cg=!g&&!dg&&t&&t.closest('[data-duct]'),gg=!g&&!dg&&!cg&&t&&t.closest('[data-gland]');
+  sel=g?g.dataset.wid:null;picked=dg?{k:'dev',id:dg.dataset.dev}:cg?{k:'duct',id:cg.dataset.duct}:gg?{k:'gland',id:gg.dataset.gland}:null;
+  renderList();renderWires();renderDetail();updateHint();
+}
 function clickWire(e,a){
   const p=toWorld(e);cursor=p;
   const s=findSnap(p,e.altKey);
@@ -350,6 +360,13 @@ document.addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?$('redo').click():$('undo').click();return;}
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();$('redo').click();return;}
   if(!$('setDlg').hidden){if(e.key==='Escape')setDialog(false);return;}
+  if(mode==='view'&&!typing){
+    const k=e.key.toLowerCase();
+    if(e.key==='Escape'){sel=null;picked=null;renderList();renderWires();renderDetail();return;}
+    if(!e.ctrlKey&&!e.metaKey&&!e.altKey){if(k==='w')setMode('wire');else if(k==='m')setMode('place');}
+    if(((e.ctrlKey||e.metaKey)&&['z','y','v','a'].includes(k))||/^(Delete|Backspace|Arrow)/.test(e.key))e.preventDefault();
+    return;
+  }
   if(typing) return;
   if((e.ctrlKey||e.metaKey)&&!e.altKey&&!e.shiftKey){
     const k=e.key.toLowerCase();
@@ -365,12 +382,14 @@ document.addEventListener('keydown',e=>{
   const arrow={ArrowLeft:'l',ArrowRight:'r',ArrowUp:'u',ArrowDown:'d'}[e.key];
   if(arrow&&mode==='place'&&picked&&moveBy(arrow,false)){e.preventDefault();return;}
   if(e.key==='w'||e.key==='W')setMode('wire');
+  if(e.key==='v'||e.key==='V')setMode('view');
   if(e.key==='m'||e.key==='M')setMode('place');
 });
 
 /* 面板事件 */
 $('mWire').onclick=()=>setMode('wire');
 $('mPlace').onclick=()=>setMode('place');
+$('mView').onclick=()=>setMode('view');
 $('undo').onclick=()=>{if(!hist.u.length)return;hist.r.push(JSON.stringify(S));draft=null;closePop();restore(hist.u.pop());};
 $('redo').onclick=()=>{if(!hist.r.length)return;hist.u.push(JSON.stringify(S));draft=null;closePop();restore(hist.r.pop());};
 $('bundle').onclick=e=>{bundle=!bundle;e.currentTarget.setAttribute('aria-pressed',bundle);computeRoutes();renderWires();};
@@ -443,6 +462,7 @@ $('dm').onchange=e=>{
 };sizeInput('fl',v=>S.fillLimit=Math.min(100,Math.max(5,v)));
 $('issues').addEventListener('click',e=>{
   const b=e.target.closest('[data-iss]');if(!b)return;const x=ISSUES[Number(b.dataset.iss)];if(!x)return;
+  if(mode==='view'){sel=x.k==='wire'?x.id:null;picked=x.k&&x.k!=='wire'&&x.k!=='doormode'?{k:x.k,id:x.id}:null;renderList();renderWires();renderDetail();return;}
   if(x.k==='doormode'){setDialog(true);const dm=$('dm');dm.focus();dm.classList.add('flash');setTimeout(()=>dm.classList.remove('flash'),1600);return;}
   if(x.k==='wire'){if(mode!=='wire')setMode('wire');picked=null;sel=x.id;}
   else{if(mode!=='place')setMode('place');sel=null;picked={k:x.k,id:x.id};}
@@ -464,14 +484,20 @@ function clearMenu(step){
   }
   m.innerHTML=Object.entries(CLEAR).map(([k,c])=>`<button class="mi" role="menuitem" data-clr="${k}"${c.ok()?'':' disabled'}><span>${c.n}</span><small>${esc(c.what())}</small></button>`).join('')+`<p class="note" style="padding:4px 8px 2px">箱體尺寸、面板設定、現場區與自訂器具都會保留。</p>`;
 }
+/* 檔案選單：匯出、匯入、列印、範例。點了項目就關閉 */
+function setFileMenu(open){$('fileM').hidden=!open;$('fileB').setAttribute('aria-expanded',open);if(open){const f=$('fileM').querySelector('.mi:not(:disabled)');if(f)f.focus();}}
+$('fileB').onclick=e=>{e.stopPropagation();setClearMenu(false);setFileMenu($('fileM').hidden);};
+$('fileM').addEventListener('click',e=>{if(e.target.closest('.mi'))setFileMenu(false);});
+document.addEventListener('click',e=>{if(!$('fileM').hidden&&!e.target.closest('#fileM,#fileB'))setFileMenu(false);});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('fileM').hidden){setFileMenu(false);$('fileB').focus();e.stopImmediatePropagation();}},true);
 function setClearMenu(open){$('clearM').hidden=!open;$('clearB').setAttribute('aria-expanded',open);if(open){clearMenu(null);const f=$('clearM').querySelector('.mi:not(:disabled)');if(f)f.focus();}}
-$('clearB').onclick=e=>{e.stopPropagation();setClearMenu($('clearM').hidden);};
+$('clearB').onclick=e=>{e.stopPropagation();setFileMenu(false);setClearMenu($('clearM').hidden);};
 $('clearM').addEventListener('click',e=>{
   e.stopPropagation();const b=e.target.closest('button');if(!b)return;
   if(b.dataset.clrGo){const c=CLEAR[b.dataset.clrGo],msg=c.what();c.run();filt.dev='';resetUi();setClearMenu(false);commit();recompute();toast(`已清除 ${msg}；可按復原`);return;}
   if(b.dataset.clr) clearMenu(b.dataset.clr); else setClearMenu(false);
 });
-document.addEventListener('click',e=>{if(!$('clearM').hidden&&!e.target.closest('.menuwrap'))setClearMenu(false);});
+document.addEventListener('click',e=>{if(!$('clearM').hidden&&!e.target.closest('#clearM,#clearB'))setClearMenu(false);});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('clearM').hidden){setClearMenu(false);$('clearB').focus();e.stopImmediatePropagation();}},true);
 try{ if(localStorage.getItem(OLDKEY)&&!localStorage.getItem(KEY)) $('oldDraft').hidden=false; }catch(_){}
 $('oldDraft').onclick=()=>{
@@ -493,6 +519,7 @@ $('libQ').oninput=renderPalette;
  tt.onclick=()=>{const rm=matchMedia('(prefers-reduced-motion: reduce)').matches;sc.scrollTo({top:0,behavior:rm?'auto':'smooth'});};}
 $('palette').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
+  if(mode==='view'&&b.matches('.lib')){toast('檢視模式不能新增，按「擺放」或「接線」切換');return;}
   if(b.dataset.add){
     const base=resolveTpl(b.dataset.add);let i=1;while(tagUsed(base.pre+i))i++;
     const vc=viewCenter(),zp=picked&&picked.k==='zone'&&S.fields.find(z=>z.id===picked.id),pd=picked&&picked.k==='dev'&&devOf(picked.id);
@@ -521,7 +548,7 @@ $('palette').addEventListener('click',e=>{
   }else return;
   commit();recompute();reveal(pickedBox());
 });
-$('list').addEventListener('click',e=>{const b=e.target.closest('[data-wl]');if(!b)return;const v=sel===b.dataset.wl?null:b.dataset.wl;if(mode!=='wire')setMode('wire');sel=v;renderList();renderDetail();applyWireClasses();updateHint();});
+$('list').addEventListener('click',e=>{const b=e.target.closest('[data-wl]');if(!b)return;const v=sel===b.dataset.wl?null:b.dataset.wl;if(mode==='place')setMode('wire');sel=v;renderList();renderDetail();applyWireClasses();updateHint();});
 $('list').addEventListener('pointerover',e=>{const b=e.target.closest('[data-wl]');const v=b?b.dataset.wl:null;if(v!==listHover){listHover=v;applyWireClasses();}});
 $('list').addEventListener('pointerleave',()=>{listHover=null;applyWireClasses();});
 $('detail').addEventListener('change',e=>{if(e.target.id==='mvD'){const v=Number(e.target.value);if(v>0)moveStep=v;else e.target.value=moveStep;}});

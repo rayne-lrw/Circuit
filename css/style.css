@@ -58,6 +58,7 @@ details summary{cursor:pointer;font-size:12.5px;color:var(--muted);padding:3px 0
 #svg{width:100%;height:100%;display:block;touch-action:none;user-select:none;-webkit-user-select:none}
 #hint{position:absolute;left:10px;right:10px;bottom:10px;display:flex;justify-content:center;pointer-events:none}
 #hint span{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-size:13px;line-height:1.45;max-width:100%}
+#viewTag{position:absolute;top:10px;left:10px;z-index:3;background:var(--fg);color:var(--bg);border-radius:6px;padding:4px 10px;font-size:12.5px;pointer-events:none}
 #tip{position:absolute;z-index:4;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:7px 10px;font-size:12.5px;line-height:1.6;pointer-events:none;max-width:290px;box-shadow:0 3px 10px rgba(0,0,0,.18)}
 #tip b{font-family:var(--mono);font-weight:600}
 #pop{position:absolute;z-index:5;width:286px;max-width:calc(100% - 16px);max-height:calc(100% - 16px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:10px;box-shadow:0 6px 20px rgba(0,0,0,.25)}

@@ -10,7 +10,7 @@ let snapshotPrev=JSON.stringify(S);
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
 function restore(j){S=JSON.parse(j);snapshotPrev=j;sel=null;picked=null;recompute();renderPalette();save();syncUndo();if(!view.manual)fit();}
 const $=id=>document.getElementById(id);
-function syncUndo(){$('undo').disabled=!hist.u.length;$('redo').disabled=!hist.r.length;}
+function syncUndo(){const v=mode==='view';$('undo').disabled=v||!hist.u.length;$('redo').disabled=v||!hist.r.length;}
 
 let mode='wire', sel=null, picked=null, bundle=false, showNo=false, tab='all';
 let view={k:1,x:0,y:0,manual:false};

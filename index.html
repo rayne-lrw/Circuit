@@ -8,7 +8,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23334'/%3E%3Cpath d='M3 4h5v8h5' fill='none' stroke='%23fc3' stroke-width='2'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261106.084812">
+<link rel="stylesheet" href="css/style.css?v=20261106.085014">
 </head>
 <body>
 <div id="app">
@@ -17,6 +17,7 @@
     <div class="seg" role="group" aria-label="操作模式">
       <button id="mWire" aria-pressed="true" title="快捷鍵 W">接線</button>
       <button id="mPlace" aria-pressed="false" title="快捷鍵 M">擺放</button>
+      <button id="mView" aria-pressed="false" title="快捷鍵 V：只能看、不能修改">檢視</button>
     </div>
     <div class="group">
       <button class="tool" id="undo" title="Ctrl+Z">復原</button>
@@ -37,11 +38,14 @@
     <span class="spacer"></span>
     <span id="stats"></span>
     <div class="group">
-      <button class="tool" id="exportB">匯出專案</button>
-      <button class="tool" id="importB">匯入專案</button>
+      <div class="menuwrap"><button class="tool" id="fileB" aria-haspopup="menu" aria-expanded="false">檔案…</button>
+        <div id="fileM" class="menu" role="menu" hidden>
+          <button class="mi" role="menuitem" id="exportB"><span>匯出專案</span><small>存成 JSON 檔</small></button>
+          <button class="mi" role="menuitem" id="importB"><span>匯入專案</span><small>讀回 JSON 專案檔，可按復原</small></button>
+          <button class="mi" role="menuitem" id="printB"><span>列印／PDF</span><small>圖面與各表格；在列印視窗選「另存為 PDF」</small></button>
+          <button class="mi" role="menuitem" id="sample"><span>載入範例</span><small>換成範例電控箱，可按復原</small></button>
+        </div></div>
       <input type="file" id="importF" accept=".json,application/json" hidden>
-      <button class="tool" id="printB" title="列印圖面與各表格；要 PDF 就在列印視窗選「另存為 PDF」">列印</button>
-      <button class="tool" id="sample">載入範例</button>
       <div class="menuwrap"><button class="tool" id="clearB" aria-haspopup="menu" aria-expanded="false">清除…</button><div id="clearM" class="menu" role="menu" hidden></div></div>
       <button class="tool" id="oldDraft" hidden>讀回舊版暫存</button>
     </div>
@@ -55,7 +59,7 @@
           <p class="note" id="setSum"></p>
         </div>
         <div>
-          <h2 class="h2ver">器具庫 <span id="ver" title="目前版本；更新後這個號碼會改變">v20261106.084812</span></h2>
+          <h2 class="h2ver">器具庫 <span id="ver" title="目前版本；更新後這個號碼會改變">v20261106.085014</span></h2>
           <input id="libQ" type="search" placeholder="搜尋型號、品名、廠牌" aria-label="搜尋器具">
           <div class="row" style="margin-top:6px;justify-content:flex-start"><button class="tool" id="newTpl">新增自訂器具</button></div>
         </div>
@@ -72,6 +76,7 @@
         </g>
       </svg>
       <div id="hint"><span id="hintT"></span></div>
+      <div id="viewTag" hidden>檢視中，不能修改</div>
       <div id="tip" hidden></div>
       <div id="pop" hidden role="dialog" aria-label="選擇線徑與顏色"></div>
       <div id="toast" hidden role="status"></div>
@@ -160,17 +165,17 @@
   </div>
 </div>
 
-<script src="js/inventory.js?v=20261106.084812"></script>
-<script src="js/devices.js?v=20261106.084812"></script>
-<script src="js/sample.js?v=20261106.084812"></script>
-<script src="js/state.js?v=20261106.084812"></script>
-<script src="js/routing.js?v=20261106.084812"></script>
-<script src="js/render.js?v=20261106.084812"></script>
-<script src="js/panels.js?v=20261106.084812"></script>
-<script src="js/popup.js?v=20261106.084812"></script>
-<script src="js/report.js?v=20261106.084812"></script>
-<script src="js/interact.js?v=20261106.084812"></script>
-<script src="js/editor.js?v=20261106.084812"></script>
-<script src="js/main.js?v=20261106.084812"></script>
+<script src="js/inventory.js?v=20261106.085014"></script>
+<script src="js/devices.js?v=20261106.085014"></script>
+<script src="js/sample.js?v=20261106.085014"></script>
+<script src="js/state.js?v=20261106.085014"></script>
+<script src="js/routing.js?v=20261106.085014"></script>
+<script src="js/render.js?v=20261106.085014"></script>
+<script src="js/panels.js?v=20261106.085014"></script>
+<script src="js/popup.js?v=20261106.085014"></script>
+<script src="js/report.js?v=20261106.085014"></script>
+<script src="js/interact.js?v=20261106.085014"></script>
+<script src="js/editor.js?v=20261106.085014"></script>
+<script src="js/main.js?v=20261106.085014"></script>
 </body>
 </html>

@@ -70,7 +70,8 @@ const cableOptions=(cur)=>{
   const list=INV.filter(r=>r[0].includes('細纜')||r[0].startsWith('伺服動力線')||r[0].startsWith('伺服編碼線')||r[0].startsWith('伺服煞車線'));
   return `<option value="">未指定</option>`+list.map(r=>{const v=`${r[0]} ${r[1]}`;return `<option value="${esc(v)}"${cur===v?' selected':''}>${esc(v)}</option>`;}).join('');
 };
-function renderDetail(){
+function renderDetail(){renderDetailInner();lockInputs($('detail'));}
+function renderDetailInner(){
   const box=$('detail');
   if(sel){
     const w=S.wires.find(x=>x.id===sel),r=ROUTES.get(sel);
@@ -197,16 +198,24 @@ function renderStats(){
 }
 function updateHint(){
   let s='';
-  if(mode==='place') s=(picked?'拖曳可移動，方向鍵或右側按鈕可依輸入距離移動，按 R 可旋轉，導線會自動重算；拖進面板或現場區會跟著換位置。Delete 可刪除。':'拖曳器具、線槽或出線口來擺放；左側可新增器具。')+'Ctrl＋拖曳可複製，Ctrl＋C／Ctrl＋V 複製貼上。拖到 H-66 鋁軌上會自動對齊並靠齊相鄰器具，按住 Alt 不吸附。';
+  if(mode==='view') s='檢視模式：只能看，不能修改。點線或器具可看詳細資料，拖曳空白處平移；按 W 回到接線、M 回到擺放。';
+  else if(mode==='place') s=(picked?'拖曳可移動，方向鍵或右側按鈕可依輸入距離移動，按 R 可旋轉，導線會自動重算；拖進面板或現場區會跟著換位置。Delete 可刪除。':'拖曳器具、線槽或出線口來擺放；左側可新增器具。')+'Ctrl＋拖曳可複製，Ctrl＋C／Ctrl＋V 複製貼上。拖到 H-66 鋁軌上會自動對齊並靠齊相鄰器具，按住 Alt 不吸附。';
   else if(draft&&draft.pop) s='選好線徑與顏色後按 Enter 建立，Esc 取消。';
   else if(draft) s=`起點 ${epText(draft.a)}：點接點完成；點空白處加中繼點`+(draft.wps.length?`（已有 ${draft.wps.length} 個，Backspace 退回）`:'')+`；按住 Alt 可不吸附，Esc 取消。`;
   else if(sel) s='雙擊這條線可加中繼點；拖曳白點可調整，雙擊白點可刪除。';
   else s='滑鼠靠近接點會自動吸附放大，點一下開始接線。接到現場區就是外線，接到面板就會走過門線束。';
   $('hintT').textContent=s;
 }
+/* 檢視模式：只能看。會改到資料的按鈕停用，右側詳細資料的欄位反灰 */
+const VIEW_LOCK=['undo','redo','clearB','importB','setOpen','newTpl','sample'];
 function setMode(m){
-  mode=m;$('mWire').setAttribute('aria-pressed',m==='wire');$('mPlace').setAttribute('aria-pressed',m==='place');
-  draft=null;closePop();snap=null;hoverW=null;picked=null;sel=m==='wire'?sel:null;$('tip').hidden=true;
-  applyView();renderWires();renderDetail();updateHint();
+  mode=m;$('mWire').setAttribute('aria-pressed',m==='wire');$('mPlace').setAttribute('aria-pressed',m==='place');$('mView').setAttribute('aria-pressed',m==='view');
+  draft=null;closePop();snap=null;hoverW=null;picked=null;sel=m!=='place'?sel:null;$('tip').hidden=true;
+  document.body.classList.toggle('viewing',m==='view');$('viewTag').hidden=m!=='view';
+  VIEW_LOCK.forEach(id=>{const el=$(id);if(el)el.disabled=m==='view';});
+  if(m!=='view')syncUndo();
+  try{localStorage.setItem('wiring-sim-mode',m);}catch(_){}
+  applyView();renderWires();renderList();renderDetail();updateHint();
 }
+function lockInputs(root){if(mode==='view')root.querySelectorAll('input,select,textarea,button:not([data-pw])').forEach(el=>el.disabled=true);}
 
