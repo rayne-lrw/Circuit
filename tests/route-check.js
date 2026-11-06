@@ -65,6 +65,13 @@ const SCENARIOS=[
     st.wires.push({id:'tb2',no:'B2',a:{d:'K0',t:'A1'},b:{d:'SV2',t:'L11'},wps:[{x:100,y:342}],gauge:.75,color:'black'});
     return {state:st,expectClean:['B1','B2'],expectBack:{B1:true,B2:false}};
   }},
+  {name:'線圈二極體自動接線與接反檢查',build:()=>{
+    const st=normalize(sampleState()).state;S=st;
+    const k=st.devices.find(d=>d.id==='K0'),r=st.devices.find(d=>d.id==='KA1');
+    st.devices.push({id:'DD1',tag:'DD1',tpl:'diode-coil',x:k.x,y:k.y,sheet:'plate',on:'K0'},{id:'DD2',tag:'DD2',tpl:'diode-coil',x:r.x,y:r.y,sheet:'plate',on:'KA1'});
+    placeOn(st.devices.find(d=>d.id==='DD1'),k);placeOn(st.devices.find(d=>d.id==='DD2'),r);
+    return {state:st,expectClean:'all',expectCoil:{DD1:['A1','A2'],DD2:['14','13']}};
+  }},
   {name:'不進線槽與旋轉器具',build:()=>{
     const st=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:800,h:600},door:{w:900,h:700},
       devices:[{id:'Q1',tpl:'fuji-bw50',x:100,y:300,rot:270},{id:'FL1',tpl:'fn3270',x:300,y:290,rot:270},{id:'Q2',tpl:'fuji-bw50',x:100,y:100,rot:90}],
@@ -74,7 +81,7 @@ const SCENARIOS=[
   }},
 ];
 
-function checkInPage(expectClean,expectVia,expectCable,expectBack){
+function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil){
   const res=[];
   const fam=id=>famIds(id);
   const crosses=(w,pts)=>{
@@ -121,6 +128,12 @@ function checkInPage(expectClean,expectVia,expectCable,expectBack){
         if(!eq(ta[ta.length-1],c.pts[0]))msgs.push('A 端芯線沒有接到剝線點');if(!eq(tb[0],c.pts[c.pts.length-1]))msgs.push('B 端芯線沒有接到剝線點');}}
     res.push({no:w.no,ok:!msgs.length,msg:msgs.join('；')});
   }
+  // 線圈二極體：K 接線圈 +、A 接 −，沒有接反警告
+  for(const id in (expectCoil||{})){const [p,m]=expectCoil[id],ws=S.wires.filter(w=>w.auto==='coil'&&w.a.d===id),msgs=[];
+    const k=ws.find(w=>w.a.t==='K'),a=ws.find(w=>w.a.t==='A');
+    if(!k||k.b.t!==p)msgs.push(`K 應接 ${p}，實際 ${k?k.b.t:'沒接'}`);if(!a||a.b.t!==m)msgs.push(`A 應接 ${m}，實際 ${a?a.b.t:'沒接'}`);
+    if(ISSUES.some(i=>i.id===id))msgs.push(ISSUES.filter(i=>i.id===id).map(i=>i.t).join('、'));
+    res.push({no:'二極體 '+id,ok:!msgs.length,msg:msgs.join('；')});}
   // 電纜：芯數、種類、長度包含現場長度；有問題的電纜不可在檢查清單出現
   for(const c of S.cables||[]){
     const e=expectCable&&expectCable[c.no],L=cabLen(c),msgs=[];
@@ -146,7 +159,7 @@ function checkInPage(expectClean,expectVia,expectCable,expectBack){
     const out=await p.evaluate(([src,arg,chk])=>{
       const sc=new Function('arg','return ('+src+')(arg)')(arg);
       S=sc.state;resetUi();computeRoutes();
-      return new Function('expectClean','expectVia','expectCable','expectBack','return ('+chk+')(expectClean,expectVia,expectCable,expectBack)')(sc.expectClean,sc.expectVia,sc.expectCable,sc.expectBack);
+      return new Function('expectClean','expectVia','expectCable','expectBack','expectCoil','return ('+chk+')(expectClean,expectVia,expectCable,expectBack,expectCoil)')(sc.expectClean,sc.expectVia,sc.expectCable,sc.expectBack,sc.expectCoil);
     },[fnSrc,arg,checkInPage.toString()]);
     const bad=out.filter(x=>!x.ok);total+=out.length;fail+=bad.length;
     console.log(`${bad.length?'✗':'✓'} ${name}：${out.length} 條線，${bad.length} 條失敗`);

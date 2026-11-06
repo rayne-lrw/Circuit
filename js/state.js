@@ -102,7 +102,30 @@ function glandTo(g,p){
 const riders=d=>S.devices.filter(x=>x.on===d.id);
 // 附件種類：front 疊在接觸器正面中央（深度相加）；below 掛在伺服驅動器下方（深度不相加）
 const attachOf=d=>tplOf(d).attach||null;
-function hostOk(h,o){if(!h||h===o||h.on||h.sheet!==o.sheet)return false;const t=tplOf(h);if(t.attach||t.noOv)return false;const ot=tplOf(o);if(ot.at&&!ot.at[h.tpl])return false;return attachOf(o)==='below'?t.cat===C5:t.cat===(ot.hostCat||C2);}
+/* 線圈：接點說明有「線圈」的兩個接點；A1、14、8 是 +，A2、13、7 是 −（器具資料可以對調） */
+const COIL_P=['A1','14','8'],COIL_M=['A2','13','7'];
+function coilOf(d){
+  if(!d)return null;const t=tplOf(d);if(t.sym)return null;const c=(t.terms||[]).filter(p=>/線圈/.test(p.desc||''));if(c.length!==2)return null;
+  let p=c.find(x=>COIL_P.includes(x.id)),m=c.find(x=>COIL_M.includes(x.id));if(!p||!m){p=c[0];m=c[1];}
+  return d.coilSwap?{p:m.id,m:p.id,ac:/AC\d/.test(t.n)}:{p:p.id,m:m.id,ac:/AC\d/.test(t.n)};
+}
+// 線圈二極體附件：裝在線圈上就自動接 K→+、A→−；拆下就移除自動接的線。每次重算時同步，拖曳、拆下、復原都一致
+function syncCoilWires(){
+  S.devices.forEach(r=>{
+    if(!tplOf(r).coil) return;
+    const h=r.on&&devOf(r.on),c=h&&coilOf(h),mine=S.wires.filter(w=>w.auto==='coil'&&(w.a.d===r.id||w.b.d===r.id));
+    if(!c){if(mine.length)S.wires=S.wires.filter(w=>!mine.includes(w));return;}
+    [['K',c.p],['A',c.m]].forEach(([dt,ht])=>{
+      let w=mine.find(x=>x.a.d===r.id&&x.a.t===dt);
+      if(w){w.b={d:h.id,t:ht};return;}
+      const n=nextWireNo(),inh=inheritNo({d:h.id,t:ht},{d:h.id,t:ht}).no,no=inh||'W'+String(n).padStart(3,'0');
+      if(!inh)S.nextNo=n+1;
+      S.wires.push({id:'w'+n+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),no,a:{d:r.id,t:dt},b:{d:h.id,t:ht},wps:[],gauge:.75,color:'black',direct:true,auto:'coil'});
+    });
+  });
+  S.wires=S.wires.filter(w=>w.auto!=='coil'||(devOf(w.a.d)&&tplOf(devOf(w.a.d)).coil&&devOf(w.a.d).on===w.b.d));
+}
+function hostOk(h,o){if(!h||h===o||h.on||h.sheet!==o.sheet)return false;const t=tplOf(h);if(t.attach||t.noOv)return false;const ot=tplOf(o);if(ot.coil)return !!coilOf(h);if(ot.at&&!ot.at[h.tpl])return false;return attachOf(o)==='below'?t.cat===C5:t.cat===(ot.hostCat||C2);}
 // 伺服電池的安裝位置：預設掛在下方距左緣 6 mm（MR-J4-200B 外型圖）；
 // MR-J4-700B 依外型圖直立裝在正面右側區塊中間（CN1A、CN1B 左邊），露出 21×69.3 那一面；
 // MR-JE-40B 依外型圖裝在正面電池座（CN4 下方、CN1A／CN1B 左邊）
@@ -120,6 +143,20 @@ function placeOn(r,h){
     delete r.rot;
     const t=tplOf(r);
     if(a){r.x=r1(h.x+a.x);r.y=r1(h.y+a.y);}else{r.x=r1(h.x+Math.min(6,Math.max(0,ht.w-t.w)));r.y=r1(h.y+ht.h);}
+  }else if(tplOf(r).coil){
+    // 線圈二極體：放在線圈兩個接點中間、往器具裡面靠，並轉向讓 K 朝向線圈 +，自動接的兩條線最短
+    const c=coilOf(h),P=ht.terms.find(p=>p.id===c.p),M=ht.terms.find(p=>p.id===c.m);
+    let best=null;
+    for(const rot of [0,90,180,270]){
+      if(rot)r.rot=rot;else delete r.rot;
+      const t=tplOf(r),K=t.terms.find(p=>p.id==='K'),A=t.terms.find(p=>p.id==='A');
+      const mx=(P.x+M.x)/2,my=(P.y+M.y)/2,vx=ht.w/2-mx,vy=ht.h/2-my,vl=Math.hypot(vx,vy)||1,off=Math.min(8,vl);
+      const cx=mx+vx/vl*off,cy=my+vy/vl*off,x=cx-t.w/2,y=cy-t.h/2;
+      const cost=Math.hypot(x+K.x-P.x,y+K.y-P.y)+Math.hypot(x+A.x-M.x,y+A.y-M.y);
+      if(!best||cost<best.cost)best={rot,x,y,cost};
+    }
+    if(best.rot)r.rot=best.rot;else delete r.rot;
+    r.x=r1(h.x+best.x);r.y=r1(h.y+best.y);
   }else{const t=tplOf(r),a=t.at&&t.at[h.tpl];if(a){r.x=r1(h.x+a.x);r.y=r1(h.y+a.y);}else{r.x=r1(h.x+(ht.w-t.w)/2);r.y=r1(h.y+(ht.h-t.h)/2);}} // 指定位置的附件（例如 PLC 擴充板）照位置裝，其他置中
 }
 const famIds=id=>{const d=devOf(id);if(!d)return [id];return [d.id,...(d.on?[d.on]:[]),...riders(d).map(r=>r.id)];};

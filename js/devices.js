@@ -78,7 +78,7 @@ const SENS3=[['棕',10,8,'top','+24V'],['藍',25,8,'top','0V'],['黑',40,8,'top'
 const LOOK={dark:['#2f3437','#f1f2ee'],mid:['#54595b','#f1f2ee'],gray:['#a9adaa','#15181a'],light:['#e3e1d6','#23211a'],blue:['#2c3f4e','#eef3f5'],red:['#7a2a2a','#fff3f1'],steel:['#8e9794','#10140f']};
 /* ---------- 器具庫：[inv, 分類, 廠牌, 名稱, 寬, 高, 深, 字首, 外殼, 接點, 其他] 尺寸為參考值 ---------- */
 const TPL={};
-function def(id,inv,cat,b,n,w,h,d,pre,look,terms,x={}){TPL[id]={inv:[].concat(inv||[]),cat,b,n,w,h,d,pre,f:LOOK[look][0],i:LOOK[look][1],t:terms,sheet:x.sheet||'plate',gen:x.gen||null,cnt:x.cnt||null,cntLabel:x.cntLabel||null,noOv:!!x.noOv,round:!!x.round,legacy:!!x.legacy,front:!!x.front,jumper:!!x.jumper,vlab:x.vlab||null,hostCat:x.hostCat||null,at:x.at||null,deco:x.deco||null,bus:!!x.bus,attach:x.attach||(x.front?'front':null),note:x.note||''};}
+function def(id,inv,cat,b,n,w,h,d,pre,look,terms,x={}){TPL[id]={inv:[].concat(inv||[]),cat,b,n,w,h,d,pre,f:LOOK[look][0],i:LOOK[look][1],t:terms,sheet:x.sheet||'plate',gen:x.gen||null,cnt:x.cnt||null,cntLabel:x.cntLabel||null,noOv:!!x.noOv,round:!!x.round,legacy:!!x.legacy,front:!!x.front,jumper:!!x.jumper,sym:x.sym||null,model:!!x.model,coil:!!x.coil,vlab:x.vlab||null,hostCat:x.hostCat||null,at:x.at||null,deco:x.deco||null,bus:!!x.bus,attach:x.attach||(x.front?'front':null),note:x.note||''};}
 const C1='斷路器',C2='電磁接觸器',C3='繼電器／計時',C4='PLC',C5='伺服驅動',C6='電源／濾波',C7='端子台／接地',C8='網路／插座',C9='其他元件',D1='面板：按鈕與顯示',F1='現場：馬達',F2='現場：感測器',F3='現場：接線盒與其他';
 def('fuji-bw50',null,C1,'FUJI','BW50EAG 3P50A',75,100,84,'Q','dark',[...pole(['1','3','5'],[12.5,37.5,62.5],10,'top','電源側'),...pole(['2','4','6'],[12.5,37.5,62.5],90,'bottom','負載側')]);
 [['3P40A',3],['3P16A',3],['3P4A',3],['2P4A',2],['1P6A',1],['1P4A',1],['1P2A',1],['1P1A',1]].forEach(([r,p])=>def('ic60-'+r,null,C1,'施耐德','iC60N '+r,18*p,85,78.5,'Q','light',brk(p,85)));
@@ -206,4 +206,7 @@ function resolveTpl(id,count){
   return resolveTpl.m.get(k);
 }
 resolveTpl.m=new Map();
-
+// 二極體：A（陽極）、K（陰極），本體畫二極體符號，型號可以每台自訂（材料表照型號列，預設「二極體」）
+def('diode',null,C9,'','二極體',20,18,8,'D','light',[['A',3,13.5,'left','陽極'],['K',17,13.5,'right','陰極']],{sym:'diode',model:true,note:'通用二極體，自己拉線接；方向：電流從 A 流向 K'});
+// 線圈二極體（飛輪二極體）：拖到繼電器座或接觸器上自動裝上，並自動接到線圈兩端（K 接 +、A 接 −）
+def('diode-coil',null,C3,'','二極體（線圈用）',8,18,0,'D','light',[['K',4,3,'top','陰極：接線圈 +'],['A',4,15,'bottom','陽極：接線圈 −']],{sym:'diode',model:true,coil:true,front:true,note:'拖到繼電器座或接觸器上會自動裝上並接到線圈兩端（K 接 +、A 接 −），拆下時自動接的兩條線一起移除；只能用在直流線圈'});

@@ -323,7 +323,7 @@ function moveBy(dir,keepFocus){
 /* ---------- H-66 鋁軌（DIN 35 mm）----------
    器具以高度中心對齊鋁軌中心；同一支軌上的器具會互相靠齊。
    伺服、濾波器、風扇、再生電阻、接地銅板一般用螺絲鎖底板，不吸附。 */
-const NO_DIN=new Set(['fn3270','fn2010','gnd13','gnd15','mec10','rxlg','fan4']);
+const NO_DIN=new Set(['fn3270','fn2010','gnd13','gnd15','mec10','rxlg','fan4','diode','diode-coil']);
 const isRail=d=>!!d&&tplOf(d).noOv;
 const railH=r=>{const t=tplOf(r);return t.w>=t.h;};
 function dinOk(d){

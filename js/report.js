@@ -35,8 +35,9 @@ function bomRows(){
   for(const d of S.devices){
     if(d.tpl==='field-power') continue; // 只是進線示意，不是材料
     const t=resolveTpl(d.tpl,d.count);if(!t) continue;
-    const key=t.gen?d.tpl:t.b+'|'+t.n; // 同名同廠牌合併（例如伺服電池在不同驅動器上的兩種外形）
-    if(!devs.has(key)) devs.set(key,{t,list:[]});
+    // 同名同廠牌合併（例如伺服電池在不同驅動器上的兩種外形）；可自訂型號的器具（二極體）照型號分開列
+    const tm=t.model?{...t,n:d.model||'二極體'}:t,key=t.gen?d.tpl:tm.b+'|'+tm.n;
+    if(!devs.has(key)) devs.set(key,{t:tm,list:[]});
     devs.get(key).list.push(d);
   }
   const ord=CAT_ORDER(),rank=c=>{const i=ord.indexOf(c);return i<0?99:i;};

@@ -75,22 +75,32 @@ function renderBoard(){
     if(t.round) h+=`<rect class="body" x="${d.x}" y="${d.y}" width="${t.w}" height="${t.h}" rx="${Math.min(t.w,t.h)/2}" fill="${t.f}"/>`;
     else h+=`<rect class="body" x="${d.x}" y="${d.y}" width="${t.w}" height="${t.h}" rx="2.5" fill="${t.f}"/>`;
     // 器具上的示意圖形（例如伺服的內置回生電阻）；旋轉的器具不畫
+    // 二極體符號：依 A、K 接點的位置畫（旋轉後也對），三角形尖端指向 K，尖端畫一條橫線
+    if(t.sym==='diode'){const A=t.terms.find(p=>p.id==='A'),K=t.terms.find(p=>p.id==='K');if(A&&K){
+      const ax=d.x+A.x,ay=d.y+A.y,kx=d.x+K.x,ky=d.y+K.y,L=Math.hypot(kx-ax,ky-ay)||1,ux=(kx-ax)/L,uy=(ky-ay)/L,nx=-uy,ny=ux,s=Math.min(2.6,L/5),mx=(ax+kx)/2,my=(ay+ky)/2;
+      const b1=[mx-ux*s+nx*s,my-uy*s+ny*s],b2=[mx-ux*s-nx*s,my-uy*s-ny*s],ap=[mx+ux*s,my+uy*s];
+      h+=`<g class="dsym"><line x1="${ax}" y1="${ay}" x2="${mx-ux*s}" y2="${my-uy*s}"/><line x1="${ap[0]}" y1="${ap[1]}" x2="${kx}" y2="${ky}"/><path d="M${b1} L${b2} L${ap} Z"/><line x1="${ap[0]+nx*s}" y1="${ap[1]+ny*s}" x2="${ap[0]-nx*s}" y2="${ap[1]-ny*s}"/></g>`;}}
     if(t.deco&&!d.rot) t.deco.forEach(g=>{if(g.k==='res'){const cx=d.x+g.x+g.w/2;h+=`<g class="deco"><line x1="${cx}" y1="${d.y+(g.a??g.y-4)}" x2="${cx}" y2="${d.y+g.y-.3}"/><line x1="${cx}" y1="${d.y+g.y+g.h+.3}" x2="${cx}" y2="${d.y+(g.b??g.y+g.h+4)}"/><rect x="${d.x+g.x}" y="${d.y+g.y}" width="${g.w}" height="${g.h}" rx=".6"/><text x="${cx+g.w/2+2}" y="${d.y+g.y+g.h/2}" dominant-baseline="central">${esc(g.label||'')}</text></g>`;}});
     const bodyEnd=h.length; // 短路片插在外殼後面，編號與接點畫在它上面
     const cy=d.y+t.h/2,small=t.w<28||t.h<26,tagSize=small?Math.max(4.5,Math.min(t.w/3.6,8)):10;
     if(d.on) h+=`<text class="tag" style="font-size:5px" x="${d.x+t.w/2}" y="${d.y+5.5}" text-anchor="middle" fill="${t.i}">${esc(d.tag)}</text>`; // 附件編號放上緣，不和接觸器的編號疊在一起
     else if(t.noOv) h+=`<text class="sub" x="${d.x+t.w/2}" y="${cy+1.5}" text-anchor="middle" fill="${t.i}">${esc(d.tag)} 鋁軌 ${t.w} mm</text>`;
     else{
-      const L=tagPlace(d,t,tagSize,small);
+      let L=tagPlace(d,t,tagSize,small);
+      // 二極體：編號放在符號旁邊比較空的那一側
+      if(t.sym==='diode'){const A=t.terms.find(p=>p.id==='A'),K=t.terms.find(p=>p.id==='K');if(A&&K){
+        if(Math.abs(A.y-K.y)<.01){const y=A.y>t.h/2?A.y/2:(A.y+t.h)/2;L={x:t.w/2,y,fs:Math.min(tagSize,Math.abs(A.y-y)*1.1),sub:false};}
+        else{const x=A.x>t.w/2?A.x/2:(A.x+t.w)/2;L={x,y:t.h/2,fs:Math.min(tagSize,Math.abs(A.x-x)*1.1),sub:false};}}}
       const tx=d.x+L.x,ty=d.y+L.y;
       h+=L.rot?`<text class="tag" style="font-size:${L.fs.toFixed(2)}px" x="${tx}" y="${ty}" text-anchor="middle" dominant-baseline="central" transform="rotate(-90 ${tx} ${ty})" fill="${t.i}">${esc(d.tag)}</text>`
         :`<text class="tag" style="font-size:${L.fs.toFixed(2)}px" x="${tx}" y="${ty+L.fs*.25}" text-anchor="middle" fill="${t.i}">${esc(d.tag)}</text>`;
-      if(!small&&!L.rot&&L.sub!==false) h+=`<text class="sub" x="${d.x+L.x}" y="${d.y+L.y+Math.max(5.5,L.fs*.8)}" text-anchor="middle" fill="${t.i}"${L.fs<10?` style="font-size:${Math.max(3,L.fs*.44).toFixed(2)}px"`:''}>${esc(t.b)}</text>`;
+      if(!small&&!L.rot&&L.sub!==false&&!t.sym) h+=`<text class="sub" x="${d.x+L.x}" y="${d.y+L.y+Math.max(5.5,L.fs*.8)}" text-anchor="middle" fill="${t.i}"${L.fs<10?` style="font-size:${Math.max(3,L.fs*.44).toFixed(2)}px"`:''}>${esc(t.b)}</text>`;
     }
     const tr=Math.min(t.terms.length>30?1.3:t.terms.length>14?1.7:2.3,minGap(t)*.36); // 接點很密（例如 D-sub）時縮小圓點
     for(const p of t.terms){
       const x=d.x+p.x,y=d.y+p.y;
       h+=`<circle class="term" cx="${x}" cy="${y}" r="${tr}"/>`;
+      if(t.sym) continue; // 二極體：方向看符號，不另外標 A、K 文字（滑鼠靠近接點會顯示）
       const lb=termLabel(d,p.id),sm=lb!==p.id&&SLOT_RE.exec(p.id);
       // 極距很密的端子（例如 FX5U 左側 5 極端子）：標籤照手冊直寫
       if(t.vlab&&!d.rot&&t.vlab.includes(p.id)&&(p.side==='top'||p.side==='bottom')){const up=p.side==='bottom',ty=y+(up?-2.6:2.6);h+=`<text class="tl" x="${x}" y="${ty}" text-anchor="${up?'start':'end'}" dominant-baseline="central" transform="rotate(-90 ${x} ${ty})" fill="${t.i}" style="font-size:2.4px">${esc(lb)}</text>`;continue;}

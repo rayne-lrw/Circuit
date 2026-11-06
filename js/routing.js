@@ -109,6 +109,8 @@ function clean(pts,A,B,loose){
   return true;
 }
 function routeLeg(A,B,J,noDuct){
+  // 線圈二極體到線圈的自動短線：直接轉一個彎接過去，不照接點方向繞
+  if(A.dev&&B.dev&&(tplOf(devOf(A.dev)).coil||tplOf(devOf(B.dev)).coil)&&famIds(A.dev).includes(B.dev)) return {direct:true,pts:Math.abs(A.x-B.x)<.01||Math.abs(A.y-B.y)<.01?[A,B]:[A,{x:A.x,y:B.y},B]};
   if(A.dev&&B.dev&&A.sheet===B.sheet&&famIds(A.dev).includes(B.dev)&&!A.stub&&!B.stub) return {direct:true,pts:directPts(A,B)};
   if((B.stub&&!A.stub&&A.dev===B.dev)||(A.stub&&!B.stub&&A.dev===B.dev)) return {direct:true,pts:[A,B]}; // 接點↔出線點
   if(A.sheet!==B.sheet) return {direct:true,pts:directPts(A,B)};
@@ -294,6 +296,19 @@ function computeIssues(){
   S.wires.forEach(w=>{const r=ROUTES.get(w.id);if(r&&r.warn) out.push({t:`${wireRef(w)} ${r.warn}`,k:'wire',id:w.id});});
   // 有中繼點的線在同一條直線上沿原路折返：多半是中繼點放的位置讓線跑過頭再回來
   S.wires.forEach(w=>{if(!w.wps.length||w.cab)return;const r=ROUTES.get(w.id);if(r&&backtrack(r.pts))out.push({t:`${wireRef(w)} 在中繼點前後沿原路折返，建議移動中繼點`,k:'wire',id:w.id});});
+  // 二極體接在線圈上：K 要接 +、A 接 −；AC 線圈不能接二極體
+  {const P=new Map(),f=k=>{while(P.has(k)&&P.get(k)!==k)k=P.get(k);return k;},u=(a,b)=>{const x=f(a),y=f(b);if(x!==y)P.set(x,y);};
+   S.wires.forEach(w=>u(nodeKey(w.a),nodeKey(w.b)));
+   const coils=S.devices.map(h=>({h,c:coilOf(h)})).filter(x=>x.c);
+   S.devices.filter(d=>tplOf(d).sym==='diode').forEach(d=>{
+     const a=f(nodeKey({d:d.id,t:'A'})),k=f(nodeKey({d:d.id,t:'K'}));
+     coils.forEach(({h,c})=>{
+       const p=f(nodeKey({d:h.id,t:c.p})),m=f(nodeKey({d:h.id,t:c.m})),on=(a===p||a===m)&&(k===p||k===m)&&a!==k;
+       if(!on) return;
+       if(c.ac) out.push({t:`${d.tag} 二極體接在 ${h.tag} 的 AC 線圈上：交流線圈不能接二極體（會短路），請改用突波吸收器`,k:'dev',id:d.id});
+       else if(k===m&&a===p) out.push({t:`${d.tag} 二極體接反：K（陰極）要接 ${h.tag} 的 ${c.p}（+），A 接 ${c.m}（−）；如果線圈極性本來就相反，到 ${h.tag} 的器具資料勾選「線圈極性對調」`,k:'dev',id:d.id});
+     });
+   });}
   (S.cables||[]).forEach(c=>{
     const cw=coresOf(c),sp=specCores(c.spec).length,seen=new Map();
     if(sp&&c.cores.length>sp) out.push({t:`電纜 ${c.no} 規格是 ${sp} 芯，芯線表有 ${c.cores.length} 芯`,k:'cable',id:c.id});
@@ -323,7 +338,7 @@ function backtrack(p){
 const plugWire=w=>[w.a,w.b].some(e=>e.t==='插頭');
 const key=(e)=>e.d+'|'+e.t;
 function computeRoutes(){
-  ROUTES.clear();DUCTUSE.clear();ROUTES_MANUAL.clear();CABROUTES.clear();fixBatteries();syncCables();bundleSel=sel;
+  ROUTES.clear();DUCTUSE.clear();ROUTES_MANUAL.clear();CABROUTES.clear();fixBatteries();syncCoilWires();syncCables();bundleSel=sel;
   const J=junctions();
   const use=new Map();
   S.wires=S.wires.filter(w=>{const a=devOf(w.a.d),b=devOf(w.b.d);return a&&b&&termOf(a,w.a.t)&&termOf(b,w.b.t);});
