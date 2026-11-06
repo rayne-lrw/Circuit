@@ -157,7 +157,7 @@ function renderDetailInner(){
       <label for="fx">X (mm)<input id="fx" type="number" step="5" value="${d.x}"></label><label for="fy">Y (mm)<input id="fy" type="number" step="5" value="${d.y}"></label>
       <label for="fw">寬 (mm)<input id="fw" type="number" step="5" min="10" value="${d.w}"></label><label for="fh">高 (mm)<input id="fh" type="number" step="5" min="10" value="${d.h}"></label>
       <label for="fdp">深 (mm)<input id="fdp" type="number" step="5" min="10" value="${d.dp||40}"></label></div>
-      ${moveHtml(false)}<p class="note">占用率以導線外徑估算值計算最擠的一段。</p>
+      ${moveHtml(false)}<p class="note">占用率以導線外徑估算值計算最擠的一段。${u.pitch<1.5?`<br>線道 ${u.lanes} 條，畫面上會靠得很近，實際配線沒有問題；可以開「線束模式」看。`:''}</p>
       <div class="row"><button class="tool danger" id="delPicked">刪除線槽</button></div>`;
       ['x','y','w','h','dp'].forEach(f=>{$('f'+f).onchange=e=>{const v=Number(e.target.value);if(!isFinite(v)||e.target.value==='')return;d[f]=(f==='x'||f==='y')?v:Math.max(10,v);commit();recompute();};});
     }

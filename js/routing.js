@@ -273,7 +273,7 @@ function computeIssues(){
   S.ducts.forEach(d=>{
     const u=DUCTUSE.get(d.id);if(!u) return;
     if(u.pct>S.fillLimit) out.push({t:`線槽 ${d.id} 占用 ${u.pct}%，超過上限 ${S.fillLimit}%`,k:'duct',id:d.id});
-    else if(u.pitch<1.5) out.push({t:`線槽 ${d.id} 排了 ${u.lanes} 道線，畫面過密，建議加寬或分流`,k:'duct',id:d.id});
+    // 線道多到畫面上靠得很近只是顯示問題，不列在檢查清單（選取線槽時在右側說明）
   });
   S.wires.forEach(w=>{const r=ROUTES.get(w.id);if(r&&r.warn) out.push({t:`${wireRef(w)} ${r.warn}`,k:'wire',id:w.id});});
   S.devices.forEach(d=>{const n=d.count||(resolveTpl(d.tpl)||{}).cnt||0;(d.jumpers||[]).forEach(j=>{if(j.at+j.p-1>n)out.push({t:`${d.tag} 的 ${j.p}P 短路片超出片數（只有 ${n} 片）`,k:'dev',id:d.id});});});
