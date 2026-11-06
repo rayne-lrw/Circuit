@@ -7,11 +7,11 @@ GitHub Pages 會讓 css/js 留在快取裡一段時間，瀏覽器重新整理�
 
 用法：python3 scripts/bump-version.py
 """
-import re, datetime, pathlib
+import re, time, pathlib
 
 p = pathlib.Path(__file__).resolve().parent.parent / 'index.html'
 s = p.read_text(encoding='utf-8')
-v = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).strftime('%Y%m%d.%H%M%S')
+v = str(int(time.time()))  # 時間戳（秒），每次發布都不同，比日期＋時間短
 s = re.sub(r'((?:src|href)="(?:js|css)/[\w.-]+\.(?:js|css))(?:\?v=[\w.]+)?"', lambda m: f'{m.group(1)}?v={v}"', s)
 s = re.sub(r'<span id="ver"[^>]*>[^<]*</span>', f'<span id="ver" title="目前版本；更新後這個號碼會改變">v{v}</span>', s)
 p.write_text(s, encoding='utf-8')

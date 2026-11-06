@@ -57,7 +57,7 @@ node tests/route-check.js
 
 ### 發布到 GitHub Pages
 
-每次修改後先執行 `python3 scripts/bump-version.py` 再推上去：它會更新 `index.html` 裡 css/js 網址後面的版本號，避免瀏覽器拿到快取的舊檔；版本號也會顯示在標題旁邊。
+每次修改後先執行 `python3 scripts/bump-version.py` 再推上去：它會更新 `index.html` 裡 css/js 網址後面的版本號，避免瀏覽器拿到快取的舊檔；版本號是發布當下的時間戳（秒），也會顯示在左側面板。
 
 
 1. 把這個專案推到 GitHub。
