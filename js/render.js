@@ -79,6 +79,8 @@ function renderBoard(){
       const x=d.x+p.x,y=d.y+p.y;
       h+=`<circle class="term" cx="${x}" cy="${y}" r="${tr}"/>`;
       const lb=termLabel(d,p.id),sm=lb!==p.id&&SLOT_RE.exec(p.id);
+      // 極距很密的端子（例如 FX5U 左側 5 極端子）：標籤照手冊直寫
+      if(t.vlab&&!d.rot&&t.vlab.includes(p.id)&&(p.side==='top'||p.side==='bottom')){const up=p.side==='bottom',ty=y+(up?-2.6:2.6);h+=`<text class="tl" x="${x}" y="${ty}" text-anchor="${up?'start':'end'}" dominant-baseline="central" transform="rotate(-90 ${x} ${ty})" fill="${t.i}" style="font-size:2.4px">${esc(lb)}</text>`;continue;}
       if(!(sm&&(sm[2]==='B'||sm[2]==='D'))) h+=`<text class="tl" x="${x+(p.side==='left'?5:p.side==='right'?-5:0)}" y="${y+(p.side==='top'?5.8:p.side==='bottom'?-3.6:1)}" text-anchor="middle" fill="${t.i}"${sm?` style="font-size:${Math.min(3.2,7.2/Math.max(2,[...lb].length)).toFixed(2)}px"`:''}>${esc(lb)}</text>`; // 同一片上下兩點只標一次；端子號依長度縮小字體，避免和隔壁重疊
     }
     // 短路片：以每片上下接點的中點連成一條，旋轉後也對得上

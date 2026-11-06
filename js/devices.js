@@ -78,7 +78,7 @@ const SENS3=[['棕',10,8,'top','+24V'],['藍',25,8,'top','0V'],['黑',40,8,'top'
 const LOOK={dark:['#2f3437','#f1f2ee'],mid:['#54595b','#f1f2ee'],gray:['#a9adaa','#15181a'],light:['#e3e1d6','#23211a'],blue:['#2c3f4e','#eef3f5'],red:['#7a2a2a','#fff3f1'],steel:['#8e9794','#10140f']};
 /* ---------- 器具庫：[inv, 分類, 廠牌, 名稱, 寬, 高, 深, 字首, 外殼, 接點, 其他] 尺寸為參考值 ---------- */
 const TPL={};
-function def(id,inv,cat,b,n,w,h,d,pre,look,terms,x={}){TPL[id]={inv:[].concat(inv||[]),cat,b,n,w,h,d,pre,f:LOOK[look][0],i:LOOK[look][1],t:terms,sheet:x.sheet||'plate',gen:x.gen||null,cnt:x.cnt||null,cntLabel:x.cntLabel||null,noOv:!!x.noOv,round:!!x.round,legacy:!!x.legacy,front:!!x.front,jumper:!!x.jumper,deco:x.deco||null,bus:!!x.bus,attach:x.attach||(x.front?'front':null),note:x.note||''};}
+function def(id,inv,cat,b,n,w,h,d,pre,look,terms,x={}){TPL[id]={inv:[].concat(inv||[]),cat,b,n,w,h,d,pre,f:LOOK[look][0],i:LOOK[look][1],t:terms,sheet:x.sheet||'plate',gen:x.gen||null,cnt:x.cnt||null,cntLabel:x.cntLabel||null,noOv:!!x.noOv,round:!!x.round,legacy:!!x.legacy,front:!!x.front,jumper:!!x.jumper,vlab:x.vlab||null,deco:x.deco||null,bus:!!x.bus,attach:x.attach||(x.front?'front':null),note:x.note||''};}
 const C1='斷路器',C2='電磁接觸器',C3='繼電器／計時',C4='PLC',C5='伺服驅動',C6='電源／濾波',C7='端子台／接地',C8='網路／插座',C9='其他元件',D1='面板：按鈕與顯示',F1='現場：馬達',F2='現場：感測器',F3='現場：接線盒與其他';
 def('fuji-bw50',null,C1,'FUJI','BW50EAG 3P50A',75,100,84,'Q','dark',[...pole(['1','3','5'],[12.5,37.5,62.5],10,'top','電源側'),...pole(['2','4','6'],[12.5,37.5,62.5],90,'bottom','負載側')]);
 [['3P40A',3],['3P16A',3],['3P4A',3],['2P4A',2],['1P6A',1],['1P4A',1],['1P2A',1],['1P1A',1]].forEach(([r,p])=>def('ic60-'+r,null,C1,'施耐德','iC60N '+r,18*p,85,78.5,'Q','light',brk(p,85)));
@@ -109,7 +109,13 @@ def('fx5u32',null,C4,'三菱','FX5U-32MT/ES',150,90,83,'PLC','dark',[
   ...FX5U_ROW(['L','N',null,'24V','X1','X3','X5','X7','X11','X13','X15','X17'],10.9,11,'top',FX5U_D),
   ...FX5U_ROW(['Y0','Y2',null,'Y4','Y6',null,'Y10','Y12',null,'Y14','Y16',null],17,79,'bottom',FX5U_D),
   ...FX5U_ROW(['COM0','Y1','Y3','COM1','Y5','Y7','COM2','Y11','Y13','COM3','Y15','Y17'],10.9,85,'bottom',FX5U_D),
-  ['LAN',44,62,'bottom','內建乙太網路埠（RJ45）']],{note:'端子位置依端子排列圖，上下各兩排錯開；網路埠在正面左側黑色面板下方（依產品照片估算）'});
+  ['LAN',44,62,'bottom','內建乙太網路埠（RJ45）'],
+  // 左側：內置類比量端子（上，接線從上方插入）與內置 RS-485 端子（下，通道 1，接線從下方插入），各 5 極歐式端子
+  ...[['V1+','類比輸入 1'],['V2+','類比輸入 2'],['V-','類比輸入共點'],['VO+','類比輸出 V+'],['VO-','類比輸出 V-']].map(([id,d],i)=>[id,15.1+3.1*i,20,'top',d]),
+  ...[['SG','RS-485 SG（GND）'],['SDB','RS-485 SDB（TXD-）'],['SDA','RS-485 SDA（TXD+）'],['RDB','RS-485 RDB（RXD-）'],['RDA','RS-485 RDA（RXD+）']].map(([id,d],i)=>[id,15.1+3.1*i,66,'bottom',d]),
+  // 中間：通道 2 通信板 RS-232（FX5-232-BD，D-sub 9 針；7～9 腳未使用不畫）
+  ...[['CD','1'],['RD','2'],['SD','3'],['ER','4'],['SG2','5']].map(([id,n],i)=>[id,69+5*i,60,'bottom',`通道2 RS-232 第${n}腳 ${id==='SG2'?'SG（GND）':id}`]),
+  ['DR',71.5,66,'bottom','通道2 RS-232 第6腳 DR（DSR）']],{note:'端子位置依端子排列圖，上下各兩排錯開；左側上方類比量、下方 RS-485（通道 1）；中間通道 2 通信板 RS-232；網路埠在左側黑色面板下方（依外型圖估算）',vlab:['V1+','V2+','V-','VO+','VO-','SG','SDB','SDA','RDB','RDA','CD','RD','SD','ER','SG2','DR']});
 def('fx516ex',null,C4,'三菱','FX5-16EX/ES 16IN',40,90,83,'EX','dark',[...[['S/S',7.1],['1',14.3],['3',21.4],['5',28.6],['6',35.7],['7',42.9],['10',50.4],['11',57.5],['13',64.7],['15',71.8],['17',79]].map(([id,y])=>[id,29,y,'right',id==='S/S'?'輸入共點':'輸入']),...[['0',10.9],['2',17.9],['4',25],['12',61.1],['14',68.3],['16',75.4]].map(([id,y])=>[id,36,y,'right','輸入'])],{note:'接點位置依端子排列示意圖，左右兩排錯開'});
 def('fx54ad',null,C4,'三菱','FX5-4AD-ADP 4CH 類比',17.6,106,74,'AD','dark',['V1+','I1+','COM1','V2+','I2+','COM2','V3+','I3+','COM3','V4+','I4+','COM4','FG'].map((id,i)=>[id,8,28.8+i*4.29,'right',id==='FG'?'接地':'類比輸入']),{note:'24V 由 CPU 內部供電，模組上沒有電源端子；本體深 74 mm，含上方突出部 89.1 mm'});
 def('fx540ssc',null,C4,'三菱','FX5-40SSC-S 4軸運動',50,90,83,'SSC','dark',[...[['24V',6],['0V',13],['FG',20]].map(([id,x])=>[id,x,83,'bottom',id==='FG'?'接地':'電源']),['SSCNET',37.5,80,'bottom','正面接頭']],{note:'DIN 軌中心在高度正中；電源端子在左下，SSCNET 在右下'});
