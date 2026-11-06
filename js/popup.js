@@ -1,13 +1,14 @@
 "use strict";
 /* ---------- 建線彈窗 ---------- */
 const draftIsExt=()=>draft&&draft.end&&(devOf(draft.a.d).sheet==='field'||devOf(draft.end.d).sheet==='field');
-function nextCable(){let i=1;while(S.wires.some(w=>w.ext&&w.ext.cable==='C'+String(i).padStart(2,'0')))i++;return 'C'+String(i).padStart(2,'0');}
+const nextCable=()=>nextCableNo();
 function openPop(){
   draft.pop=true;
   if(draftIsExt()){
     const fd=devOf(draft.a.d).sheet==='field'?draft.a:draft.end;
-    const sameDev=S.wires.find(w=>w.ext&&wireKind(w)==='ext'&&(w.a.d===fd.d||w.b.d===fd.d));
-    draft.ext={cable:sameDev?sameDev.ext.cable:nextCable(),core:fd.t,spec:sameDev?sameDev.ext.spec:''};
+    // 同一個現場設備已經有電纜、而且還有空的芯：預設編進那條電纜的下一芯
+    const c=S.cables.find(x=>freeCore(x)&&coresOf(x).some(w=>w.b.d===fd.d||w.a.d===fd.d));
+    draft.ext={cable:c?c.no:nextCable(),core:'',spec:c?c.spec:''};
   }
   if(draft.no==null){const h=inheritNo(draft.a,draft.end);draft.no=h.no||'W'+String(nextWireNo()).padStart(3,'0');draft.noHint=h.a&&h.b&&h.a!==h.b?`起點已有 ${h.a}、終點已有 ${h.b}，預設用起點的線號`:h.no?`沿用接點上已有的線號 ${h.no}（同電位）`:'';}
   const pop=$('pop'),st=$('stage').getBoundingClientRect();
@@ -24,7 +25,7 @@ function openPop(){
 function fillPop(){
   const ex=draftIsExt();
   $('pop').innerHTML=`<div class="ends">${esc(epText(draft.a))} → ${esc(epText(draft.end))}${draft.wps.length?`（${draft.wps.length} 中繼點）`:''}${ex?'　外線':''}</div>
-  ${ex?`<div class="fields"><label for="pCable">電纜編號<input id="pCable" maxlength="12" value="${esc(draft.ext.cable)}"></label><label for="pCore">芯線<input id="pCore" maxlength="10" value="${esc(draft.ext.core)}"></label><label for="pSpec" style="grid-column:1/-1">電纜規格<select id="pSpec">${cableOptions(draft.ext.spec)}</select></label></div>`:''}
+  ${ex?`<div class="fields"><label for="pCable">電纜編號（空白＝散線）<input id="pCable" maxlength="12" list="pCabL" value="${esc(draft.ext.cable)}"><datalist id="pCabL">${S.cables.map(c=>`<option value="${esc(c.no)}">`).join('')}</datalist></label><label for="pCore">芯線<input id="pCore" maxlength="10" value="${esc(draft.ext.core)}" placeholder="下一芯"></label>${S.cables.some(c=>c.no===draft.ext.cable.trim())?`<p class="note" style="grid-column:1/-1">編進已有的電纜 ${esc(draft.ext.cable)}，顏色與線徑照電纜芯線</p>`:`<label for="pSpec" style="grid-column:1/-1">新電纜規格<select id="pSpec">${cableOptions(draft.ext.spec)}</select></label>`}</div>`:''}
   <div class="fields"><label for="pNo" style="grid-column:1/-1">線號<input id="pNo" maxlength="16" value="${esc(draft.no)}"></label></div>${draft.noHint?`<p class="note">${esc(draft.noHint)}</p>`:''}
   <div><h3>線徑 mm²</h3>${gaugeChips(last.gauge,'pg','pn')}</div>
   <div><h3>顏色</h3>${colorChips(last.color,'pn')}</div>
@@ -33,7 +34,7 @@ function fillPop(){
   <div class="row"><button class="tool" id="popNo">取消</button><button class="primary" id="popOk">建立</button></div>`;
   $('pNo').oninput=e=>{draft.no=e.target.value;};
   $('pDirect').onchange=e=>{last.direct=e.target.checked;renderOverlay();};
-  if(ex){$('pCable').oninput=e=>draft.ext.cable=e.target.value;$('pCore').oninput=e=>draft.ext.core=e.target.value;$('pSpec').onchange=e=>draft.ext.spec=e.target.value;}
+  if(ex){$('pCable').oninput=e=>draft.ext.cable=e.target.value;$('pCable').onchange=()=>{fillPop();};$('pCore').oninput=e=>draft.ext.core=e.target.value;if($('pSpec'))$('pSpec').onchange=e=>draft.ext.spec=e.target.value;}
 }
 function closePop(){$('pop').hidden=true;}
 function finishWire(){
@@ -42,8 +43,11 @@ function finishWire(){
   const w={id:'w'+n+'_'+Date.now().toString(36),no,a:draft.a,b:draft.end,wps:draft.wps,gauge:last.gauge,color:last.color};
   applyColor(w,last.color);
   if(last.direct) w.direct=true;
-  if(draftIsExt()) w.ext={cable:draft.ext.cable,core:draft.ext.core,spec:draft.ext.spec};
-  S.wires.push(w);draft=null;closePop();sel=w.id;commit();recompute();
+  S.wires.push(w);
+  if(draftIsExt()&&draft.ext.cable.trim()){
+    const no=draft.ext.cable.trim().slice(0,12),c=S.cables.find(x=>x.no===no)||newCable(no,draft.ext.spec);
+    attachCore(w,c,draft.ext.core.trim()||null);
+  }draft=null;closePop();sel=w.id;commit();recompute();
 }
 function cancelDraft(){draft=null;closePop();renderOverlay();updateHint();}
 $('pop').addEventListener('click',e=>{

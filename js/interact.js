@@ -49,6 +49,9 @@ let act=null;
 svg.addEventListener('pointerdown',e=>{
   const p=toWorld(e);cursor=p;
   if(mode==='wire'&&e.pointerType!=='mouse') hoverUpdate(e);
+  // 拖曳剝線點（接線、擺放模式都可以）
+  const bg=mode!=='view'&&e.button===0&&!draft&&e.target.closest&&e.target.closest('[data-bo]');
+  if(bg){const [cid,k]=bg.dataset.bo.split('|');act={t:'bo',cid,k,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId};svg.setPointerCapture(e.pointerId);return;}
   if(mode==='place'&&e.button===0){
     const dg=e.target.closest('[data-dev]'),cg=e.target.closest('[data-duct]'),gg=e.target.closest('[data-gland]'),zg=!dg&&!cg&&!gg&&e.target.closest('.zone-h,.zoneg .field-t')&&e.target.closest('[data-zone]');
     // 多選：Shift＋點加入或移出、Shift＋拖曳空白處框選；拖曳選取中的任一個一起移動
@@ -122,6 +125,12 @@ svg.addEventListener('pointermove',e=>{
   }else if(act.t==='gland'){
     glandTo(act.obj,toWorld(e)); // 吸到最近的箱面
     computeRoutes();renderBoard();renderWires();
+  }else if(act.t==='bo'){
+    const c=cabOf(act.cid);if(!c)return;const p=toWorld(e);
+    // 拖進線槽時吸到線槽中心線，按住 Alt 不吸附
+    let q={x:Math.round(p.x),y:Math.round(p.y)};const d=!e.altKey&&locate(q,sheetAt(q));
+    if(d){if(axis(d)==='h')q.y=r1(center(d));else q.x=r1(center(d));}
+    c.bo[act.k]=q;computeRoutes();renderWires();
   }else if(act.t==='wp'){
     const p=toWorld(e);act.wp.x=Math.round(p.x/5)*5;act.wp.y=Math.round(p.y/5)*5;
     computeRoutes();renderWires();
@@ -137,9 +146,10 @@ svg.addEventListener('pointerup',e=>{
   if(a.t==='multi'){endMultiDrag(a);return;}
   if(a.copy&&!a.moved){dropClip(a.copy);picked=a.src;recompute();return;} // Ctrl＋點一下沒拖：不複製
   if(a.t==='wp'&&!a.moved&&noteTap(e)&&tryDouble(toWorld(e))) return;
+  if(a.t==='bo'){if(a.moved)commit();else selectCable(a.cid);recompute();return;}
   if(a.t==='drag'||a.t==='wp'||a.t==='gland'||a.t==='zone'){ if(a.moved){commit();} recompute(); return; }
   if(a.moved||a.btn!==0) return;
-  if(mode==='wire') clickWire(e,a); else if(mode==='view') viewClick(a); else {picked=null;multi=[];sel=null;renderWires();renderDetail();updateHint();}
+  if(mode==='wire') clickWire(e,a); else if(mode==='view') viewClick(a); else {picked=null;multi=[];sel=null;selCab=null;renderWires();renderDetail();updateHint();}
 });
 svg.addEventListener('pointercancel',()=>{act=null;});
 svg.addEventListener('pointerenter',()=>{cursorIn=true;});
@@ -149,6 +159,7 @@ svg.addEventListener('pointerleave',()=>{if(!act&&(snap||hoverW)){snap=null;hove
 function viewClick(a){
   const t=a.target&&a.target.closest?a.target:null,g=t&&t.closest('.wire'),dg=!g&&t&&t.closest('[data-dev]'),cg=!g&&!dg&&t&&t.closest('[data-duct]'),gg=!g&&!dg&&!cg&&t&&t.closest('[data-gland]');
   sel=g?g.dataset.wid:null;picked=dg?{k:'dev',id:dg.dataset.dev}:cg?{k:'duct',id:cg.dataset.duct}:gg?{k:'gland',id:gg.dataset.gland}:null;
+  const cb=!g&&t&&t.closest('[data-cab]');selCab=cb?cb.dataset.cab:null;if(cb)picked=null;
   renderList();renderWires();renderDetail();updateHint();
 }
 function clickWire(e,a){
@@ -158,16 +169,16 @@ function clickWire(e,a){
     if(draft.pop) return;
     if(s){
       if(s.d===draft.a.d&&s.t===draft.a.t) return;
-      draft.end={d:s.d,t:s.t};openPop();return;
+      draft.end={d:s.d,t:s.t};if(cabPick&&pickCore())return;openPop();return;
     }
     draft.wps.push({x:Math.round(p.x/5)*5,y:Math.round(p.y/5)*5});
     renderOverlay();updateHint();return;
   }
   const dbl=noteTap(e);
   if(dbl&&sel&&tryDouble(p)) return;
-  if(s){draft={a:{d:s.d,t:s.t},wps:[]};sel=null;hoverW=null;$('tip').hidden=true;renderList();renderDetail();applyWireClasses();updateHint();return;}
-  const g=a.target&&a.target.closest&&a.target.closest('.wire');
-  sel=g?g.dataset.wid:null;
+  if(s){draft={a:{d:s.d,t:s.t},wps:[]};sel=null;if(!cabPick)selCab=null;hoverW=null;$('tip').hidden=true;renderList();renderDetail();applyWireClasses();updateHint();return;}
+  const g=a.target&&a.target.closest&&a.target.closest('.wire'),cb=!g&&a.target&&a.target.closest&&a.target.closest('[data-cab]');
+  sel=g?g.dataset.wid:null;selCab=cb?cb.dataset.cab:cabPick;if(cb)coreEdit=null;
   renderList();renderDetail();applyWireClasses();updateHint();
 }
 // 回傳點在折線上的累積距離與垂直距離，用來決定新中繼點插在第幾個
@@ -190,7 +201,7 @@ function noteTap(e){
   return dbl;
 }
 function tryDouble(p){
-  const w=S.wires.find(x=>x.id===sel),r=ROUTES.get(sel);if(!w||!r) return false;
+  const w=S.wires.find(x=>x.id===sel),r=ROUTES.get(sel);if(!w||!r||w.cab) return false;
   const i=w.wps.findIndex(q=>Math.hypot((q.x-p.x)*view.k,(q.y-p.y)*view.k)<=10);
   if(i>=0){w.wps.splice(i,1);commit();recompute();return true;}
   const at=polyPos(r.pts,p);
@@ -374,7 +385,7 @@ document.addEventListener('keydown',e=>{
   if(!$('setDlg').hidden){if(e.key==='Escape')setDialog(false);return;}
   if(mode==='view'&&!typing){
     const k=e.key.toLowerCase();
-    if(e.key==='Escape'){sel=null;picked=null;renderList();renderWires();renderDetail();return;}
+    if(e.key==='Escape'){sel=null;picked=null;selCab=null;renderList();renderWires();renderDetail();return;}
     if(!e.ctrlKey&&!e.metaKey&&!e.altKey){if(k==='w')setMode('wire');else if(k==='m')setMode('place');}
     if(((e.ctrlKey||e.metaKey)&&['z','y','v','a'].includes(k))||/^(Delete|Backspace|Arrow)/.test(e.key))e.preventDefault();
     return;
@@ -388,7 +399,7 @@ document.addEventListener('keydown',e=>{
     if(k==='c'&&mode==='place'&&picked){const o=pickedObj();if(o){clip=makeClip(picked.k,o);e.preventDefault();toast(`已複製 ${clipName(clip)}，按 Ctrl＋V 貼上`);}return;}
     if(k==='v'&&clip&&!draft){e.preventDefault();pasteHere();return;}
   }
-  if(e.key==='Escape'){if(draft)cancelDraft();else{sel=null;picked=null;multi=[];renderList();renderWires();renderDetail();updateHint();}return;}
+  if(e.key==='Escape'){if(draft)cancelDraft();else if(cabPick){cabPick=null;renderDetail();updateHint();toast('已結束接下一芯');}else{sel=null;picked=null;multi=[];selCab=null;coreEdit=null;renderList();renderWires();renderDetail();updateHint();}return;}
   if(draft&&draft.pop&&e.key==='Enter'){e.preventDefault();finishWire();return;}
   if(draft&&!draft.pop&&e.key==='Backspace'){e.preventDefault();if(draft.wps.length){draft.wps.pop();renderOverlay();updateHint();}else cancelDraft();return;}
   if(draft) return;
@@ -456,7 +467,7 @@ $('importF').onchange=e=>{
   };
   r.readAsText(f);
 };
-function resetUi(){draft=null;closePop();sel=null;picked=null;multi=[];filt.color=null;filt.gauge=null;filt.dev='';filt.kind=null;}
+function resetUi(){draft=null;closePop();sel=null;selCab=null;cabPick=null;coreEdit=null;cabForm=false;picked=null;multi=[];filt.color=null;filt.gauge=null;filt.dev='';filt.kind=null;}
 // 箱體或底板改尺寸時，面板與現場區的原點會移動，裡面的東西要一起平移
 function withShift(fn){
   const d0=doorO(),f0=fieldO();fn();
@@ -478,6 +489,7 @@ $('dm').onchange=e=>{
 };sizeInput('fl',v=>S.fillLimit=Math.min(100,Math.max(5,v)));
 $('issues').addEventListener('click',e=>{
   const b=e.target.closest('[data-iss]');if(!b)return;const x=ISSUES[Number(b.dataset.iss)];if(!x)return;
+  if(x.k==='cable'){selectCable(x.id);if(mode==='place')setMode('wire');selCab=x.id;renderList();renderWires();renderDetail();updateHint();return;}
   if(mode==='view'){sel=x.k==='wire'?x.id:null;picked=x.k&&x.k!=='wire'&&x.k!=='doormode'?{k:x.k,id:x.id}:null;renderList();renderWires();renderDetail();return;}
   if(x.k==='doormode'){setDialog(true);const dm=$('dm');dm.focus();dm.classList.add('flash');setTimeout(()=>dm.classList.remove('flash'),1600);return;}
   if(x.k==='wire'){if(mode!=='wire')setMode('wire');picked=null;sel=x.id;}
@@ -487,9 +499,9 @@ $('issues').addEventListener('click',e=>{
 $('sample').onclick=()=>{S=normalize(sampleState()).state;resetUi();commit();recompute();renderPalette();fit();};
 /* 清除選單：先選範圍，再在選單內確認；箱體尺寸、面板模式、現場區與自訂器具都保留 */
 const CLEAR={
-  wires:{n:'只清除線',what:()=>`${S.wires.length} 條線`,ok:()=>S.wires.length>0,run:()=>{S.wires=[];}},
-  devs:{n:'清除器具和線',what:()=>`${S.devices.length} 個器具、${S.wires.length} 條線`,ok:()=>S.devices.length+S.wires.length>0,run:()=>{S.devices=[];S.wires=[];}},
-  all:{n:'全部清空',what:()=>`${S.devices.length} 個器具、${S.wires.length} 條線、${S.ducts.length} 條線槽、${S.glands.length} 個出線口`,ok:()=>S.devices.length+S.wires.length+S.ducts.length+S.glands.length>0,run:()=>{S.devices=[];S.wires=[];S.ducts=[];S.glands=[];}}
+  wires:{n:'只清除線',what:()=>`${S.wires.length} 條線`,ok:()=>S.wires.length>0,run:()=>{S.wires=[];S.cables=[];}},
+  devs:{n:'清除器具和線',what:()=>`${S.devices.length} 個器具、${S.wires.length} 條線`,ok:()=>S.devices.length+S.wires.length>0,run:()=>{S.devices=[];S.wires=[];S.cables=[];}},
+  all:{n:'全部清空',what:()=>`${S.devices.length} 個器具、${S.wires.length} 條線、${S.ducts.length} 條線槽、${S.glands.length} 個出線口`,ok:()=>S.devices.length+S.wires.length+S.ducts.length+S.glands.length>0,run:()=>{S.devices=[];S.wires=[];S.ducts=[];S.glands=[];S.cables=[];}}
 };
 function clearMenu(step){
   const m=$('clearM');

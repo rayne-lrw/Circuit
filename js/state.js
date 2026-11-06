@@ -8,7 +8,7 @@ const hist={u:[],r:[]};
 function commit(){hist.u.push(snapshotPrev);if(hist.u.length>100)hist.u.shift();hist.r=[];snapshotPrev=JSON.stringify(S);save();syncUndo();}
 let snapshotPrev=JSON.stringify(S);
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
-function restore(j){S=JSON.parse(j);snapshotPrev=j;sel=null;picked=null;multi=[];recompute();renderPalette();save();syncUndo();if(!view.manual)fit();}
+function restore(j){S=JSON.parse(j);snapshotPrev=j;sel=null;selCab=null;cabPick=null;coreEdit=null;picked=null;multi=[];recompute();renderPalette();save();syncUndo();if(!view.manual)fit();}
 const $=id=>document.getElementById(id);
 function syncUndo(){const v=mode==='view';$('undo').disabled=v||!hist.u.length;$('redo').disabled=v||!hist.r.length;}
 
@@ -18,6 +18,7 @@ let view={k:1,x:0,y:0,manual:false};
 const helpOpen=new Set();
 const hq=k=>`<button class="hq" data-help="${k}" aria-expanded="${helpOpen.has(k)}" aria-label="說明">?</button>`;
 const hn=(k,t)=>`<p class="note hn" data-helpfor="${k}"${helpOpen.has(k)?'':' hidden'}>${t}</p>`;
+let selCab=null, cabPick=null, coreEdit=null; // 選取的電纜、「接下一芯」中的電纜、芯線表正在編輯的那一芯
 let draft=null, railHit=null, bundleSel=null, multi=[], renameOffer=null, swapOffer=null;   // {a:{d,t},wps:[],end?:{d,t},pop:false,ext:{}}
 let snap=null, hoverW=null, cursor={x:0,y:0,sx:0,sy:0}, listHover=null;
 let last={gauge:1.25,color:'white',direct:false};

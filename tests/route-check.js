@@ -6,7 +6,8 @@
 //   1. 沒有警告的線不可穿過起訖兩端以外的器具（警告與實際一致）
 //   2. 自動路徑的第一段、最後一段照接點的出線方向
 //   3. 有中繼點的線（手動路徑）要經過每個中繼點
-//   4. 不可在同一條直線上來回折返
+//   4. 不可在同一條直線上來回折返（電纜芯線分段檢查）
+//   5. 電纜：芯線接到剝線點、芯數與長度正確、沒有電纜警告
 const path=require('path'),fs=require('fs');
 const {chromium}=require('playwright');
 const INDEX='file://'+path.resolve(__dirname,'..','index.html');
@@ -38,8 +39,22 @@ const SCENARIOS=[
   {name:'側面與頂部出線口',build:()=>{
     const st=normalize(sampleState()).state,o={x:(st.plate.w-st.box.w)/2,y:(st.plate.h-st.box.h)/2};
     st.glands=[{id:'G1',side:'left',x:0,y:o.y+700,spec:'M25 浪管接頭'},{id:'G2',side:'top',x:o.x+600,y:0,spec:'M25 浪管接頭'},{id:'G3',side:'bottom',x:300,y:0,spec:'M25 浪管接頭'}];
-    st.wires.forEach(w=>{if(w.ext&&w.ext.cable==='C01')w.gland='G1';if(w.ext&&w.ext.cable==='C06')w.gland='G2';});
+    st.cables.forEach(c=>{if(c.no==='C01')c.gland='G1';if(c.no==='C06')c.gland='G2';});
     return {state:st,expectClean:'all'};
+  }},
+  {name:'箱內隔離線、備用芯與拖曳剝線點',build:()=>{
+    const st=normalize(sampleState()).state;S=st;
+    const c=newCable('C90','CSA細纜 0.3mm²*4C 耐繞曲隔離電纜');
+    [['5A','1'],['6A','3'],['7A','5'],['8A','6']].forEach(([a,b],i)=>attachCore(makeCoreWire({d:'X1',t:a},{d:'EX1',t:b},'S9'+i),c));
+    attachCore(makeCoreWire({d:'X1',t:'9A'},{d:'E1',t:'8'},'SH90'),c,'SH');
+    // 3 芯只接 2 芯，第 3 芯備用
+    const c2=newCable('C91','CSA細纜 0.75mm²*3C 棕藍/黃綠');
+    attachCore(makeCoreWire({d:'KA1',t:'14'},{d:'KA3',t:'13'},'S95'),c2);attachCore(makeCoreWire({d:'KA2',t:'14'},{d:'KA3',t:'9'},'S96'),c2);
+    // 外部電纜 C05 的箱內剝線點拖到線槽裡別的位置，填現場長度
+    computeRoutes();
+    const c5=st.cables.find(x=>x.no==='C05'),r=CABROUTES.get(c5.id),d=locate(r.a,'plate');
+    c5.bo.a=axis(d)==='h'?{x:Math.max(d.x+5,r.a.x-60),y:r.a.y}:{x:r.a.x,y:Math.max(d.y+5,r.a.y-60)};c5.fieldLen=5000;
+    return {state:st,expectClean:'all',expectCable:{C90:{cores:5,ext:false},C91:{cores:2,ext:false},C05:{field:5000,ext:true}}};
   }},
   {name:'不進線槽與旋轉器具',build:()=>{
     const st=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:800,h:600},door:{w:900,h:700},
@@ -50,7 +65,7 @@ const SCENARIOS=[
   }},
 ];
 
-function checkInPage(expectClean,expectVia){
+function checkInPage(expectClean,expectVia,expectCable){
   const res=[];
   const fam=id=>famIds(id);
   const crosses=(w,pts)=>{
@@ -81,12 +96,28 @@ function checkInPage(expectClean,expectVia){
     }
     (w.wps||[]).forEach((q,k)=>{if(!onPath(p,q))msgs.push(`沒有經過第 ${k+1} 個中繼點`);});
     if(expectVia&&expectVia[w.no]){const v=r.via.join('>'),want=expectVia[w.no].join('>');if(v!==want)msgs.push(`經過的線槽應為 ${want}，實際 ${v||'無'}`);}
-    for(let i=2;i<p.length;i++){
-      const a=p[i-2],b=p[i-1],c=p[i];
+    // 電纜芯線：接點→剝線點、外被、剝線點→接點分開檢查（芯線在剝線點往回走是正常的）
+    for(const q of (r.parts||[p])) for(let i=2;i<q.length;i++){
+      const a=q[i-2],b=q[i-1],c=q[i];
       const col=(Math.abs(a.x-b.x)<.01&&Math.abs(b.x-c.x)<.01)||(Math.abs(a.y-b.y)<.01&&Math.abs(b.y-c.y)<.01);
       if(col&&((b.x-a.x)*(c.x-b.x)+(b.y-a.y)*(c.y-b.y))<-.01){msgs.push(`同一條直線上來回折返（${[a,b,c].map(q=>Math.round(q.x)+','+Math.round(q.y)).join(' → ')}）`);break;}
     }
+    if(r.cab){const c=CABROUTES.get(r.cab);if(!c)msgs.push('電纜沒有外被路徑');
+      // 芯線兩段要接在剝線點上
+      else{const [ta,tb]=r.tails,eq=(p,q)=>Math.abs(p.x-q.x)+Math.abs(p.y-q.y)<.6;
+        if(!eq(ta[ta.length-1],c.pts[0]))msgs.push('A 端芯線沒有接到剝線點');if(!eq(tb[0],c.pts[c.pts.length-1]))msgs.push('B 端芯線沒有接到剝線點');}}
     res.push({no:w.no,ok:!msgs.length,msg:msgs.join('；')});
+  }
+  // 電纜：芯數、種類、長度包含現場長度；有問題的電纜不可在檢查清單出現
+  for(const c of S.cables||[]){
+    const e=expectCable&&expectCable[c.no],L=cabLen(c),msgs=[];
+    if(coresOf(c).length&&!CABROUTES.get(c.id))msgs.push('沒有外被路徑');
+    if(e){if(e.cores!=null&&coresOf(c).length!==e.cores)msgs.push(`芯數應為 ${e.cores}，實際 ${coresOf(c).length}`);
+      if(e.ext!=null&&L.ext!==e.ext)msgs.push(`種類應為${e.ext?'外部':'箱內'}`);
+      if(e.field!=null&&Math.abs(L.total-L.box-L.spare-e.field)>.5)msgs.push(`現場長度沒有算進去（${L.total}）`);}
+    const iss=ISSUES.filter(i=>i.k==='cable'&&i.id===c.id);if(iss.length)msgs.push(iss.map(i=>i.t).join('、'));
+    if(L.ext&&c.bo&&c.bo.a){const r=CABROUTES.get(c.id);if(Math.abs(r.a.x-c.bo.a.x)+Math.abs(r.a.y-c.bo.a.y)>.01)msgs.push('剝線點沒有照拖曳的位置');}
+    res.push({no:'電纜 '+c.no,ok:!msgs.length,msg:msgs.join('；')});
   }
   return res;
 }
@@ -102,7 +133,7 @@ function checkInPage(expectClean,expectVia){
     const out=await p.evaluate(([src,arg,chk])=>{
       const sc=new Function('arg','return ('+src+')(arg)')(arg);
       S=sc.state;resetUi();computeRoutes();
-      return new Function('expectClean','expectVia','return ('+chk+')(expectClean,expectVia)')(sc.expectClean,sc.expectVia);
+      return new Function('expectClean','expectVia','expectCable','return ('+chk+')(expectClean,expectVia,expectCable)')(sc.expectClean,sc.expectVia,sc.expectCable);
     },[fnSrc,arg,checkInPage.toString()]);
     const bad=out.filter(x=>!x.ok);total+=out.length;fail+=bad.length;
     console.log(`${bad.length?'✗':'✓'} ${name}：${out.length} 條線，${bad.length} 條失敗`);

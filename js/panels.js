@@ -41,21 +41,11 @@ function wireRow(w){
 function renderList(){
   renderFilters();
   [['tabAll','all'],['tabExt','ext'],['tabBom','bom'],['tabLen','len']].forEach(([id,t])=>$(id).setAttribute('aria-pressed',tab===t));
-  $('listCsv').textContent=`匯出${{all:'線號表',ext:'外線表',bom:'材料表',len:'線長統計'}[tab]} CSV`;
-  $('filters').hidden=tab==='bom'||tab==='len';
+  $('listCsv').textContent=`匯出${{all:'線號表',ext:'電纜表',bom:'材料表',len:'線長統計'}[tab]} CSV`;
+  $('filters').hidden=tab!=='all';
   if(tab==='bom'){renderBom();return;}
   if(tab==='len'){renderLen();return;}
-  if(tab==='ext'){
-    const ex=S.wires.filter(w=>wireKind(w)==='ext'&&passes(w)),by=new Map();
-    ex.forEach(w=>{const k=(w.ext&&w.ext.cable)||'未編號';if(!by.has(k))by.set(k,[]);by.get(k).push(w);});
-    $('listH').textContent=`外線表　${by.size} 條電纜、${ex.length} 芯`;
-    $('list').innerHTML=[...by].sort((a,b)=>a[0].localeCompare(b[0])).map(([k,ws])=>{
-      const fw=ws[0],fd=devOf(fw.a.d).sheet==='field'?fw.a.d:fw.b.d,g=ROUTES.get(fw.id)?.gland;
-      const zn=zoneOf(devOf(fd));
-      return `<div class="cable-h">${esc(k)} → ${esc(tagOf(fd))}${zn?`（${esc(zn.name)}）`:''}${g?` · ${esc(g)}`:''}<br><span class="note">${esc(specName(fw.ext&&fw.ext.spec))}</span></div>`+ws.map(wireRow).join('');
-    }).join('')||`<p class="note">還沒有外線。從箱內接點點到「現場設備」區的接點就會建立外線。</p>`;
-    return;
-  }
+  if(tab==='ext'){renderCables();return;}
   const rows=S.wires.filter(passes).slice().sort((a,b)=>natCmp(a.no,b.no)); // 照線號排，同號排在一起
   $('listH').textContent=`線號表　${rows.length} / ${S.wires.length} 條`;
   $('list').innerHTML=rows.map(wireRow).join('')||`<p class="note">沒有符合條件的線。</p>`;
@@ -65,14 +55,12 @@ function stockMsg(g,colorKey){
   const r=INV.find(x=>x[0]==='CSA細芯控制電線'&&x[1].startsWith(g+'mm²')&&x[1].split(/\s+/)[1]===c);
   return r?`電料清單有這個線材：${r[0]} ${r[1]}`:'電料清單沒有這個線徑與顏色';
 }
-const cableOptions=(cur)=>{
-  const list=INV.filter(r=>r[0].includes('細纜')||r[0].startsWith('伺服動力線')||r[0].startsWith('伺服編碼線')||r[0].startsWith('伺服煞車線'));
-  return `<option value="">未指定</option>`+list.map(r=>{const v=`${r[0]} ${r[1]}`;return `<option value="${esc(v)}"${cur===v?' selected':''}>${esc(v)}</option>`;}).join('');
-};
+const cableOptions=cur=>`<option value="">未指定</option>`+cableSpecs(cur).map(v=>`<option value="${esc(v)}"${cur===v?' selected':''}>${esc(v)}</option>`).join('');
 function renderDetail(){renderDetailInner();lockInputs($('detail'));}
 function renderDetailInner(){
   if(mode==='place'&&multi.length>1){multiDetail($('detail'));return;}
   const box=$('detail');
+  if(!sel&&!picked&&selCab){const c=cabOf(selCab);if(c){cableDetail(box,c);return;}selCab=null;}
   if(sel){
     const w=S.wires.find(x=>x.id===sel),r=ROUTES.get(sel);
     if(!w||!r){sel=null;box.hidden=true;return;}
@@ -85,14 +73,13 @@ function renderDetailInner(){
     ${ro?`<div class="revert"><p class="note">同電位還有 ${ro.ids.length} 條線號是 ${esc(ro.from)}，要一起改成 ${esc(ro.to)} 嗎？</p><div class="row" style="justify-content:flex-start"><button class="tool" id="renAll">一起改</button><button class="tool" id="renNo">不用</button></div></div>`:''}<div class="big"><span class="sw" style="background:${swatch(c)}"></span> ${esc(c.n)}　${w.gauge} mm²　${KINDS[kind]}</div>
     <dl><dt>起點</dt><dd>${esc(epText(w.a))}</dd><dt>終點</dt><dd>${esc(epText(w.b))}</dd><dt>路徑</dt><dd>${w.direct?'不進線槽，直接拉線':w.wps.length?'經過中繼點'+(r.via.length?'：'+esc(r.via.join(' → ')):''):r.via.length?'自動：'+esc(r.via.join(' → ')):'自動：直接跨接'}${r.gland?' → '+esc(r.gland):''}</dd><dt>中繼點</dt><dd>${w.wps.length} 個</dd>${sameNo(w).length?`<dt>同號</dt><dd>${sameNo(w).length} 條：${pl(sameNo(w))}</dd>`:''}<dt>起點並線</dt><dd>${pl(pr.a)}</dd><dt>終點並線</dt><dd>${pl(pr.b)}</dd><dt>圖面線長</dt><dd>${(r.len/1000).toFixed(2)} m</dd></dl>
     ${r.warn?`<span class="flag">${esc(r.warn)}：請加中繼點或調整線槽</span>`:''}
-    ${kind==='ext'?`<div class="fields"><label for="xCable">電纜編號<input id="xCable" maxlength="12" value="${esc((w.ext&&w.ext.cable)||'')}"></label><label for="xCore">芯線<input id="xCore" maxlength="10" value="${esc((w.ext&&w.ext.core)||'')}"></label>
-      <label for="xSpec" style="grid-column:1/-1">電纜規格<select id="xSpec">${cableOptions(w.ext&&w.ext.spec)}</select></label>
-      <label for="xGland" style="grid-column:1/-1">出線口<select id="xGland"><option value="">自動選最近</option>${S.glands.map(g=>`<option value="${g.id}"${w.gland===g.id?' selected':''}>${esc(g.id)}</option>`).join('')}</select></label></div>`:''}
+    ${w.cab?coreInfo(w):`<div class="fields"><label for="xCab" style="grid-column:1/-1">電纜<select id="xCab"><option value="">不屬於電纜（散線）</option>${[...S.cables].sort((a,b)=>natCmp(a.no,b.no)).map(c=>`<option value="${c.id}">${esc(c.no)}　${esc(specName(c.spec))}</option>`).join('')}<option value="__new">新電纜…</option></select></label>
+      ${kind==='ext'?`<label for="xGland" style="grid-column:1/-1">出線口<select id="xGland"><option value="">自動選最近</option>${S.glands.map(g=>`<option value="${g.id}"${w.gland===g.id?' selected':''}>${esc(g.id)}</option>`).join('')}</select></label>`:''}</div>
     <label class="check"><input type="checkbox" id="wDirect"${w.direct?' checked':''}>不進線槽（直接拉線，可加中繼點調整路徑）</label>
     <div><div class="sub-h">線徑 mm²</div>${gaugeChips(w.gauge,'dg','dn')}</div>
     <div><div class="sub-h">顏色</div>${colorChips(w.color,'dn',w)}</div>
-    <p class="note">${esc(stockMsg(w.gauge,w.color))}</p>
-    <div class="row">${w.wps.length?'<button class="tool" id="clearWp">清除中繼點，改回自動</button>':''}<button class="tool danger" id="delWire">刪除這條線</button></div>`;
+    <p class="note">${esc(stockMsg(w.gauge,w.color))}</p>`}
+    <div class="row">${w.wps.length&&!w.cab?'<button class="tool" id="clearWp">清除中繼點，改回自動</button>':''}<button class="tool danger" id="delWire">刪除這條線</button></div>`;
     $('wNo').onchange=e=>{
       const v=e.target.value.trim();if(!v||v===w.no){e.target.value=w.no;return;}
       // 同電位還有同號的線：改完後問要不要一起改
@@ -101,10 +88,10 @@ function renderDetailInner(){
     };
     if($('renAll'))$('renAll').onclick=()=>{const o=renameOffer;S.wires.forEach(x=>{if(o.ids.includes(x.id))x.no=o.to;});renameOffer=null;commit();recompute();toast(`已把同電位的 ${o.ids.length} 條線一起改成 ${o.to}`);};
     if($('renNo'))$('renNo').onclick=()=>{renameOffer=null;renderDetail();};
+    if(w.cab){bindCoreInfo(w);return;}
     $('wDirect').onchange=e=>{if(e.target.checked)w.direct=true;else delete w.direct;commit();recompute();};
+    $('xCab').onchange=e=>{const v=e.target.value;if(!v)return;const c=v==='__new'?newCable('',''):cabOf(v);if(!c)return;const k=attachCore(w,c);commit();recompute();toast(`已把 ${w.no} 編進電纜 ${c.no}，芯線 ${k.n}`);};
     if(kind==='ext'){
-      const upd=(fn)=>e=>{w.ext=w.ext||{cable:'',core:'',spec:''};fn(e.target.value);commit();recompute();};
-      $('xCable').onchange=upd(v=>w.ext.cable=v.slice(0,12));$('xCore').onchange=upd(v=>w.ext.core=v.slice(0,10));$('xSpec').onchange=upd(v=>w.ext.spec=v);
       $('xGland').onchange=e=>{if(e.target.value)w.gland=e.target.value;else delete w.gland;commit();recompute();};
     }
     return;
@@ -224,6 +211,7 @@ function updateHint(){
   let s,k;
   if(mode==='view'){k='view';s='檢視模式：只能看，不能修改。點線或器具可看詳細資料，拖曳空白處平移；按 W 回到接線、M 回到擺放。';}
   else if(mode==='place'){k=picked||multi.length?'place-picked':'place';s=(k==='place-picked'?'拖曳可移動，方向鍵或右側按鈕可依輸入距離移動，按 R 可旋轉，導線會自動重算；拖進面板或現場區會跟著換位置。Delete 可刪除。':'拖曳器具、線槽或出線口來擺放；左側可新增器具。')+'Shift＋點或 Shift＋拖曳框選可多選，Ctrl＋A 全選；Ctrl＋拖曳可複製，Ctrl＋C／Ctrl＋V 複製貼上。拖到 H-66 鋁軌上會自動對齊並靠齊相鄰器具，按住 Alt 不吸附。';}
+  else if(cabPick&&cabHint()){k='wire-cab';s=cabHint();}
   else if(draft&&draft.pop){k='wire-pop';s='選好線號、線徑與顏色後按 Enter 建立，Esc 取消。';}
   else if(draft){k='wire-draft';s=`起點 ${epText(draft.a)}：點接點完成；點空白處加中繼點`+(draft.wps.length?`（已有 ${draft.wps.length} 個，Backspace 退回）`:'')+`；按住 Alt 可不吸附，Esc 取消。`;}
   else if(sel){k='wire-sel';s='雙擊這條線可加中繼點；拖曳白點可調整，雙擊白點可刪除。';}
@@ -251,7 +239,7 @@ function setLeft(collapsed,save){
 /* 檢視模式：只能看。會改到資料的按鈕停用，右側詳細資料的欄位反灰 */
 const VIEW_LOCK=['undo','redo','clearB','importB','setOpen','newTpl','sample'];
 function setMode(m){
-  mode=m;$('mWire').setAttribute('aria-pressed',m==='wire');$('mPlace').setAttribute('aria-pressed',m==='place');$('mView').setAttribute('aria-pressed',m==='view');
+  if(m!=='wire')cabPick=null;mode=m;$('mWire').setAttribute('aria-pressed',m==='wire');$('mPlace').setAttribute('aria-pressed',m==='place');$('mView').setAttribute('aria-pressed',m==='view');
   draft=null;closePop();snap=null;hoverW=null;picked=null;multi=[];sel=m!=='place'?sel:null;$('tip').hidden=true;
   document.body.classList.toggle('viewing',m==='view');$('viewTag').hidden=m!=='view';
   VIEW_LOCK.forEach(id=>{const el=$(id);if(el)el.disabled=m==='view';});

@@ -89,10 +89,23 @@ function wireInner(w,r){
   return s;
 }
 function renderWires(){
-  let h='';const cableLabel=new Map();
+  let h='',boH='';const cableLabel=new Map();
+  // 電纜外被畫在芯線下面；剝線點畫成小方塊，可以拖曳
+  (S.cables||[]).forEach(c=>{
+    const r=CABROUTES.get(c.id);if(!r) return;
+    const d=pathD(r.pts),sw=cabStroke(c),ext=coresOf(c).some(w=>wireKind(w)==='ext');
+    let m=null,ml=-1;for(let i=1;i<r.pts.length;i++){const a=r.pts[i-1],b=r.pts[i],L=Math.abs(a.x-b.x)+Math.abs(a.y-b.y);if(L>ml){ml=L;m={a,b};}}
+    h+=`<g class="cab${selCab===c.id?' on':''}" data-cab="${c.id}"><path class="cab-o" d="${d}" stroke-width="${sw+1.2}"/><path class="cab-v${ext?' ext':''}" d="${d}" stroke-width="${sw}"/><path class="hit" d="${d}"/>`;
+    if(m&&ml>20){const v=Math.abs(m.a.x-m.b.x)<.01,tx=(m.a.x+m.b.x)/2,ty=(m.a.y+m.b.y)/2;h+=`<text class="cab-t" x="${tx}" y="${ty}" text-anchor="middle" dominant-baseline="central"${v?` transform="rotate(-90 ${tx} ${ty})"`:''}>${esc(c.no)}</text>`;}
+    // 剝線點放在最上層，才不會被芯線擋住拖不到
+    ['a','b'].forEach(k=>{const p=r[k];boH+=`<rect class="bo${p.auto?'':' set'}" data-bo="${c.id}|${k}" data-on="${selCab===c.id?1:0}" x="${p.x-2.2}" y="${p.y-2.2}" width="4.4" height="4.4" rx=".8"><title>${esc(c.no)} ${k==='a'?'A':'B'} 端剝線點${p.auto?'（自動）':''}，可拖曳</title></rect>`;});
+    h+='</g>';
+  });
   for(const w of S.wires){
     const r=ROUTES.get(w.id); if(!r) continue;
-    h+=`<g class="wire" data-wid="${w.id}">${wireInner(w,r)}<path class="hit" d="${pathD(r.pts)}"/>`;
+    // 電纜芯線只畫剝線點到接點那兩段
+    const segs=r.tails||[r.pts],vis=r.tails?{...r}:r;
+    h+=`<g class="wire${r.cab?' core':''}" data-wid="${w.id}">${segs.map(p=>wireInner(w,{...vis,pts:p})).join('')}${segs.map(p=>`<path class="hit" d="${pathD(p)}"/>`).join('')}`;
     const [a,b]=[r.pts[0],r.pts[1]];
     if(a&&b){const v=Math.abs(a.x-b.x)<.01,dir=v?sgn(b.y-a.y):sgn(b.x-a.x),L=Math.min(13,(Math.abs(a.x-b.x)+Math.abs(a.y-b.y))/2);
       const tx=a.x+(v?0:dir*L),ty=a.y+(v?dir*L:0);
@@ -104,7 +117,7 @@ function renderWires(){
       if(!cableLabel.has(k)){const d=devOf(fd);cableLabel.set(k,{x:d.x+tplOf(d).w/2,y:d.y+tplOf(d).h+11,t:`${w.ext.cable} → ${d.tag}`});}
     }
   }
-  $('wires').innerHTML=h;
+  $('wires').innerHTML=h+`<g class="bos">${boH}</g>`;
   let t='';
   cableLabel.forEach(c=>t+=`<text class="ct" x="${c.x}" y="${c.y}" text-anchor="middle">${esc(c.t)}</text>`);
   for(const d of S.ducts){
@@ -157,7 +170,8 @@ function applyWireClasses(){
     el.classList.toggle('off',w?!passes(w):false);
   });
   const f=focus&&g.querySelector(`.wire[data-wid="${focus}"]`);
-  if(f&&g.lastElementChild!==f) g.appendChild(f);
+  const bos=g.querySelector('.bos');
+  if(f&&f.nextElementSibling!==bos) g.insertBefore(f,bos);
   renderOverlay();
 }
 function renderOverlay(){

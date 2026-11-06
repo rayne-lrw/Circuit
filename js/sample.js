@@ -63,8 +63,17 @@ function normalize(o){
     if(w.ext&&typeof w.ext==='object') r.ext={cable:txt(w.ext.cable,12),core:txt(w.ext.core,10),spec:cleanSpec(w.ext.spec)};
     if(safe(w.gland)) r.gland=w.gland;
     if(w.direct===true) r.direct=true;
+    if(safe(w.cab)){r.cab=w.cab;r.core=txt(w.core,10).trim()||'1';}
     return r;
   });
+  const cables=(Array.isArray(o.cables)?o.cables:[]).filter(c=>c&&safe(c.id)).slice(0,500).map(c=>{
+    const pt=p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y)?{x:p.x,y:p.y}:null,bo={},A=pt(c.bo&&c.bo.a),B=pt(c.bo&&c.bo.b);if(A)bo.a=A;if(B)bo.b=B;
+    const r={id:c.id,no:txt(c.no,12).trim()||c.id,spec:cleanSpec(c.spec),bo,fieldLen:Math.max(0,Math.min(1e6,num(c.fieldLen,0))),
+      cores:(Array.isArray(c.cores)?c.cores:[]).filter(k=>k&&String(k.n==null?'':k.n).trim()).slice(0,80).map(k=>{const r={n:txt(k.n,10).trim(),c:safe(k.c)?k.c:'black',g:Math.max(.1,num(k.g,.75))};if(typeof k.hex==='string'&&/^#[0-9a-fA-F]{6}$/.test(k.hex)){r.hex=k.hex;r.cn=txt(k.cn||'自訂',8);}return r;})};
+    if(safe(c.gland))r.gland=c.gland;
+    return r;
+  });
+  wires.forEach(w=>{if(w.cab&&!cables.some(c=>c.id===w.cab)){delete w.cab;delete w.core;}});
   const plate={w:Math.max(100,num(o.plate&&o.plate.w,600)),h:Math.max(100,num(o.plate&&o.plate.h,800))};
   const bx=o.box||{},box={w:Math.max(100,num(bx.w,plate.w+100)),h:Math.max(100,num(bx.h,plate.h+100)),d:Math.max(50,num(bx.d,300)),back:Math.max(0,num(bx.back,20))};
   const dr=o.door||{},door={w:Math.max(100,num(dr.w,box.w)),h:Math.max(100,num(dr.h,box.h))};
@@ -73,7 +82,8 @@ function normalize(o){
   const fields=(Array.isArray(o.fields)?o.fields:[]).filter(z=>z&&safe(z.id)).slice(0,30).map(z=>({id:z.id,name:txt(z.name,20)||z.id,x:num(z.x,0),y:num(z.y,0),w:Math.max(50,num(z.w,600)),h:Math.max(50,num(z.h,210))}));
   if(!fields.length) fields.push(defaultField(box,plate,door));
   const doorMode=['door','console','none'].includes(o.doorMode)?o.doorMode:'door';
-  return {state:{box,plate,door,doorMode,fields,...(o.warnMixedNo===true?{warnMixedNo:true}:{}),hinge:num(o.hinge,plate.h/2),fillLimit:Math.min(100,Math.max(5,num(o.fillLimit,50))),spare:Math.min(5000,Math.max(0,num(o.spare,0))),glands,tpls,devices,ducts,wires,nextNo},
+  migrateCables({wires,cables});
+  return {state:{box,plate,door,doorMode,fields,...(o.warnMixedNo===true?{warnMixedNo:true}:{}),hinge:num(o.hinge,plate.h/2),fillLimit:Math.min(100,Math.max(5,num(o.fillLimit,50))),spare:Math.min(5000,Math.max(0,num(o.spare,0))),glands,tpls,devices,ducts,wires,cables,nextNo},
     dropped:(o.devices.length-devices.length)+(o.ducts.length-ducts.length)+(o.wires.length-wires.length)};
 }
 

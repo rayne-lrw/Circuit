@@ -130,10 +130,10 @@ function realize(wid,anchors,legs,lane0){
   // 中繼點只落在一條線槽裡：這條線在那條線槽裡沿中繼點的位置走（進出都一樣，不會橫移再折回）；
   // 落在兩條線槽交界時不改，只橫移經過
   const ovr=new Map();
-  anchors.forEach(a=>{if(!a.wp||!a.inDuct||ovr.has(a.inDuct))return;if(S.ducts.filter(d=>d.sheet===a.sheet&&inR(a,d)).length!==1)return;ovr.set(a.inDuct,axis(a.inDuct)==='h'?a.y:a.x);});
+  anchors.forEach(a=>{if(!a.wp||a.bo||!a.inDuct||ovr.has(a.inDuct))return;if(S.ducts.filter(d=>d.sheet===a.sheet&&inR(a,d)).length!==1)return;ovr.set(a.inDuct,axis(a.inDuct)==='h'?a.y:a.x);});
   // 中繼點也落在前後相鄰線槽的寬度範圍內（點在轉角附近）：那條線槽也沿中繼點的位置走，轉角就在中繼點上
   anchors.forEach((a,i)=>{
-    if(!a.wp||!a.inDuct) return;
+    if(!a.wp||a.bo||!a.inDuct) return;
     [legs[i-1],legs[i]].forEach(L=>{(L&&L.ducts||[]).forEach(d=>{
       if(d===a.inDuct||ovr.has(d)||axis(d)===axis(a.inDuct)) return;
       const v=axis(d)==='h'?a.y:a.x,lo=axis(d)==='h'?d.y:d.x,hi=lo+(axis(d)==='h'?d.h:d.w);
@@ -237,7 +237,7 @@ function buildAnchors(ea,eb,wps,ctr,glandId){
   return out;
 }
 
-const ROUTES=new Map(),ROUTES_MANUAL=new Set(); const DUCTUSE=new Map(); let ISSUES=[];
+const ROUTES=new Map(),ROUTES_MANUAL=new Set(),CABROUTES=new Map(); const DUCTUSE=new Map(); let ISSUES=[];
 function rectOf(k,o){if(k==='dev'){const t=tplOf(o);return {x:o.x,y:o.y,w:t.w,h:t.h};}return {x:o.x,y:o.y,w:o.w,h:o.h};}
 const overlap=(a,b)=>a.x+a.w>b.x+1&&b.x+b.w>a.x+1&&a.y+a.h>b.y+1&&b.y+b.h>a.y+1;
 const outside=(r,P)=>r.x<P.x-.01||r.y<P.y-.01||r.x+r.w>P.x+P.w+.01||r.y+r.h>P.y+P.h+.01;
@@ -276,6 +276,14 @@ function computeIssues(){
     // 線道多到畫面上靠得很近只是顯示問題，不列在檢查清單（選取線槽時在右側說明）
   });
   S.wires.forEach(w=>{const r=ROUTES.get(w.id);if(r&&r.warn) out.push({t:`${wireRef(w)} ${r.warn}`,k:'wire',id:w.id});});
+  (S.cables||[]).forEach(c=>{
+    const cw=coresOf(c),sp=specCores(c.spec).length,seen=new Map();
+    if(sp&&c.cores.length>sp) out.push({t:`電纜 ${c.no} 規格是 ${sp} 芯，芯線表有 ${c.cores.length} 芯`,k:'cable',id:c.id});
+    cw.forEach(w=>{if(seen.has(w.core))out.push({t:`電纜 ${c.no} 的芯線 ${w.core} 接了兩次（${seen.get(w.core).no}、${w.no}）`,k:'wire',id:w.id});else seen.set(w.core,w);});
+    const fd=new Set(cw.filter(w=>devOf(w.b.d).sheet==='field').map(w=>w.b.d));
+    if(fd.size>1) out.push({t:`電纜 ${c.no} 的芯線接到 ${fd.size} 個現場設備（${[...fd].map(tagOf).join('、')}），一條電纜通常只到一個設備`,k:'cable',id:c.id});
+    if(cw.some(w=>wireKind(w)==='ext')&&cw.some(w=>wireKind(w)!=='ext')) out.push({t:`電纜 ${c.no} 有些芯線到現場、有些在箱內，請確認`,k:'cable',id:c.id});
+  });
   S.devices.forEach(d=>{const n=d.count||(resolveTpl(d.tpl)||{}).cnt||0;(d.jumpers||[]).forEach(j=>{if(j.at+j.p-1>n)out.push({t:`${d.tag} 的 ${j.p}P 短路片超出片數（只有 ${n} 片）`,k:'dev',id:d.id});});});
   // 同號但電位不相連：多半是打錯號碼；反過來同一電位有不同線號，可在盤面設定開啟提示
   const nets=netsOf(),byNo=new Map();
@@ -289,7 +297,7 @@ function computeIssues(){
 }
 const key=(e)=>e.d+'|'+e.t;
 function computeRoutes(){
-  ROUTES.clear();DUCTUSE.clear();ROUTES_MANUAL.clear();bundleSel=sel;
+  ROUTES.clear();DUCTUSE.clear();ROUTES_MANUAL.clear();CABROUTES.clear();syncCables();bundleSel=sel;
   const J=junctions();
   const use=new Map();
   S.wires=S.wires.filter(w=>{const a=devOf(w.a.d),b=devOf(w.b.d);return a&&b&&termOf(a,w.a.t)&&termOf(b,w.b.t);});
@@ -298,13 +306,31 @@ function computeRoutes(){
   const off=(e)=>{const k=key(e),n=use.get(k)||1,i=seen.get(k)||0;seen.set(k,i+1);return (i-(n-1)/2)*1.7;};
   const ctr={h:0,g:0,hn:S.wires.filter(w=>{const a=devOf(w.a.d).sheet,b=devOf(w.b.d).sheet;return a!==b&&(a==='door'||b==='door');}).length};
   const center_=(_,d)=>center(d);
-  const items=S.wires.map(w=>{
+  const legsOf=(anchors,noDuct)=>{const L=[];for(let i=0;i<anchors.length-1;i++){const A=anchors[i],B=anchors[i+1];L.push(routeLeg(A,B,J,noDuct||(A.wp&&B.wp&&!A.bo&&!B.bo)));}return L;};
+  const job=(id,g,anchors,legs,manual,od)=>({id,g,od,anchors,legs,manual,first:realize(id,anchors,legs,center_)});
+  const items=[];
+  S.wires.forEach(w=>{
+    if(w.cab&&cabOf(w.cab)) return; // 電纜芯線另外算
     const anchors=buildAnchors(endpoint(w.a,off(w.a)),endpoint(w.b,off(w.b)),w.wps,ctr,w.gland);
     // 有中繼點：線一定經過每個中繼點的位置；中繼點與中繼點之間照點的位置直接連（手動），
     // 接點到第一個中繼點、最後一個中繼點到接點照樣自動走線槽
     const manual=w.wps.length>0;
-    const legs=[];for(let i=0;i<anchors.length-1;i++){const A=anchors[i],B=anchors[i+1];legs.push(routeLeg(A,B,J,!!w.direct||(A.wp&&B.wp)));}
-    return {w,anchors,legs,manual,first:realize(w.id,anchors,legs,center_)};
+    const it=job(w.id,w.gauge,anchors,legsOf(anchors,!!w.direct),manual);it.w=w;items.push(it);
+  });
+  // 電纜：外被從 A 端剝線點走到 B 端剝線點，每一芯從接點走到剝線點
+  const cabJobs=[];
+  (S.cables||[]).forEach(c=>{
+    const cw=coresOf(c);if(!cw.length) return;
+    const ea=cw.map(w=>endpoint(w.a,off(w.a))),eb=cw.map(w=>endpoint(w.b,off(w.b)));
+    const side=(k,ends)=>{const o=c.bo&&c.bo[k];const p=o?{x:o.x,y:o.y,sheet:sheetAt(o)}:autoBO(ends,ends[0].sheet);return {x:p.x,y:p.y,sheet:p.sheet,inDuct:locate(p,p.sheet),wp:true,bo:true,auto:!o};};
+    const A=side('a',ea),B=side('b',eb);
+    const sa=buildAnchors(A,B,[],ctr,c.gland),sh=job('S:'+c.id,0,sa,legsOf(sa,false),false,cabOD(c));items.push(sh);
+    const tails=cw.map((w,i)=>{
+      const ta=buildAnchors(ea[i],{...A},[],ctr,null),tb=buildAnchors({...B},eb[i],[],ctr,null);
+      const ja=job(w.id+'#a',w.gauge,ta,legsOf(ta,false),false),jb=job(w.id+'#b',w.gauge,tb,legsOf(tb,false),false);
+      items.push(ja,jb);return {w,ja,jb};
+    });
+    cabJobs.push({c,A,B,sh,tails});
   });
   // 線道分配
   const perDuct=new Map();
@@ -317,7 +343,7 @@ function computeRoutes(){
       const cr=p=>p?sgn((a==='h'?p.y:p.x)-c):0;
       const s=cr(pv)+cr(nx);
       if(seenD.has(r.d)){const e=seenD.get(r.d);e.lo=Math.min(e.lo,lo);e.hi=Math.max(e.hi,hi);e.score+=s;}
-      else{const e={id:it.w.id,lo,hi,score:s,g:it.w.gauge};seenD.set(r.d,e);if(!perDuct.has(r.d))perDuct.set(r.d,[]);perDuct.get(r.d).push(e);}
+      else{const e={id:it.id,lo,hi,score:s,g:it.g,od:it.od};seenD.set(r.d,e);if(!perDuct.has(r.d))perDuct.set(r.d,[]);perDuct.get(r.d).push(e);}
     }
   }
   // 手動路徑：依實際線段落在哪條線槽，計入占用率（不分配線道）
@@ -335,11 +361,11 @@ function computeRoutes(){
         const ax=axis(d),lo=Math.min(ax==='h'?a.x:a.y,ax==='h'?b.x:b.y),hi=Math.max(ax==='h'?a.x:a.y,ax==='h'?b.x:b.y);
         if(hi-lo<1) continue;
         if(!isOwn(a,b)) continue;
-        if(!manualUse.has(d))manualUse.set(d,[]);manualUse.get(d).push({id:it.w.id,lo,hi,g:it.w.gauge});
+        if(!manualUse.has(d))manualUse.set(d,[]);manualUse.get(d).push({id:it.id,lo,hi,g:it.g});
         if(via[via.length-1]!==d.id)via.push(d.id);
       }
     }
-    manualVia.set(it.w.id,via);
+    manualVia.set(it.id,via);
   }
   manualUse.forEach((l,d)=>{if(!perDuct.has(d))perDuct.set(d,[]);});
   // 線道分配只算自動那幾段；同一條線同一段線槽已經有自動線道時，手動段不重複計數
@@ -364,7 +390,7 @@ function computeRoutes(){
     const a=axis(d),lo=a==='h'?d.y:d.x,hi=lo+(a==='h'?d.h:d.w),pad=3.5,avail=hi-lo-2*pad;
     const c=(lo+hi)/2;
     // 占用率取線槽內最擠那一段的導線截面積
-    const ev=[];[...list,...mlist].forEach(e=>{const ar=Math.PI/4*odOf(e.g)**2;ev.push([e.lo,ar],[e.hi+.01,-ar]);});
+    const ev=[];[...list,...mlist].forEach(e=>{const ar=Math.PI/4*(e.od||odOf(e.g))**2;ev.push([e.lo,ar],[e.hi+.01,-ar]);});
     ev.sort((x,y)=>x[0]-y[0]);let cur=0,peak=0;ev.forEach(([,v])=>{cur+=v;peak=Math.max(peak,cur);});
     const section=Math.min(d.w,d.h)*(d.dp||40);
     DUCTUSE.set(d.id,{n:list.length+new Set(mlist.map(e=>e.id)).size,lanes:T,pitch:T>1?Math.min(3.4,avail/(T-1)):3.4,pct:Math.round(peak/section*100)});
@@ -379,18 +405,29 @@ function computeRoutes(){
       dn.forEach(e=>lanes.set(e.id+'|'+d.id,T===1?c:hi-pad-e.l*p));
     }
   }
+  const FIN=new Map();
   for(const it of items){
-    const f=realize(it.w.id,it.anchors,it.legs,(id,d)=>lanes.get(id+'|'+d.id)??center(d));
+    const f=realize(it.id,it.anchors,it.legs,(id,d)=>lanes.get(id+'|'+d.id)??center(d));
     const pts=simplify(f.pts);
     let len=0;for(let i=1;i<pts.length;i++)len+=Math.abs(pts[i].x-pts[i-1].x)+Math.abs(pts[i].y-pts[i-1].y);
     const via=[];f.runs.forEach(r=>{if(via[via.length-1]!==r.d.id)via.push(r.d.id);});
-    if(it.manual)(manualVia.get(it.w.id)||[]).forEach(id=>{if(!via.includes(id))via.push(id);});
+    if(it.manual)(manualVia.get(it.id)||[]).forEach(id=>{if(!via.includes(id))via.push(id);});
     let warn=(it.legs.find(l=>l.warn)||{}).warn||null;
     if(it.manual&&warn==='直接拉線穿過其他器具')warn='手動路徑穿過其他器具';
-    ROUTES_MANUAL.add(it.manual?it.w.id:null);
     const g=it.anchors.find(a=>a.gland);
-    ROUTES.set(it.w.id,{pts,len,via,warn,gland:g?g.gland:null});
+    FIN.set(it.id,{pts,len,via,warn,gland:g?g.gland:null});
+    if(it.w){ROUTES_MANUAL.add(it.manual?it.w.id:null);ROUTES.set(it.w.id,FIN.get(it.id));}
   }
+  cabJobs.forEach(({c,A,B,sh,tails})=>{
+    const S0=FIN.get(sh.id);
+    CABROUTES.set(c.id,{...S0,a:{x:A.x,y:A.y,auto:A.auto},b:{x:B.x,y:B.y,auto:B.auto}});
+    tails.forEach(({w,ja,jb})=>{
+      const ra=FIN.get(ja.id),rb=FIN.get(jb.id),parts=[ra,S0,rb],via=[];
+      parts.forEach(p=>p.via.forEach(id=>{if(via[via.length-1]!==id)via.push(id);}));
+      const warn=(parts.find(p=>p.warn)||{}).warn||null;
+      ROUTES.set(w.id,{pts:simplify([...ra.pts,...S0.pts,...rb.pts]),len:ra.len+S0.len+rb.len,via,warn,gland:S0.gland,cab:c.id,parts:[ra.pts,S0.pts,rb.pts],tails:[ra.pts,rb.pts]});
+    });
+  });
   ISSUES=computeIssues();
 }
 function previewPts(a,wps,end,noDuct){

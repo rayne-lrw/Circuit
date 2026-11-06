@@ -1,12 +1,12 @@
 "use strict";
 /* ---------- 報表：材料表、線長統計、CSV、列印 ----------
    線長都是圖面估算值：沿畫出來的路徑量，不含端子處理與彎曲餘量。
-   外線（接到現場區的線）只算箱內段，也就是到箱底出線口為止，現場段要另外量。 */
+   外線（接到現場區的線）只算箱內段，也就是到出線口為止；電纜的現場段在電纜上填長度。 */
 const CAT_ORDER=()=>['自訂器具',C1,C2,C3,C4,C5,C6,C7,C8,C9,D1,F1,F2,F3];
 const natCmp=(a,b)=>String(a).localeCompare(String(b),'zh-Hant',{numeric:true});
 const SHEET_N={plate:'底板',door:'面板',field:'現場'};
 const spare=()=>Math.max(0,Number(S.spare)||0);
-const isCable=w=>wireKind(w)==='ext'&&!!(w.ext&&w.ext.cable);
+const isCable=w=>!!(w.cab&&cabOf(w.cab));
 // 折線在箱底以上的長度；外線出了出線口就不算
 // 折線在箱體範圍內的長度；外線出了出線口（任何一面）就不算
 function inBoxLen(pts){
@@ -75,21 +75,23 @@ function bomRows(){
   const cab=cableGroups();
   const specs=new Map();cab.forEach(c=>{const k=c.spec||'';if(!specs.has(k))specs.set(k,[]);specs.get(k).push(c);});
   [...specs].sort((a,b)=>natCmp(a[0],b[0])).forEach(([spec,cs])=>{
-    const inv=cableStock(spec),len=cs.reduce((s,c)=>s+c.len,0);
-    out.push({sec:'電纜',name:spec||'未指定電纜規格',brand:inv?inv[3]:'',qty:cs.length,unit:'條',where:'',tags:cs.map(c=>c.no).join(' '),note:`箱內段約 ${m1(len)} m，現場段另計`});
+    const inv=cableStock(spec),len=cs.reduce((s,c)=>s+c.len,0),miss=cs.filter(c=>c.ext&&!c.field).length;
+    out.push({sec:'電纜',name:spec||'未指定電纜規格',brand:inv?inv[3]:'',qty:m1(len),unit:'m',where:'',tags:cs.map(c=>c.no).join(' '),note:`${cs.length} 條`+(miss?`（其中 ${miss} 條沒填現場長度）`:'')});
   });
   return out;
 }
-// 依電纜編號分組；長度取最長的一芯
+// 電纜長度（mm）：外被（外部電纜只算箱內段）＋兩端剝線後最長那一芯＋現場長度＋預留
+const ptsLen=p=>{let L=0;for(let i=1;i<p.length;i++)L+=Math.abs(p[i].x-p[i-1].x)+Math.abs(p[i].y-p[i-1].y);return L;};
+function cabLen(c){
+  const r=CABROUTES.get(c.id),cw=coresOf(c),ext=cw.some(w=>wireKind(w)==='ext'),L=p=>ext?inBoxLen(p):ptsLen(p);
+  const sheath=r?L(r.pts):0;let tail=0;
+  cw.forEach(w=>{const x=ROUTES.get(w.id);if(x&&x.tails)tail=Math.max(tail,L(x.tails[0])+L(x.tails[1]));});
+  const box=sheath+tail,field=Math.max(0,Number(c.fieldLen)||0),sp=r?spare():0;
+  return {ext,sheath,tail,box,field,spare:sp,total:box+field+sp};
+}
 function cableGroups(){
-  const by=new Map();
-  S.wires.filter(isCable).forEach(w=>{
-    const k=w.ext.cable;
-    if(!by.has(k)) by.set(k,{no:k,spec:w.ext.spec||'',cores:0,len:0,field:null});
-    const e=by.get(k);e.cores++;e.len=Math.max(e.len,wireLen(w));if(!e.spec&&w.ext.spec)e.spec=w.ext.spec;
-    if(!e.field) e.field=devOf(w.a.d).sheet==='field'?w.a.d:w.b.d;
-  });
-  return [...by.values()].sort((a,b)=>natCmp(a.no,b.no));
+  return [...S.cables].sort((a,b)=>natCmp(a.no,b.no)).map(c=>{const L=cabLen(c),cw=coresOf(c);
+    return {no:c.no,spec:c.spec,cores:cw.length,all:c.cores.length,len:L.total,box:L.box,field:L.field,ext:L.ext,c};});
 }
 /* 線長統計：散線（不含電纜芯線）依線徑、顏色；全部依種類；電纜另列 */
 function lenStats(){
@@ -113,30 +115,36 @@ function tableHtml(head,rows,num=[]){
 }
 const BOM_HEAD=['分類','品名／型號','廠牌','數量','單位','位置','器具編號','備註'];
 const bomTable=rows=>rows.map(r=>[r.sec,r.name,r.brand,r.qty,r.unit,r.where,r.tags,r.note]);
-const LEN_NOTE=()=>`圖面估算值：沿畫面路徑量，不含彎曲與端子處理；外線只算到出線口。${spare()?`每條已加預留 ${spare()} mm。`:''}`;
+const LEN_NOTE=()=>`圖面估算值：沿畫面路徑量，不含彎曲與端子處理；散線的外線只算到出線口；電纜另加填寫的現場長度。${spare()?`每條已加預留 ${spare()} mm。`:''}`;
 function lenSections(){
   const s=lenStats(),one=a=>[...a.map(e=>[e.lab,e.n,m1(e.len)]),['合計',sumN(a),m1(sumLen(a))]];
   return [
     {h:'依線徑（散線，不含電纜芯線）',head:['線徑','條數','長度 m'],rows:one(s.gauge),num:[1,2]},
     {h:'依顏色（散線，不含電纜芯線）',head:['顏色','條數','長度 m'],rows:one(s.color),num:[1,2]},
     {h:'依種類（全部導線）',head:['種類','條數','長度 m'],rows:one(s.kind),num:[1,2]},
-    {h:'依電纜（箱內段，取最長芯）',head:['電纜','規格','芯數','長度 m'],rows:s.cables.map(c=>[c.no,specName(c.spec),c.cores,m1(c.len)]),num:[2,3]}
+    {h:'依電纜（外被＋最長芯＋現場長度＋預留）',head:['電纜','規格','已接芯數','箱內 m','現場 m','合計 m'],rows:s.cables.map(c=>[c.no,specName(c.spec),`${c.cores}/${c.all}`,m1(c.box),c.ext?(c.field?m1(c.field):'未填'):'—',m1(c.len)]),num:[3,4,5]}
   ].filter(x=>x.rows.length&&!(x.rows.length===1&&x.rows[0][0]==='合計'));
 }
 function wireTable(){
   return [...S.wires].sort((a,b)=>natCmp(a.no,b.no)).map(w=>{
     const r=ROUTES.get(w.id)||{via:[],len:0};
-    return [w.no,w.gauge,colorOf(w).n,KINDS[wireKind(w)],tagOf(w.a.d),termLabel(devOf(w.a.d),w.a.t),tagOf(w.b.d),termLabel(devOf(w.b.d),w.b.t),r.via.join('→'),r.gland||'',m1(wireLen(w)),w.ext?.cable||'',w.ext?.core||''];
+    const c=w.cab&&cabOf(w.cab);return [w.no,w.gauge,colorOf(w).n,KINDS[wireKind(w)],tagOf(w.a.d),termLabel(devOf(w.a.d),w.a.t),tagOf(w.b.d),termLabel(devOf(w.b.d),w.b.t),r.via.join('→'),r.gland||'',m1(wireLen(w)),c?c.no:'',c?w.core:''];
   });
 }
 const WIRE_HEAD=['線號','線徑mm²','線色','種類','起點器具','起點接點','終點器具','終點接點','經過線槽','出線口','估算長度m','電纜','芯線'];
+// 電纜表：每芯一列，備用芯也列出來
 function extTable(){
-  return S.wires.filter(w=>wireKind(w)==='ext').sort((a,b)=>natCmp(a.ext?.cable,b.ext?.cable)||natCmp(a.no,b.no)).map(w=>{
-    const af=devOf(w.a.d).sheet==='field',f=af?w.a:w.b,n=af?w.b:w.a,t=tplOf(devOf(f.d));
-    return [w.ext?.cable,w.ext?.core,specName(w.ext?.spec),w.no,w.gauge,colorOf(w).n,epText(n),ROUTES.get(w.id)?.gland||'',zoneOf(devOf(f.d))?.name||'',epText(f),t.n,t.note||''];
+  const rows=[];
+  [...S.cables].sort((a,b)=>natCmp(a.no,b.no)).forEach(c=>{
+    const by=new Map(coresOf(c).map(w=>[w.core,w])),L=cabLen(c),g=CABROUTES.get(c.id)?.gland||'';
+    c.cores.forEach(k=>{const w=by.get(k.n),f=w&&devOf(w.b.d);
+      rows.push([c.no,specName(c.spec),k.n,coreColor(k).n,w?w.no:'備用',w?epText(w.a):'',w?epText(w.b):'',g,f&&f.sheet==='field'?zoneOf(f)?.name||'':'',m1(L.total)]);});
+    coresOf(c).filter(w=>!coreDef(c,w.core)).forEach(w=>rows.push([c.no,specName(c.spec),w.core,colorOf(w).n,w.no,epText(w.a),epText(w.b),g,'',m1(L.total)]));
   });
+  S.wires.filter(w=>wireKind(w)==='ext'&&!isCable(w)).sort((a,b)=>natCmp(a.no,b.no)).forEach(w=>rows.push(['（散線）','','',colorOf(w).n,w.no,epText(w.a),epText(w.b),ROUTES.get(w.id)?.gland||'',zoneOf(devOf(w.b.d))?.name||zoneOf(devOf(w.a.d))?.name||'',m1(wireLen(w))]));
+  return rows;
 }
-const EXT_HEAD=['電纜編號','芯線','電纜規格','線號','線徑mm²','線色','箱內端','出線口','現場區','現場端','現場設備','備註'];
+const EXT_HEAD=['電纜編號','電纜規格','芯線','芯線顏色','線號','A 端','B 端','出線口','現場區','電纜長度m'];
 
 /* 右側面板 */
 function renderBom(){
@@ -164,7 +172,7 @@ const csvCell=v=>{let s=String(v==null?'':v);if(/^[=+\-@]/.test(s))s="'"+s;retur
 const toCsv=rows=>'﻿'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n');
 function exportCsv(){
   const st=stamp();
-  if(tab==='ext') return saveFile(`外線表-${st}.csv`,toCsv([EXT_HEAD,...extTable()]),'已匯出外線表');
+  if(tab==='ext') return saveFile(`電纜表-${st}.csv`,toCsv([EXT_HEAD,...extTable()]),'已匯出電纜表');
   if(tab==='bom') return saveFile(`材料表-${st}.csv`,toCsv([BOM_HEAD,...bomTable(bomRows())]),'已匯出材料表');
   if(tab==='len'){
     const rows=[[LEN_NOTE()]];
@@ -194,7 +202,7 @@ function buildPrint(){
   S.fields.forEach(z=>{if(S.devices.some(d=>inZone(z,d))) h+=printDrawing(z.name,pad(z,10,20),'labels-on z2',meta);});
   const sec=(t,body)=>`<section class="pg"><div class="ph"><b>${esc(t)}</b><span>${esc(meta)}</span></div>${body}</section>`;
   if(S.wires.length) h+=sec('線號表',tableHtml(WIRE_HEAD,wireTable(),[1,10]));
-  const ext=extTable();if(ext.length) h+=sec('外線表',tableHtml(EXT_HEAD,ext,[4]));
+  const ext=extTable();if(ext.length) h+=sec('電纜表',tableHtml(EXT_HEAD,ext,[9]));
   const bom=bomRows();if(bom.length) h+=sec('材料表',tableHtml(BOM_HEAD,bomTable(bom),[3])+`<p class="pnote">器具數量照盤面擺放計算；電線與電纜長度是圖面估算值。器具尺寸與接點請以原廠資料與實物為準。</p>`);
   const ls=lenSections();if(ls.length) h+=sec('線長統計',`<p class="pnote">${esc(LEN_NOTE())}</p>`+ls.map(s=>`<h3>${esc(s.h)}</h3>`+tableHtml(s.head,s.rows,s.num)).join(''));
   const pr=$('print');pr.innerHTML=h;

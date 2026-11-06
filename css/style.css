@@ -98,6 +98,16 @@ select{border:1px solid var(--line);background:var(--panel-2);border-radius:5px;
 .rtab th{font-weight:500;color:var(--muted);white-space:nowrap}
 .rtab .n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
 .rtab tr.tot td{font-weight:600}
+.cab-h{display:block;width:100%;text-align:left;border:1px solid var(--line);border-radius:6px;background:none;padding:6px 7px;margin:8px 0 2px;font-size:12.5px;overflow-wrap:anywhere;cursor:pointer}
+.cab-h .note{display:block;margin-top:2px}
+.cab-h.sel{border-color:var(--accent);background:var(--panel-2)}
+.cabform{border:1px solid var(--line);border-radius:6px;padding:8px;margin-bottom:6px}
+.rtab.cores td{overflow-wrap:anywhere}
+.rtab.cores tbody tr{cursor:pointer}
+.rtab.cores tbody tr:hover td{background:var(--panel-2)}
+.rtab.cores tr.on td{background:var(--panel-2)}
+.rtab.cores .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px;border:1px solid rgba(0,0,0,.3)}
+.coreed{border:1px solid var(--line);border-radius:6px;padding:8px;display:flex;flex-direction:column;gap:6px}
 .cable-h{font-size:12.5px;font-weight:500;padding:7px 5px 2px;overflow-wrap:anywhere}
 .flag{color:var(--warn);background:var(--warn-bg);border-radius:4px;padding:1px 5px;font-size:11.5px;font-family:var(--sans)}
 #detail{border-bottom:1px solid var(--line);padding:10px;display:flex;flex-direction:column;gap:7px;font-size:13px;line-height:1.5;max-height:58%;overflow:auto;flex:none}
@@ -212,6 +222,20 @@ label.check input{margin:2px 0 0;flex:none}
 .wire.off{opacity:.05;pointer-events:none}
 #wires.focus .wire.off:not(.on){opacity:.03}
 .wire.on .wn{display:block}
+.cab path{fill:none;stroke-linejoin:round;stroke-linecap:round}
+.cab .cab-o{stroke:#2b2f2e;pointer-events:none}
+.cab .cab-v{stroke:#9aa29f;pointer-events:none}
+.cab .cab-v.ext{stroke:#b9b29a}
+.cab .hit{stroke:transparent;stroke-width:12px;vector-effect:non-scaling-stroke;pointer-events:stroke;cursor:pointer}
+.cab.on .cab-o{stroke:var(--accent)}
+#wires.focus .cab:not(.on){opacity:.35}
+.cab-t{font-family:var(--mono);font-size:3.6px;font-weight:600;fill:#14181a;pointer-events:none}
+.bo{fill:#fff;stroke:#2b2f2e;stroke-width:.7;cursor:move;pointer-events:all}
+.bo.set{fill:#ffd34d}
+.bo[data-on="1"]{stroke:var(--accent);stroke-width:1}
+#wires.focus .bos{opacity:.5}
+.view .bo{cursor:default}
+.place #wires .bo{pointer-events:all}
 .warnline{stroke:var(--warn);stroke-dasharray:3 3;stroke-width:1;fill:none;pointer-events:none}
 .place .dev,.place .duct,.place .glandg{cursor:move}
 .place #wires,.place #wires .hit{pointer-events:none} /* 擺放模式不操作導線，讓點擊落到下面的線槽與器具 */
