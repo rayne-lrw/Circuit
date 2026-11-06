@@ -156,9 +156,10 @@ function renderWires(){
   // 電纜外被畫在芯線下面；剝線點畫成小方塊，可以拖曳
   (S.cables||[]).forEach(c=>{
     const r=CABROUTES.get(c.id);if(!r) return;
+    const cc=cabColor(c); // 使用者指定的外被顏色；沒指定用預設灰色
     const d=pathD(r.pts),sw=cabStroke(c),ext=coresOf(c).some(w=>wireKind(w)==='ext');
     let m=null,ml=-1;for(let i=1;i<r.pts.length;i++){const a=r.pts[i-1],b=r.pts[i],L=Math.abs(a.x-b.x)+Math.abs(a.y-b.y);if(L>ml){ml=L;m={a,b};}}
-    h+=`<g class="cab${selCab===c.id?' on':''}" data-cab="${c.id}"><path class="cab-o" d="${d}" stroke-width="${sw+1.2}"/><path class="cab-v${ext?' ext':''}" d="${d}" stroke-width="${sw}"/><path class="hit" d="${d}"/>`;
+    h+=`<g class="cab${selCab===c.id?' on':''}" data-cab="${c.id}"><path class="cab-o" d="${d}" stroke-width="${sw+1.2}"${cc?` style="stroke:${cc.k}"`:''}/><path class="cab-v${ext?' ext':''}" d="${d}" stroke-width="${sw}"${cc?` style="stroke:${cc.c}"`:''}/><path class="hit" d="${d}"/>`;
     if(m&&ml>20){const v=Math.abs(m.a.x-m.b.x)<.01,tx=(m.a.x+m.b.x)/2,ty=(m.a.y+m.b.y)/2;h+=`<text class="cab-t" x="${tx}" y="${ty}" text-anchor="middle" dominant-baseline="central"${v?` transform="rotate(-90 ${tx} ${ty})"`:''}>${esc(c.no)}</text>`;}
     // 剝線點放在最上層，才不會被芯線擋住拖不到
     ['a','b'].forEach(k=>{const p=r[k];boH+=`<rect class="bo${p.auto?'':' set'}" data-bo="${c.id}|${k}" data-on="${selCab===c.id?1:0}" x="${p.x-2.2}" y="${p.y-2.2}" width="4.4" height="4.4" rx=".8"><title>${esc(c.no)} ${k==='a'?'A':'B'} 端剝線點${p.auto?'（自動）':''}，可拖曳</title></rect>`;});

@@ -78,6 +78,8 @@ function normalize(o){
     if(safe(c.gland))r.gland=c.gland;
     const wp=(Array.isArray(c.wps)?c.wps:[]).filter(q=>q&&Number.isFinite(q.x)&&Number.isFinite(q.y)).slice(0,50).map(q=>({x:q.x,y:q.y}));if(wp.length)r.wps=wp;
     if(c.direct===true)r.direct=true;
+    if(safe(c.color))r.color=c.color;
+    if(typeof c.hex==='string'&&/^#[0-9a-fA-F]{6}$/.test(c.hex)){r.hex=c.hex;r.cname=txt(c.cname||'自訂',8);}
     return r;
   });
   wires.forEach(w=>{if(w.cab&&!cables.some(c=>c.id===w.cab)){delete w.cab;delete w.core;}});

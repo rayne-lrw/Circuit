@@ -67,6 +67,9 @@ function attachCore(w,c,name){
 function paintCore(w,k){w.gauge=k.g;applyColor(w,k.c);if(k.hex){w.hex=k.hex;w.cname=k.cn||'自訂';}}
 function setCoreColor(k,key){k.c=key;const t=tempColors[key];if(t){k.hex=t.c;k.cn=t.n;}else{delete k.hex;delete k.cn;}}
 const coreColor=k=>k.hex?{n:k.cn||'自訂',c:k.hex,k:casing(k.hex)}:(COLORS[k.c]||COLORS.black);
+// 外被顏色：c.color 是顏色鍵，臨時顏色的色碼存在 c.hex，重新整理後也不會變
+const cabColor=c=>c.hex?{n:c.cname||'自訂',c:c.hex,k:casing(c.hex)}:c.color?keyColor(c.color):null;
+function setCabColor(c,key){if(!key){delete c.color;delete c.hex;delete c.cname;return;}c.color=key;const t=tempColors[key];if(t){c.hex=t.c;c.cname=t.n;}else{delete c.hex;delete c.cname;}}
 function detachCore(w){delete w.cab;delete w.core;delete w.ext;}
 // 存檔時外線表用的欄位跟著電纜同步
 function syncCables(){
