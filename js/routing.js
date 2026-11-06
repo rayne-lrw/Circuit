@@ -26,6 +26,7 @@ function exits(P){
   const OPP={top:'bottom',bottom:'top',left:'right',right:'left'};
   for(const dir of ['top','bottom','left','right']){
     if(P.dev&&P.side&&dir===OPP[P.side]) continue; // 器具接點不可反方向出線，會從器具本體上穿過去
+    if(P.backOf&&dir===P.backOf) continue; // 往中繼點出線的轉入點：不可再往接點那邊走
     const vert=dir==='top'||dir==='bottom';
     let best=null,bd=1e9,ba=0;
     for(const d of S.ducts){
@@ -75,7 +76,7 @@ function ductPath(a,b,J){
 }
 // 要接到出線點，但起點在器具的另一側：從器具旁邊繞過去，不穿過器具本體
 function aroundPts(A,B){
-  const s=B.side,d=devOf(B.dev);if(!d) return null;
+  const s=B.side,d=devOf(B.dev);if(!d||!s) return null;
   const r=rectOf('dev',d),v={top:[0,-1],bottom:[0,1],left:[-1,0],right:[1,0]}[s];
   if((A.x-B.x)*v[0]+(A.y-B.y)*v[1]>=-.01) return null; // 起點已經在出線方向那一側
   if(s==='top'||s==='bottom'){const lx=Math.abs(A.x-(r.x-STUB))<Math.abs(A.x-(r.x+r.w+STUB))?r.x-STUB:r.x+r.w+STUB;return [A,{x:lx,y:A.y},{x:lx,y:B.y},B];}
@@ -219,13 +220,28 @@ function stubOf(P){
   q.inDuct=locate(q,q.sheet); // 出線點已經在線槽裡就直接進線槽
   return q;
 }
+// 使用者把中繼點放在接點出線方向的反方向：照中繼點的意思，直接從接點往中繼點那邊出線（壓過自己的器具），
+// 不先往外拉再繞回來。出線點放在接點往器具內 4 mm，線在那裡轉 90 度接進接點。只影響有中繼點的線
+const BACK_IN=4;
+function backStub(P,W){
+  if(!W||!P.dev||!P.side||W.sheet!==P.sheet) return null;
+  const v={top:[0,-1],bottom:[0,1],left:[-1,0],right:[1,0]}[P.side];
+  if((W.x-P.x)*v[0]+(W.y-P.y)*v[1]>=0) return null;
+  // 中繼點要在這個器具的正後方：越過器具另一邊的外框，而且橫向在器具寬度範圍內，才算是使用者要從這邊出線
+  const r=rectOf('dev',devOf(P.dev));
+  if(v[0]===0?(W.x<r.x||W.x>r.x+r.w):(W.y<r.y||W.y>r.y+r.h)) return null;
+  if(P.side==='top'?W.y<=r.y+r.h:P.side==='bottom'?W.y>=r.y:P.side==='left'?W.x<=r.x+r.w:W.x>=r.x) return null;
+  const q={x:P.x-v[0]*BACK_IN,y:P.y-v[1]*BACK_IN,sheet:P.sheet,side:null,backOf:P.side,dev:P.dev,stub:true};
+  q.inDuct=locate(q,q.sheet);return q;
+}
 function buildAnchors(ea,eb,wps,ctr,glandId){
   const sa=ea.sheet,sb=eb.sheet;
   const chain=sa===sb?[sa]:(sa!=='plate'&&sb!=='plate')?[sa,'plate',sb]:[sa,sb];
   const fieldP=sa==='field'?ea:eb;
   // 同一組器具（主體與正面附件、伺服電池）之間的線直接在器具前面連，不拉出線點
   const fam=ea.dev&&eb.dev&&ea.sheet===eb.sheet&&famIds(ea.dev).includes(eb.dev);
-  const out=[ea],qa=fam?null:stubOf(ea),qb=fam?null:stubOf(eb);
+  const w0=wps.length?wpAnchor(wps[0]):null,w1=wps.length?wpAnchor(wps[wps.length-1]):null;
+  const out=[ea],qa=fam?null:(backStub(ea,w0)||stubOf(ea)),qb=fam?null:(backStub(eb,w1)||stubOf(eb));
   if(fam&&!wps.length){out.push(eb);out.local=true;return out;}
   if(qa) out.push(qa);
   chain.forEach((sh,i)=>{
@@ -276,6 +292,8 @@ function computeIssues(){
     // 線道多到畫面上靠得很近只是顯示問題，不列在檢查清單（選取線槽時在右側說明）
   });
   S.wires.forEach(w=>{const r=ROUTES.get(w.id);if(r&&r.warn) out.push({t:`${wireRef(w)} ${r.warn}`,k:'wire',id:w.id});});
+  // 有中繼點的線在同一條直線上沿原路折返：多半是中繼點放的位置讓線跑過頭再回來
+  S.wires.forEach(w=>{if(!w.wps.length||w.cab)return;const r=ROUTES.get(w.id);if(r&&backtrack(r.pts))out.push({t:`${wireRef(w)} 在中繼點前後沿原路折返，建議移動中繼點`,k:'wire',id:w.id});});
   (S.cables||[]).forEach(c=>{
     const cw=coresOf(c),sp=specCores(c.spec).length,seen=new Map();
     if(sp&&c.cores.length>sp) out.push({t:`電纜 ${c.no} 規格是 ${sp} 芯，芯線表有 ${c.cores.length} 芯`,k:'cable',id:c.id});
@@ -294,6 +312,12 @@ function computeIssues(){
     byNet.forEach((set,n)=>{if(set.size>1){const w=S.wires.find(x=>nets.get(x.id)===n);out.push({t:`同一電位有不同線號：${[...set].sort(natCmp).join('、')}`,k:'wire',id:w.id});}});
   }
   return out;
+}
+function backtrack(p){
+  for(let i=2;i<p.length;i++){const a=p[i-2],b=p[i-1],c=p[i];
+    const col=(Math.abs(a.x-b.x)<.01&&Math.abs(b.x-c.x)<.01)||(Math.abs(a.y-b.y)<.01&&Math.abs(b.y-c.y)<.01);
+    if(col&&((b.x-a.x)*(c.x-b.x)+(b.y-a.y)*(c.y-b.y))<-.01) return true;}
+  return false;
 }
 const key=(e)=>e.d+'|'+e.t;
 function computeRoutes(){

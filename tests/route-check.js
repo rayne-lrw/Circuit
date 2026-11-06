@@ -7,7 +7,8 @@
 //   2. 自動路徑的第一段、最後一段照接點的出線方向
 //   3. 有中繼點的線（手動路徑）要經過每個中繼點
 //   4. 不可在同一條直線上來回折返（電纜芯線分段檢查）
-//   5. 電纜：芯線接到剝線點、芯數與長度正確、沒有電纜警告
+//   5. 中繼點在出線方向反方向時直接往中繼點出線；有中繼點的線不可在中繼點前後折返
+//   6. 電纜：芯線接到剝線點、芯數與長度正確、沒有電纜警告
 const path=require('path'),fs=require('fs');
 const {chromium}=require('playwright');
 const INDEX='file://'+path.resolve(__dirname,'..','index.html');
@@ -56,6 +57,14 @@ const SCENARIOS=[
     c5.bo.a=axis(d)==='h'?{x:Math.max(d.x+5,r.a.x-60),y:r.a.y}:{x:r.a.x,y:Math.max(d.y+5,r.a.y-60)};c5.fieldLen=5000;
     return {state:st,expectClean:'all',expectCable:{C90:{cores:5,ext:false},C91:{cores:2,ext:false},C05:{field:5000,ext:true}}};
   }},
+  {name:'中繼點在出線方向反方向',build:()=>{
+    const st=normalize(sampleState()).state;
+    // SV2·L11 朝上，中繼點放在下方線槽：要直接往下接到中繼點，不可先往上跑再繞回來
+    st.wires.push({id:'tb1',no:'B1',a:{d:'SV2',t:'L11'},b:{d:'K0',t:'A1'},wps:[{x:275,y:710}],gauge:.75,color:'black'});
+    // 中繼點離器具很遠（不在正後方）：照原本的出線方向
+    st.wires.push({id:'tb2',no:'B2',a:{d:'K0',t:'A1'},b:{d:'SV2',t:'L11'},wps:[{x:100,y:342}],gauge:.75,color:'black'});
+    return {state:st,expectClean:['B1','B2'],expectBack:{B1:true,B2:false}};
+  }},
   {name:'不進線槽與旋轉器具',build:()=>{
     const st=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:800,h:600},door:{w:900,h:700},
       devices:[{id:'Q1',tpl:'fuji-bw50',x:100,y:300,rot:270},{id:'FL1',tpl:'fn3270',x:300,y:290,rot:270},{id:'Q2',tpl:'fuji-bw50',x:100,y:100,rot:90}],
@@ -65,7 +74,7 @@ const SCENARIOS=[
   }},
 ];
 
-function checkInPage(expectClean,expectVia,expectCable){
+function checkInPage(expectClean,expectVia,expectCable,expectBack){
   const res=[];
   const fam=id=>famIds(id);
   const crosses=(w,pts)=>{
@@ -94,6 +103,10 @@ function checkInPage(expectClean,expectVia,expectCable){
       let j=p.length-2;while(j>=0&&Math.hypot(p[j].x-p[p.length-1].x,p[j].y-p[p.length-1].y)<.5)j--;
       if(j>=0&&B.side&&devOf(w.b.d).sheet!=='field'&&dirOf(p[p.length-1],p[j])!==B.side) msgs.push(`終點進線方向應為 ${B.side}，實際 ${dirOf(p[p.length-1],p[j])}`);
     }
+    // 中繼點在反方向：第一段直接往中繼點那邊出線，不可先往接點方向拉出去
+    if(expectBack&&w.no in expectBack){const E=endpoint(w.a,0),O={top:'bottom',bottom:'top',left:'right',right:'left'}[E.side],d=dirOf(p[0],p[1]);
+      if(expectBack[w.no]&&d!==O)msgs.push(`應直接往中繼點方向（${O}）出線，實際 ${d}`);if(!expectBack[w.no]&&d!==E.side)msgs.push(`中繼點不在器具正後方，應照原本方向 ${E.side} 出線，實際 ${d}`);}
+    if(w.wps&&w.wps.length&&ISSUES.some(i=>i.id===w.id&&i.t.includes('折返')))msgs.push('中繼點造成折返');
     (w.wps||[]).forEach((q,k)=>{if(!onPath(p,q))msgs.push(`沒有經過第 ${k+1} 個中繼點`);});
     if(expectVia&&expectVia[w.no]){const v=r.via.join('>'),want=expectVia[w.no].join('>');if(v!==want)msgs.push(`經過的線槽應為 ${want}，實際 ${v||'無'}`);}
     // 電纜芯線：接點→剝線點、外被、剝線點→接點分開檢查（芯線在剝線點往回走是正常的）
@@ -133,7 +146,7 @@ function checkInPage(expectClean,expectVia,expectCable){
     const out=await p.evaluate(([src,arg,chk])=>{
       const sc=new Function('arg','return ('+src+')(arg)')(arg);
       S=sc.state;resetUi();computeRoutes();
-      return new Function('expectClean','expectVia','expectCable','return ('+chk+')(expectClean,expectVia,expectCable)')(sc.expectClean,sc.expectVia,sc.expectCable);
+      return new Function('expectClean','expectVia','expectCable','expectBack','return ('+chk+')(expectClean,expectVia,expectCable,expectBack)')(sc.expectClean,sc.expectVia,sc.expectCable,sc.expectBack);
     },[fnSrc,arg,checkInPage.toString()]);
     const bad=out.filter(x=>!x.ok);total+=out.length;fail+=bad.length;
     console.log(`${bad.length?'✗':'✓'} ${name}：${out.length} 條線，${bad.length} 條失敗`);
