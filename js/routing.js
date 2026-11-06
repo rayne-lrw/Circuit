@@ -350,7 +350,8 @@ function computeRoutes(){
     const ea=cw.map(w=>endpoint(w.a,off(w.a))),eb=cw.map(w=>endpoint(w.b,off(w.b)));
     const side=(k,ends)=>{const o=c.bo&&c.bo[k];const p=o?{x:o.x,y:o.y,sheet:sheetAt(o)}:autoBO(ends,ends[0].sheet);return {x:p.x,y:p.y,sheet:p.sheet,inDuct:locate(p,p.sheet),wp:true,bo:true,auto:!o};};
     const A=side('a',ea),B=side('b',eb);
-    const sa=buildAnchors(A,B,[],ctr,c.gland),sh=job('S:'+c.id,0,sa,legsOf(sa,false),false,cabOD(c));items.push(sh);
+    // 外被可以加中繼點、可以不進線槽；電纜本來就能走線槽外，穿過其他器具不警告
+    const sa=buildAnchors(A,B,c.wps||[],ctr,c.gland),sh=job('S:'+c.id,0,sa,legsOf(sa,!!c.direct),false,cabOD(c));sh.cab=true;items.push(sh);
     const tails=cw.map((w,i)=>{
       const ta=buildAnchors(ea[i],{...A},[],ctr,null),tb=buildAnchors({...B},eb[i],[],ctr,null);
       const ja=job(w.id+'#a',w.gauge,ta,legsOf(ta,false),false),jb=job(w.id+'#b',w.gauge,tb,legsOf(tb,false),false);
@@ -441,6 +442,7 @@ function computeRoutes(){
     let warn=(it.legs.find(l=>l.warn)||{}).warn||null;
     if(it.manual&&warn==='直接拉線穿過其他器具')warn='手動路徑穿過其他器具';
     if(it.w&&warn&&warn.includes('穿過')&&plugWire(it.w))warn=null; // 插頭線本來就隨使用者拉，不警告穿過器具
+    if(it.cab&&warn&&(warn.includes('穿過')||warn==='無線槽可走'))warn=null; // 電纜外被本來就能走線槽外
     const g=it.anchors.find(a=>a.gland);
     FIN.set(it.id,{pts,len,via,warn,gland:g?g.gland:null});
     if(it.w){ROUTES_MANUAL.add(it.manual?it.w.id:null);ROUTES.set(it.w.id,FIN.get(it.id));}

@@ -217,6 +217,7 @@ function updateHint(){
   else if(cabPick&&cabHint()){k='wire-cab';s=cabHint();}
   else if(draft&&draft.pop){k='wire-pop';s='選好線號、線徑與顏色後按 Enter 建立，Esc 取消。';}
   else if(draft){k='wire-draft';s=`起點 ${epText(draft.a)}：點接點完成；點空白處加中繼點`+(draft.wps.length?`（已有 ${draft.wps.length} 個，Backspace 退回）`:'')+`；按住 Alt 可不吸附，Esc 取消。`;}
+  else if(selCab&&mode==='wire'){k='cab-sel';s='雙擊電纜外被可加中繼點；拖曳白點可調整，雙擊白點可刪除；拖曳白色小方塊可移動剝線點。';}
   else if(sel){k='wire-sel';s='雙擊這條線可加中繼點；拖曳白點可調整，雙擊白點可刪除；線號可以沿著線拖曳。';}
   else{k='wire';s='滑鼠靠近接點會自動吸附放大，點一下開始接線。接到現場區就是外線，接到面板就會走過門線束。';}
   $('hintT').textContent=s;helpAuto(k);

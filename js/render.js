@@ -255,6 +255,7 @@ function renderOverlay(){
       w.wps.forEach(p=>h+=`<circle class="wp" cx="${p.x}" cy="${p.y}" r="${(focus===sel?6:3.5)/k}"/>`);
     }
   }
+  if(selCab&&!sel){const c=cabOf(selCab);(c&&c.wps||[]).forEach(p=>h+=`<circle class="wp" cx="${p.x}" cy="${p.y}" r="${6/k}"/>`);}
   if(dragPrev){const w=dragPrev.w,c=colorOf(w),d=pathD(dragPrev.pts);h+=`<path d="${d}" fill="none" stroke="${c.k}" stroke-width="${gw(w.gauge)+.9}" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="${c.c}" stroke-width="${gw(w.gauge)}" stroke-linejoin="round"/>`;}
   if(draft){
     const a=draft.a,wps=draft.wps;

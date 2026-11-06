@@ -76,6 +76,8 @@ function normalize(o){
     const r={id:c.id,no:txt(c.no,12).trim()||c.id,spec:cleanSpec(c.spec),bo,fieldLen:Math.max(0,Math.min(1e6,num(c.fieldLen,0))),
       cores:(Array.isArray(c.cores)?c.cores:[]).filter(k=>k&&String(k.n==null?'':k.n).trim()).slice(0,80).map(k=>{const r={n:txt(k.n,10).trim(),c:safe(k.c)?k.c:'black',g:Math.max(.1,num(k.g,.75))};if(typeof k.hex==='string'&&/^#[0-9a-fA-F]{6}$/.test(k.hex)){r.hex=k.hex;r.cn=txt(k.cn||'自訂',8);}return r;})};
     if(safe(c.gland))r.gland=c.gland;
+    const wp=(Array.isArray(c.wps)?c.wps:[]).filter(q=>q&&Number.isFinite(q.x)&&Number.isFinite(q.y)).slice(0,50).map(q=>({x:q.x,y:q.y}));if(wp.length)r.wps=wp;
+    if(c.direct===true)r.direct=true;
     return r;
   });
   wires.forEach(w=>{if(w.cab&&!cables.some(c=>c.id===w.cab)){delete w.cab;delete w.core;}});

@@ -98,6 +98,10 @@ svg.addEventListener('pointerdown',e=>{
     const wp=w&&w.wps.find(q=>Math.hypot((q.x-p.x)*view.k,(q.y-p.y)*view.k)<=10);
     if(wp){snap=null;hoverW=null;$('tip').hidden=true;act={t:'wp',wp,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId};renderOverlay();return;}
   }
+  if(mode==='wire'&&!draft&&!sel&&selCab&&e.button===0){
+    const c=cabOf(selCab),wp=c&&(c.wps||[]).find(q=>Math.hypot((q.x-p.x)*view.k,(q.y-p.y)*view.k)<=10);
+    if(wp){snap=null;hoverW=null;$('tip').hidden=true;act={t:'wp',wp,cab:true,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId};renderOverlay();return;}
+  }
   act={t:'press',sx:e.clientX,sy:e.clientY,vx:view.x,vy:view.y,moved:false,btn:e.button,alt:e.altKey,id:e.pointerId,target:e.target};
 });
 // 拖曳時把重畫合併成每個畫面週期一次（滑鼠事件比畫面更新頻繁，每次都整張重畫在放大時會閃）
@@ -143,6 +147,7 @@ svg.addEventListener('pointermove',e=>{
   }else if(act.t==='wp'){
     // 拖曳中只在最上層畫這條線的預覽，原本那條先藏起來；整張重畫在放開時才做（放大時整張重畫會閃）
     const p=toWorld(e);act.wp.x=Math.round(p.x/5)*5;act.wp.y=Math.round(p.y/5)*5;
+    if(act.cab){frame(()=>{computeRoutes();renderWires();renderOverlay();});return;} // 電纜：外被與芯線一起重算
     const w=S.wires.find(x=>x.id===sel);if(!w)return;
     const el=$('wires').querySelector(`.wire[data-wid="${w.id}"]`);if(el)el.style.visibility='hidden';
     dragPrev={w,pts:wirePreview(w)};renderOverlay();
@@ -189,7 +194,11 @@ function clickWire(e,a){
     renderOverlay();updateHint();return;
   }
   const dbl=noteTap(e);
+  // 已選取電纜、點在外被附近：維持選取電纜（外被常和其他導線疊在同一個線槽，不要被上面的導線搶走）
+  const cr=selCab&&!sel&&CABROUTES.get(selCab);
+  if(cr&&polyPos(cr.pts,p).d*view.k<=8){if(dbl)tryDoubleCab(p);return;}
   if(dbl&&sel&&tryDouble(p)) return;
+  if(dbl&&!sel&&selCab&&tryDoubleCab(p)) return;
   if(s){draft={a:{d:s.d,t:s.t},wps:[]};sel=null;if(!cabPick)selCab=null;hoverW=null;$('tip').hidden=true;renderList();renderDetail();applyWireClasses();updateHint();return;}
   const g=a.target&&a.target.closest&&a.target.closest('.wire'),cb=!g&&a.target&&a.target.closest&&a.target.closest('[data-cab]');
   sel=g?g.dataset.wid:null;selCab=cb?cb.dataset.cab:cabPick;if(cb)coreEdit=null;
@@ -213,6 +222,17 @@ function noteTap(e){
   const now=performance.now(),dbl=!!lastTap&&now-lastTap.t<450&&Math.hypot(e.clientX-lastTap.x,e.clientY-lastTap.y)<8;
   lastTap=dbl?null:{t:now,x:e.clientX,y:e.clientY};
   return dbl;
+}
+// 電纜外被：雙擊外被加中繼點，雙擊白點刪除
+function tryDoubleCab(p){
+  const c=cabOf(selCab),r=c&&CABROUTES.get(c.id);if(!c||!r) return false;
+  c.wps=c.wps||[];
+  const i=c.wps.findIndex(q=>Math.hypot((q.x-p.x)*view.k,(q.y-p.y)*view.k)<=10);
+  if(i>=0){c.wps.splice(i,1);if(!c.wps.length)delete c.wps;commit();recompute();return true;}
+  const at=polyPos(r.pts,p);if(at.d*view.k>10) return false;
+  const idx=c.wps.filter(q=>polyPos(r.pts,q).s<at.s).length;
+  c.wps.splice(idx,0,{x:Math.round(p.x/5)*5,y:Math.round(p.y/5)*5});
+  commit();recompute();return true;
 }
 function tryDouble(p){
   const w=S.wires.find(x=>x.id===sel),r=ROUTES.get(sel);if(!w||!r||w.cab) return false;

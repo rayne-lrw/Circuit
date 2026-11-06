@@ -145,7 +145,7 @@ function pasteMulti(c,dx,dy){
     w.a.d=idm[e.a.d];w.b.d=idm[e.b.d];w.wps=(w.wps||[]).map(p=>({x:p.x+dx,y:p.y+dy}));
     if(w.gland)w.gland=gm[w.gland]||w.gland;
     // 電纜芯線：複製成新的電纜（同一條電纜的芯線還是在同一條新電纜裡），剝線點改回自動
-    if(w.cab){const o=cabOf(w.cab);if(o){if(!cm[o.id]){const n=newCable('',o.spec);n.cores=snapCopy(o.cores);n.fieldLen=o.fieldLen;cm[o.id]=n.id;made.cables=(made.cables||[]).concat(n);}w.cab=cm[o.id];}else delete w.cab;delete w.ext;}
+    if(w.cab){const o=cabOf(w.cab);if(o){if(!cm[o.id]){const n=newCable('',o.spec);n.cores=snapCopy(o.cores);n.fieldLen=o.fieldLen;if(o.direct)n.direct=true;if(o.wps)n.wps=o.wps.map(q=>({x:q.x+dx,y:q.y+dy}));cm[o.id]=n.id;made.cables=(made.cables||[]).concat(n);}w.cab=cm[o.id];}else delete w.cab;delete w.ext;}
     else if(w.ext&&w.ext.cable){if(!cm[e.ext.cable])cm[e.ext.cable]=nextCable();w.ext.cable=cm[e.ext.cable];}
     S.wires.push(w);made.wires.push(w);
   });

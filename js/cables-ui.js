@@ -70,6 +70,9 @@ function cableDetail(box,c){
     ${L.ext?`<label for="cGland" style="grid-column:1/-1">出線口<select id="cGland"><option value="">自動選最近</option>${S.glands.map(g=>`<option value="${g.id}"${c.gland===g.id?' selected':''}>${esc(g.id)}　${esc(g.spec)}</option>`).join('')}</select></label>`:''}</div>
     <dl><dt>種類</dt><dd>${cw.length?(L.ext?'外部電纜（到現場）':'箱內電纜'):'還沒有接芯線'}</dd><dt>芯線</dt><dd>已接 ${cw.length} / ${c.cores.length} 芯</dd>${r?`<dt>經過</dt><dd>${r.via.length?esc(r.via.join(' → ')):'直接'}${r.gland?' → '+esc(r.gland):''}</dd>`:''}
       <dt>長度</dt><dd>${L.ext?'箱內':'圖面'} ${m1(L.box)} m${L.ext?`＋現場 ${L.field?m1(L.field)+' m':'未填'}`:L.field?`＋另加 ${m1(L.field)} m`:''}${L.spare?`＋預留 ${m1(L.spare)} m`:''}＝<b>${m1(L.total)} m</b></dd></dl>
+    <label class="check"><input type="checkbox" id="cDirect"${c.direct?' checked':''}>外被不進線槽（直接拉線）</label>
+    <div class="hrow"><span class="note">外被路徑：中繼點 ${(c.wps||[]).length} 個 ${hq('cwp')}</span></div>${hn('cwp','選取電纜後，雙擊外被可以加中繼點，拖曳白點調整，雙擊白點刪除。中繼點之間直接連，剝線點到中繼點照樣走線槽。電纜本來就能走線槽外，穿過其他器具不警告。')}
+    ${(c.wps||[]).length?'<div class="row" style="justify-content:flex-start"><button class="tool" id="cWpClr">清除中繼點，改回自動</button></div>':''}
     ${r?`<div class="hrow"><span class="note">剝線點 ${hq('bo')}</span></div>${hn('bo','剝線點是剝掉外被、芯線分開的位置，圖上的白色小方塊。預設放在離芯線最近的線槽裡；拖曳可以移動（接線或擺放模式都可以），移過的變黃色。')}<div class="row" style="justify-content:flex-start">${boRow('a')}${boRow('b')}</div>`:''}
     <div class="sub-h">芯線表（點一列可以編輯）</div>
     <table class="rtab cores"><thead><tr><th>芯</th><th>線號</th><th>A 端</th><th>B 端</th></tr></thead><tbody>${rows||'<tr><td colspan="4" class="note">沒有芯線，按「新增一芯」</td></tr>'}</tbody></table>
@@ -92,6 +95,8 @@ function cableDetail(box,c){
   };
   $('cSpec').onchange=e=>{const v=e.target.value;if(v==='__new'){$('cSpecNewL').hidden=false;$('cSpecNew').focus();return;}setSpec(v);};
   $('cSpecNew').onchange=e=>{const v=e.target.value.trim();if(!v)return;if(!tempSpecs.includes(v))tempSpecs.push(v);setSpec(v);};
+  $('cDirect').onchange=e=>{if(e.target.checked)c.direct=true;else delete c.direct;done();};
+  if($('cWpClr'))$('cWpClr').onclick=()=>{delete c.wps;done();};
   if($('cGland'))$('cGland').onchange=e=>{if(e.target.value)c.gland=e.target.value;else delete c.gland;done();};
   box.querySelectorAll('[data-bor]').forEach(b=>b.onclick=()=>{delete c.bo[b.dataset.bor];done();});
   box.querySelectorAll('tr[data-ci]').forEach(tr=>tr.onclick=()=>{
