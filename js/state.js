@@ -102,15 +102,19 @@ const riders=d=>S.devices.filter(x=>x.on===d.id);
 const attachOf=d=>tplOf(d).attach||null;
 function hostOk(h,o){if(!h||h===o||h.on||h.sheet!==o.sheet)return false;const t=tplOf(h);if(t.attach||t.noOv)return false;return attachOf(o)==='below'?t.cat===C5:t.cat===C2;}
 // 伺服電池的安裝位置：預設掛在下方距左緣 6 mm（MR-J4-200B 外型圖）；
-// MR-J4-700B 依外型圖直立裝在正面右側區塊中間（CN1A、CN1B 左邊），露出 21×69.3 那一面
-const BAT_AT={j4700:{x:116.4,y:74.2,tpl:'mrbat6v1-f'}};
+// MR-J4-700B 依外型圖直立裝在正面右側區塊中間（CN1A、CN1B 左邊），露出 21×69.3 那一面；
+// MR-JE-40B 依外型圖裝在正面電池座（CN4 下方、CN1A／CN1B 左邊）
+const BAT_AT={j4700:{x:116.4,y:74.2,tpl:'mrbat6v1-f'},je40:{x:4.4,y:40.7,tpl:'mrbat6v1-je'}};
+const BAT_VAR=new Set(['mrbat6v1-f','mrbat6v1-je']);
+// 舊檔：已經裝在驅動器上的電池，外形或位置跟現在的安裝位置不同時重新裝一次
+function fixBatteries(){S.devices.forEach(r=>{if(!r.on||attachOf(r)!=='below')return;const h=devOf(r.on),a=h&&BAT_AT[h.tpl];if(a&&r.tpl!==a.tpl)placeOn(r,h);});}
 const BAT_BASE='mrbat6v1';
 const batFront=(r,h)=>attachOf(r)==='below'&&!!BAT_AT[h.tpl];
 function placeOn(r,h){
   const ht=tplOf(h);
   if(attachOf(r)==='below'){
     const a=BAT_AT[h.tpl];
-    if(r.tpl===BAT_BASE||r.tpl==='mrbat6v1-f') r.tpl=a&&a.tpl||BAT_BASE;
+    if(r.tpl===BAT_BASE||BAT_VAR.has(r.tpl)) r.tpl=a&&a.tpl||BAT_BASE;
     delete r.rot;
     const t=tplOf(r);
     if(a){r.x=r1(h.x+a.x);r.y=r1(h.y+a.y);}else{r.x=r1(h.x+Math.min(6,Math.max(0,ht.w-t.w)));r.y=r1(h.y+ht.h);}

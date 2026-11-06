@@ -321,7 +321,7 @@ function backtrack(p){
 }
 const key=(e)=>e.d+'|'+e.t;
 function computeRoutes(){
-  ROUTES.clear();DUCTUSE.clear();ROUTES_MANUAL.clear();CABROUTES.clear();syncCables();bundleSel=sel;
+  ROUTES.clear();DUCTUSE.clear();ROUTES_MANUAL.clear();CABROUTES.clear();fixBatteries();syncCables();bundleSel=sel;
   const J=junctions();
   const use=new Map();
   S.wires=S.wires.filter(w=>{const a=devOf(w.a.d),b=devOf(w.b.d);return a&&b&&termOf(a,w.a.t)&&termOf(b,w.b.t);});
