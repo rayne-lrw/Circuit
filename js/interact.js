@@ -595,6 +595,14 @@ $('detail').addEventListener('click',e=>{
   if(b.id==='rotDev'){rotatePicked();return;}
   if(b.id==='detachAux'){const d=devOf(picked.id),h=d&&devOf(d.on);if(!h)return;delete d.on;if(d.tpl==='mrbat6v1-f')d.tpl=BAT_BASE;d.x=r1(h.x+tplOf(h).w+10);commit();recompute();toast(`已把 ${d.tag} 從 ${h.tag} 拆下`);return;}
   if(b.id==='slotRevert'){const d=devOf(picked.id),src=slotSource(d);if(!src)return;revertSlots(d,src);commit();recompute();renderPalette();toast(`已換回 ${TPL[src].n}，可以每片填端子號；可按復原`);return;}
+  if(b.id==='jAdd'||b.dataset.jdel!==undefined){
+    const d=devOf(picked.id);if(!d)return;
+    if(b.dataset.jdel!==undefined){d.jumpers.splice(Number(b.dataset.jdel),1);if(!d.jumpers.length)delete d.jumpers;commit();recompute();return;}
+    const n=d.count||resolveTpl(d.tpl).cnt,at=Math.round(Number($('jAt').value)),p=Number($('jP').value);
+    if(!(at>=1)||at+p-1>n){toast(`短路片超出範圍：這組端子台只有 ${n} 片`);return;}
+    if((d.jumpers||[]).some(j=>at<=j.at+j.p-1&&j.at<=at+p-1)){toast('和已經有的短路片重疊了');return;}
+    (d.jumpers=d.jumpers||[]).push({at,p});commit();recompute();toast(`已加入 ${p}P 短路片（第 ${at}～${at+p-1} 片）`);return;
+  }
   if(b.id==='slotSeq'||b.id==='slotClr'){
     const d=devOf(picked.id),n=d.count||resolveTpl(d.tpl).cnt,f=Math.round(Number($('slotFrom').value)||1);
     setSlots(d,b.id==='slotClr'?[]:Array.from({length:n},(_,i)=>String(f+i)));renderDetail();return;

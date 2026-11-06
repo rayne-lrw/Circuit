@@ -46,6 +46,7 @@ function renderBoard(){
     h+=`<g class="dev${d.on?' rider':''}" data-dev="${d.id}">`; // 裝在接觸器正面的附件畫成半透明，看得到底下的線圈與輔助接點
     if(t.round) h+=`<rect class="body" x="${d.x}" y="${d.y}" width="${t.w}" height="${t.h}" rx="${Math.min(t.w,t.h)/2}" fill="${t.f}"/>`;
     else h+=`<rect class="body" x="${d.x}" y="${d.y}" width="${t.w}" height="${t.h}" rx="2.5" fill="${t.f}"/>`;
+    const bodyEnd=h.length; // 短路片插在外殼後面，編號與接點畫在它上面
     const cy=d.y+t.h/2,small=t.w<28||t.h<26,tagSize=small?Math.max(4.5,Math.min(t.w/3.6,8)):10;
     if(d.on) h+=`<text class="tag" style="font-size:5px" x="${d.x+t.w/2}" y="${d.y+5.5}" text-anchor="middle" fill="${t.i}">${esc(d.tag)}</text>`; // 附件編號放上緣，不和接觸器的編號疊在一起
     else if(t.noOv) h+=`<text class="sub" x="${d.x+t.w/2}" y="${cy+1.5}" text-anchor="middle" fill="${t.i}">${esc(d.tag)} 鋁軌 ${t.w} mm</text>`;
@@ -60,6 +61,13 @@ function renderBoard(){
       const lb=termLabel(d,p.id),sm=lb!==p.id&&SLOT_RE.exec(p.id);
       if(!(sm&&(sm[2]==='B'||sm[2]==='D'))) h+=`<text class="tl" x="${x+(p.side==='left'?5:p.side==='right'?-5:0)}" y="${y+(p.side==='top'?5.8:p.side==='bottom'?-3.6:1)}" text-anchor="middle" fill="${t.i}"${sm?` style="font-size:${Math.min(3.2,7.2/Math.max(2,[...lb].length)).toFixed(2)}px"`:''}>${esc(lb)}</text>`; // 同一片上下兩點只標一次；端子號依長度縮小字體，避免和隔壁重疊
     }
+    // 短路片：以每片上下接點的中點連成一條，旋轉後也對得上
+    (d.jumpers||[]).forEach(j=>{
+      const mid=i=>{const a=t.terms.find(q=>q.id===i+'A'),c=t.terms.find(q=>q.id===i+'C');return a&&c?{x:d.x+(a.x+c.x)/2,y:d.y+(a.y+c.y)/2}:null;};
+      const p0=mid(j.at),p1=mid(Math.min(j.at+j.p-1,d.count||t.cnt||0));if(!p0||!p1)return;
+      const jh=`<g class="jumper"><line x1="${p0.x}" y1="${p0.y}" x2="${p1.x}" y2="${p1.y}"/><text x="${(p0.x+p1.x)/2}" y="${(p0.y+p1.y)/2+1.2}" text-anchor="middle">${j.p}P</text></g>`;
+      h=h.slice(0,bodyEnd)+jh+h.slice(bodyEnd);
+    });
     h+='</g>';
   }
   const by=boxBottom();

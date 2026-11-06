@@ -117,7 +117,7 @@ function renderDetailInner(){
       const d=devOf(picked.id),t=tplOf(d),n=S.wires.filter(w=>w.a.d===d.id||w.b.d===d.id).length;
       box.innerHTML=`<div class="fields"><label for="dTag" style="grid-column:1/-1">器具編號<input id="dTag" maxlength="16" value="${esc(d.tag)}" style="font-size:15px;font-weight:600"></label></div><dl><dt>器具</dt><dd>${esc(t.b)} ${esc(t.n)}</dd><dt>尺寸</dt><dd>${+t.w.toFixed(1)} × ${+t.h.toFixed(1)} × ${t.d} mm</dd><dt>核對</dt><dd>尺寸 ${esc(verText(d.tpl,t))}；接點${t.ok?'已對照':TERM_OK.has(d.tpl)?'依照片或外型圖':'未核對'}</dd>${d.rot?`<dt>旋轉</dt><dd>${d.rot}°</dd>`:''}<dt>位置</dt><dd>${d.sheet==='door'?doorShort():d.sheet==='field'?esc(devRef(d).name||'現場'):'底板'}　X ${d.x}　Y ${d.y}</dd><dt>接線</dt><dd>${n} 條</dd>${d.on&&devOf(d.on)?`<dt>裝在</dt><dd>${esc(devOf(d.on).tag)} ${t.attach==='below'&&!batFront(d,devOf(d.on))?'下方':'正面'}　<button class="tool" id="detachAux" style="padding:2px 8px">拆下</button></dd>`:t.attach?`<dt>安裝</dt><dd style="font-family:var(--sans)">拖到${t.attach==='below'?'伺服驅動器':'電磁接觸器'}上就會裝上去</dd>`:''}${riders(d).length?`<dt>正面附件</dt><dd>${riders(d).map(r=>esc(r.tag)).join(' ')}</dd>`:''}${t.noOv?`<dt>軌上器具</dt><dd>${mountedOn(d).map(x=>esc(x.tag)).join(' ')||'無'}</dd>`:''}${gapsOf(d)}${t.note?`<dt>備註</dt><dd>${esc(t.note)}</dd>`:''}</dl>
       ${t.gen?`<div class="fields"><label for="dCount">${esc(t.cntLabel)}<input id="dCount" type="number" min="1" value="${d.count||t.cnt}"></label></div>`:''}
-      ${hasSlots(t)?slotHtml(d):slotSource(d)?`<div class="revert"><p class="note">這組端子台之前用「編輯器具」改過，變成了自訂器具，所以不能每片填端子號，也不能改片數。換回 WAGO 端子台後，原本改的編號會變成每片的端子號，接好的線都會保留。</p><button class="tool" id="slotRevert">換回 ${esc(TPL[slotSource(d)].n)}</button></div>`:''}
+      ${hasSlots(t)?slotHtml(d)+(t.jumper?jumperHtml(d):''):slotSource(d)?`<div class="revert"><p class="note">這組端子台之前用「編輯器具」改過，變成了自訂器具，所以不能每片填端子號，也不能改片數。換回 WAGO 端子台後，原本改的編號會變成每片的端子號，接好的線都會保留。</p><button class="tool" id="slotRevert">換回 ${esc(TPL[slotSource(d)].n)}</button></div>`:''}
       <div class="fields"><label for="dX">X（距${d.sheet==='door'?doorShort():d.sheet==='field'?esc(devRef(d).name||'現場區'):'底板'}左緣）<input id="dX" type="number" step="1" value="${r1(d.x-devRef(d).x)}"></label><label for="dY">Y（距上緣）<input id="dY" type="number" step="1" value="${r1(d.y-devRef(d).y)}"></label></div>${moveHtml(false)}
       <div class="row"><button class="tool" id="rotDev">旋轉 90°</button><button class="tool" id="editTpl">編輯器具</button><button class="tool danger" id="delPicked">刪除器具${n?`與 ${n} 條線`:''}</button></div>`;
       $('dTag').onchange=e=>{
@@ -197,6 +197,15 @@ function slotHtml(d){
   let h='';for(let i=0;i<n;i++) h+=`<label><span>${i+1}</span><input data-slot="${i}" maxlength="10" value="${esc(L[i]||'')}" placeholder="${i+1}" aria-label="第 ${i+1} 片端子號"></label>`;
   return `<div><div class="sub-h">端子號（每片一格，空白就顯示原編號）</div><div class="slots">${h}</div>
     <div class="row" style="justify-content:flex-start;align-items:center;margin-top:6px"><button class="tool" id="slotSeq">依序編號</button><span class="note">從</span><input id="slotFrom" type="number" value="1" step="1" aria-label="起始號碼" style="width:64px;border:1px solid var(--line);background:var(--panel-2);border-radius:5px;padding:4px 6px;font-family:var(--mono);font-size:12.5px"><button class="tool" id="slotClr">清除端子號</button></div></div>`;
+}
+/* 短路片：選起始片與規格加入，列出已加的可刪除 */
+function jumperHtml(d){
+  const n=d.count||resolveTpl(d.tpl).cnt,J=(d.jumpers||[]).slice().sort((a,b)=>a.at-b.at);
+  const lb=i=>esc(termLabel(d,i+'A').replace(/A$/,'')||String(i));
+  const list=J.map((j,k)=>`<div class="jrow"><span>第 ${j.at}～${j.at+j.p-1} 片（${lb(j.at)}～${lb(j.at+j.p-1)}）　${j.p}P</span><button class="tool" data-jdel="${d.jumpers.indexOf(j)}">刪除</button></div>`).join('');
+  return `<div><div class="sub-h">短路片（接起來的幾片算同一個電位）</div>${list||'<p class="note">還沒有短路片。</p>'}
+    <div class="row" style="justify-content:flex-start;align-items:center;margin-top:6px"><span class="note">從第</span><input id="jAt" type="number" min="1" max="${n}" value="1" aria-label="起始片" style="width:56px;border:1px solid var(--line);background:var(--panel-2);border-radius:5px;padding:4px 6px;font-family:var(--mono);font-size:12.5px"><span class="note">片</span>
+    <select id="jP" aria-label="短路片規格">${[2,3,4,5].map(p=>`<option value="${p}">${p}P</option>`).join('')}</select><button class="tool" id="jAdd">加入</button></div></div>`;
 }
 function setSlots(d,L){
   while(L.length&&!L[L.length-1])L.pop();

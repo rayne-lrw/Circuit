@@ -57,6 +57,9 @@ function bomRows(){
     const inv=DUCTINV.find(x=>x[2]===e.wd&&x[3]===e.dp),stick=inv?Number((inv[1].match(/x(\d+)mm/)||[])[1])||0:0;
     out.push({sec:'線槽',name:inv?`${inv[0]}（${inv[1]}）`:`線槽 ${e.wd}×${e.dp}`,brand:'',qty:Math.round(e.len),unit:'mm',where:[...e.sh].join('、'),tags:e.ids.sort(natCmp).join(' '),note:stick?`約 ${Math.ceil(e.len/stick)} 支（每支 ${stick} mm）`:''});
   });
+  // 短路片：依規格統計
+  const jm=new Map();S.devices.forEach(d=>(d.jumpers||[]).forEach(j=>{if(!jm.has(j.p))jm.set(j.p,[]);jm.get(j.p).push(d.tag);}));
+  [...jm].sort((a,b)=>a[0]-b[0]).forEach(([p,tags])=>out.push({sec:C7,name:`2002-40${p} 短路片 ${p}P`,brand:'WAGO',qty:tags.length,unit:'個',where:'底板',tags:[...new Set(tags)].sort(natCmp).join(' '),note:'端子台跨接用'}));
   const gl=new Map();S.glands.forEach(g=>{if(!gl.has(g.spec))gl.set(g.spec,[]);gl.get(g.spec).push(g.id);});
   [...gl].sort((a,b)=>natCmp(a[0],b[0])).forEach(([spec,ids])=>out.push({sec:'出線口',name:spec,brand:'',qty:ids.length,unit:'個',where:'箱底',tags:ids.sort(natCmp).join(' '),note:''}));
   const loose=new Map();

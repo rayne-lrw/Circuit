@@ -117,16 +117,25 @@ const effDepth=d=>tplOf(d).d+Math.max(0,...riders(d).filter(r=>attachOf(r)==='fr
 const tagOf=id=>{const d=devOf(id);return d?d.tag:id;};
 const tagUsed=(v,except)=>S.devices.some(d=>d!==except&&(d.tag===v||d.id===v));
 /* 並線：接在同一個接點上的其他線；端子台同一片的上下各點算同一個接點 */
+/* 短路片：d.jumpers=[{at:起始片,p:片數}]，被接起來的幾片算同一個電位。回傳該片所屬的組（組內最小的片號） */
+function slotGroup(d,i){
+  const J=d&&d.jumpers;if(!J||!J.length) return i;
+  const P=new Map(),f=k=>{while(P.has(k)&&P.get(k)!==k)k=P.get(k);return k;};
+  J.forEach(j=>{for(let k=j.at;k<j.at+j.p;k++){const a=f(k),b=f(j.at);if(a!==b)P.set(Math.max(a,b),Math.min(a,b));else if(!P.has(k))P.set(k,k);}});
+  return f(i);
+}
 function sameNode(e){
   const d=devOf(e.d),m=d&&hasSlots(tplOf(d))&&SLOT_RE.exec(e.t);
-  return m?(x=>x.d===e.d&&(SLOT_RE.exec(x.t)||[])[1]===m[1]):(x=>x.d===e.d&&x.t===e.t);
+  if(!m) return x=>x.d===e.d&&x.t===e.t;
+  const g=slotGroup(d,+m[1]);
+  return x=>{if(x.d!==e.d)return false;const k=SLOT_RE.exec(x.t);return !!k&&slotGroup(d,+k[1])===g;};
 }
 function parallelOf(w){
   const fa=sameNode(w.a),fb=sameNode(w.b),others=S.wires.filter(x=>x!==w);
   return {a:others.filter(x=>fa(x.a)||fa(x.b)),b:others.filter(x=>fb(x.a)||fb(x.b))};
 }
 /* 電位：導線把兩端的接點連起來；端子台同一片的上下各點算同一點。回傳 線 id → 電位編號 */
-function nodeKey(e){const d=devOf(e.d),m=d&&hasSlots(tplOf(d))&&SLOT_RE.exec(e.t);return e.d+'|'+(m?'#'+m[1]:e.t);}
+function nodeKey(e){const d=devOf(e.d),m=d&&hasSlots(tplOf(d))&&SLOT_RE.exec(e.t);return e.d+'|'+(m?'#'+slotGroup(d,+m[1]):e.t);}
 function netsOf(){
   const P=new Map(),f=k=>{while(P.get(k)!==k){P.set(k,P.get(P.get(k)));k=P.get(k);}return k;};
   const add=k=>{if(!P.has(k))P.set(k,k);};
