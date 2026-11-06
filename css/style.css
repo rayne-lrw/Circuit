@@ -201,6 +201,8 @@ label.check{display:flex;gap:6px;align-items:center;font-size:13px}
 .pill-bg{fill:#b0005a}
 .pill-t{fill:#fff;font-family:var(--mono);font-size:13px;font-weight:600}
 .end-ring{fill:none;stroke:#b0005a;stroke-width:2.5}
+.boxsel{fill:var(--accent);fill-opacity:.08;stroke:var(--accent);stroke-width:1px;vector-effect:non-scaling-stroke;stroke-dasharray:4 3}
+.aligns .tool{padding:4px 8px;font-size:12.5px}
 .flash-r{fill:none;stroke:var(--accent);stroke-width:4px;vector-effect:non-scaling-stroke;pointer-events:none;animation:flash 1.3s ease-out forwards}
 @keyframes flash{0%,40%{opacity:1}100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){.flash-r{animation:none}}

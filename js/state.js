@@ -8,13 +8,13 @@ const hist={u:[],r:[]};
 function commit(){hist.u.push(snapshotPrev);if(hist.u.length>100)hist.u.shift();hist.r=[];snapshotPrev=JSON.stringify(S);save();syncUndo();}
 let snapshotPrev=JSON.stringify(S);
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
-function restore(j){S=JSON.parse(j);snapshotPrev=j;sel=null;picked=null;recompute();renderPalette();save();syncUndo();if(!view.manual)fit();}
+function restore(j){S=JSON.parse(j);snapshotPrev=j;sel=null;picked=null;multi=[];recompute();renderPalette();save();syncUndo();if(!view.manual)fit();}
 const $=id=>document.getElementById(id);
 function syncUndo(){const v=mode==='view';$('undo').disabled=v||!hist.u.length;$('redo').disabled=v||!hist.r.length;}
 
 let mode='wire', sel=null, picked=null, bundle=false, showNo=false, tab='all';
 let view={k:1,x:0,y:0,manual:false};
-let draft=null, railHit=null, bundleSel=null;   // {a:{d,t},wps:[],end?:{d,t},pop:false,ext:{}}
+let draft=null, railHit=null, bundleSel=null, multi=[];   // {a:{d,t},wps:[],end?:{d,t},pop:false,ext:{}}
 let snap=null, hoverW=null, cursor={x:0,y:0,sx:0,sy:0}, listHover=null;
 let last={gauge:1.25,color:'white',direct:false};
 const filt={color:null,gauge:null,dev:'',kind:null};

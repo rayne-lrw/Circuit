@@ -51,6 +51,11 @@ svg.addEventListener('pointerdown',e=>{
   if(mode==='wire'&&e.pointerType!=='mouse') hoverUpdate(e);
   if(mode==='place'&&e.button===0){
     const dg=e.target.closest('[data-dev]'),cg=e.target.closest('[data-duct]'),gg=e.target.closest('[data-gland]'),zg=!dg&&!cg&&!gg&&e.target.closest('.zone-h,.zoneg .field-t')&&e.target.closest('[data-zone]');
+    // 多選：Shift＋點加入或移出、Shift＋拖曳空白處框選；拖曳選取中的任一個一起移動
+    const hitK=gg?'gland':dg?'dev':cg?'duct':null,hitId=gg?gg.dataset.gland:dg?dg.dataset.dev:cg?cg.dataset.duct:null;
+    if(e.shiftKey){if(hitK){toggleSel({k:hitK,id:hitId});return;}if(!zg){startBox(e,p);return;}}
+    if(hitK&&multi.length>1&&inMulti(hitK,hitId)){startMultiDrag(e,p,e.ctrlKey||e.metaKey);return;}
+    if(multi.length){multi=[];}
     // Ctrl（Mac 用 Cmd）＋拖曳：原物件留在原地，拖著走的是複本
     if((e.ctrlKey||e.metaKey)&&(dg||cg||gg||zg)){
       const k=zg?'zone':gg?'gland':dg?'dev':'duct';
@@ -94,6 +99,8 @@ svg.addEventListener('pointermove',e=>{
   const dx=e.clientX-act.sx,dy=e.clientY-act.sy;
   if(!act.moved&&Math.hypot(dx,dy)<4) return;
   if(!act.moved){act.moved=true;try{svg.setPointerCapture(act.id);}catch(_){}$('tip').hidden=true;}
+  if(act.t==='box'){moveBox(toWorld(e));return;}
+  if(act.t==='multi'){moveMulti(toWorld(e));return;}
   if(act.t==='drag'){
     const p=toWorld(e),o=act.obj;
     o.x=Math.round((p.x-act.ox)/5)*5;o.y=Math.round((p.y-act.oy)/5)*5;
@@ -126,11 +133,13 @@ svg.addEventListener('pointerup',e=>{
   const a=act;act=null;
   if(!a) return;
   if(railHit){railHit=null;renderWires();}
+  if(a.t==='box'){endBox(a);return;}
+  if(a.t==='multi'){endMultiDrag(a);return;}
   if(a.copy&&!a.moved){dropClip(a.copy);picked=a.src;recompute();return;} // Ctrl＋點一下沒拖：不複製
   if(a.t==='wp'&&!a.moved&&noteTap(e)&&tryDouble(toWorld(e))) return;
   if(a.t==='drag'||a.t==='wp'||a.t==='gland'||a.t==='zone'){ if(a.moved){commit();} recompute(); return; }
   if(a.moved||a.btn!==0) return;
-  if(mode==='wire') clickWire(e,a); else if(mode==='view') viewClick(a); else {picked=null;sel=null;renderWires();renderDetail();updateHint();}
+  if(mode==='wire') clickWire(e,a); else if(mode==='view') viewClick(a); else {picked=null;multi=[];sel=null;renderWires();renderDetail();updateHint();}
 });
 svg.addEventListener('pointercancel',()=>{act=null;});
 svg.addEventListener('pointerenter',()=>{cursorIn=true;});
@@ -247,8 +256,9 @@ function pickedObj(){
   return picked.k==='dev'?devOf(picked.id):picked.k==='gland'?S.glands.find(g=>g.id===picked.id):S.ducts.find(d=>d.id===picked.id);
 }
 function moveBy(dir,keepFocus){
-  const o=pickedObj();if(!o) return false;
   const n=moveStep,dx=dir==='l'?-n:dir==='r'?n:0,dy=dir==='u'?-n:dir==='d'?n:0;
+  if(multi.length){shiftSel(dx,dy);if(keepFocus){const el=document.querySelector(`#detail [data-mv="${dir}"]`);if(el)el.focus();}return true;}
+  const o=pickedObj();if(!o) return false;
   if(picked.k==='zone'){S.devices.filter(d=>inZone(o,d)).forEach(d=>{d.x=r1(d.x+dx);d.y=r1(d.y+dy);});o.x=r1(o.x+dx);o.y=r1(o.y+dy);}
   else if(picked.k==='gland'){const P=glandPt(o),along=P.ny?dx:dy;if(!along) return false;glandTo(o,{x:P.x+(P.ny?dx:0),y:P.y+(P.nx?dy:0)});}
   else{const mt=picked.k==='dev'?carried(o):[];o.x=r1(o.x+dx);o.y=r1(o.y+dy);syncSheet(o);shiftAll(mt,dx,dy,o.sheet);}
@@ -330,6 +340,7 @@ function gapsOf(d){
   return `<dt>左間距</dt><dd>${f('l')}</dd><dt>右間距</dt><dd>${f('r')}</dd><dt>上間距</dt><dd>${f('u')}</dd><dt>下間距</dt><dd>${f('d')}</dd>`;
 }
 function rotatePicked(){
+  if(multi.length){rotateMulti();return true;}
   if(!picked||picked.k!=='dev') return false;
   const d=devOf(picked.id);if(!d) return false;
   const a=tplOf(d),cx=d.x+a.w/2,cy=d.y+a.h/2;
@@ -339,6 +350,7 @@ function rotatePicked(){
   commit();recompute();return true;
 }
 function deleteSel(){
+  if(multi.length){deleteMulti();return true;}
   if(sel){S.wires=S.wires.filter(w=>w.id!==sel);sel=null;commit();recompute();return true;}
   if(picked){
     if(picked.k==='dev'){riders(devOf(picked.id)).forEach(r=>delete r.on);S.devices=S.devices.filter(d=>d.id!==picked.id);S.wires=S.wires.filter(w=>w.a.d!==picked.id&&w.b.d!==picked.id);if(filt.dev===picked.id)filt.dev='';}
@@ -370,17 +382,20 @@ document.addEventListener('keydown',e=>{
   if(typing) return;
   if((e.ctrlKey||e.metaKey)&&!e.altKey&&!e.shiftKey){
     const k=e.key.toLowerCase();
+    if(k==='a'&&mode==='place'){e.preventDefault();selectAll();return;}
+    if(k==='c'&&mode==='place'&&multi.length){clip=makeClipMulti();e.preventDefault();toast(`已複製 ${multi.length} 個物件，按 Ctrl＋V 貼上`);return;}
+    if(k==='v'&&clip&&clip.k==='multi'&&!draft){e.preventDefault();pasteHereMulti();return;}
     if(k==='c'&&mode==='place'&&picked){const o=pickedObj();if(o){clip=makeClip(picked.k,o);e.preventDefault();toast(`已複製 ${clipName(clip)}，按 Ctrl＋V 貼上`);}return;}
     if(k==='v'&&clip&&!draft){e.preventDefault();pasteHere();return;}
   }
-  if(e.key==='Escape'){if(draft)cancelDraft();else{sel=null;picked=null;renderList();renderWires();renderDetail();updateHint();}return;}
+  if(e.key==='Escape'){if(draft)cancelDraft();else{sel=null;picked=null;multi=[];renderList();renderWires();renderDetail();updateHint();}return;}
   if(draft&&draft.pop&&e.key==='Enter'){e.preventDefault();finishWire();return;}
   if(draft&&!draft.pop&&e.key==='Backspace'){e.preventDefault();if(draft.wps.length){draft.wps.pop();renderOverlay();updateHint();}else cancelDraft();return;}
   if(draft) return;
   if(e.key==='Delete'||e.key==='Backspace'){if(deleteSel())e.preventDefault();return;}
   if((e.key==='r'||e.key==='R')&&rotatePicked()){e.preventDefault();return;}
   const arrow={ArrowLeft:'l',ArrowRight:'r',ArrowUp:'u',ArrowDown:'d'}[e.key];
-  if(arrow&&mode==='place'&&picked&&moveBy(arrow,false)){e.preventDefault();return;}
+  if(arrow&&mode==='place'&&(picked||multi.length)&&moveBy(arrow,false)){e.preventDefault();return;}
   if(e.key==='w'||e.key==='W')setMode('wire');
   if(e.key==='v'||e.key==='V')setMode('view');
   if(e.key==='m'||e.key==='M')setMode('place');
@@ -441,7 +456,7 @@ $('importF').onchange=e=>{
   };
   r.readAsText(f);
 };
-function resetUi(){draft=null;closePop();sel=null;picked=null;filt.color=null;filt.gauge=null;filt.dev='';filt.kind=null;}
+function resetUi(){draft=null;closePop();sel=null;picked=null;multi=[];filt.color=null;filt.gauge=null;filt.dev='';filt.kind=null;}
 // 箱體或底板改尺寸時，面板與現場區的原點會移動，裡面的東西要一起平移
 function withShift(fn){
   const d0=doorO(),f0=fieldO();fn();

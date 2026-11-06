@@ -111,6 +111,7 @@ function renderWires(){
   if(flashR) t+=`<rect class="flash-r" x="${flashR.x-4}" y="${flashR.y-4}" width="${flashR.w+8}" height="${flashR.h+8}" rx="4"/>`;
   const rh=railHit&&devOf(railHit);
   if(rh){const rt=tplOf(rh);t+=`<rect class="rail-hit" x="${rh.x-1}" y="${rh.y-1}" width="${rt.w+2}" height="${rt.h+2}" rx="2"/>`;}
+  multi.forEach(s=>{const b=selBox(s);if(b)t+=`<rect class="picked" x="${b.x-2}" y="${b.y-2}" width="${b.w+4}" height="${b.h+4}" rx="3"/>`;});
   if(picked){
     const b=pickedBox(); if(b) t+=`<rect class="picked" x="${b.x-2}" y="${b.y-2}" width="${b.w+4}" height="${b.h+4}" rx="3"/>`;
   }
@@ -181,6 +182,7 @@ function renderOverlay(){
     h+=`<g transform="translate(${snap.x} ${snap.y}) ${inv}"><line class="snap-teth" x1="0" y1="0" x2="${dx}" y2="${dy}"/><circle class="snap-ring" r="13"/><circle class="snap-dot" r="4.5"/>`+
        `<rect class="pill-bg" x="${flip?-18-tw:18}" y="-13" width="${tw}" height="26" rx="4"/><text class="pill-t" x="${flip?-10-tw:26}" y="5">${esc(t)}</text></g>`;
   }
+  if(boxSel){const x=Math.min(boxSel.x0,boxSel.x1),y=Math.min(boxSel.y0,boxSel.y1);h+=`<rect class="boxsel" x="${x}" y="${y}" width="${Math.abs(boxSel.x1-boxSel.x0)}" height="${Math.abs(boxSel.y1-boxSel.y0)}"/>`;}
   $('ov').innerHTML=h;
   $('ov').style.pointerEvents='none';
 }
