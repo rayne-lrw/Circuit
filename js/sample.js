@@ -55,6 +55,9 @@ function normalize(o){
   devices.forEach(r=>{if(r.on&&!devices.some(x=>x.id===r.on&&x!==r))delete r.on;});
   const ducts=o.ducts.filter(d=>d&&safe(d.id)).map(d=>({id:d.id,x:num(d.x,0),y:num(d.y,0),w:Math.max(10,num(d.w,40)),h:Math.max(10,num(d.h,40)),dp:Math.max(10,num(d.dp,40)),sheet:d.sheet==='door'?'door':'plate'}));
   const termsOf=dv=>{const b=tpls[dv.tpl]||TPL[dv.tpl];if(b.gen)return b.gen(dv.count).t.map(x=>x[0]);return (b.terms||b.t).map(x=>x.id||x[0]);};
+  // 範本接點改名：舊檔接在舊名稱的線改接到新名稱（PNOZ X2.8P 的 S33 實際是 S52）
+  const RENAME={pnoz:{S33:'S52'}};
+  o.wires.forEach(w=>{[w&&w.a,w&&w.b].forEach(e=>{const d=e&&devices.find(x=>x.id===e.d),m=d&&RENAME[d.tpl];if(m&&m[e.t])e.t=m[e.t];});});
   const has=e=>{const d=e&&devices.find(x=>x.id===e.d);return d&&termsOf(d).includes(e.t);};
   const wires=o.wires.filter(w=>w&&safe(w.id)&&typeof w.no==='string'&&w.no.trim()&&has(w.a)&&has(w.b)).map(w=>{
     const r={id:w.id,no:txt(w.no,16).trim(),a:{d:w.a.d,t:w.a.t},b:{d:w.b.d,t:w.b.t},gauge:num(w.gauge,1.25),color:safe(w.color)?w.color:'black',
