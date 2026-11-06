@@ -107,7 +107,10 @@ function routeLeg(A,B,J,noDuct){
   if(!best) return {direct:true,pts:directPts(A,B),warn:A.sheet==='plate'?'無線槽可走':null}; // 面板與現場本來就不一定有線槽
   return {ducts:best.ducts,warn:best.blocked?'穿過其他器具':null};
 }
-function realize(wid,anchors,legs,lane){
+function realize(wid,anchors,legs,lane0){
+  // 中繼點點在線槽裡：這段線槽改走中繼點的位置，不用自動分配的線道
+  const ovr=new Map();anchors.forEach(a=>{if(a.wp&&a.inDuct&&!ovr.has(a.inDuct))ovr.set(a.inDuct,axis(a.inDuct)==='h'?a.y:a.x);});
+  const lane=(id,d)=>ovr.has(d)?ovr.get(d):lane0(id,d);
   const pts=[{x:anchors[0].x,y:anchors[0].y}],runs=[];
   let cur=pts[0],last=null,open=null;
   legs.forEach((leg,i)=>{
@@ -122,6 +125,8 @@ function realize(wid,anchors,legs,lane){
     }
     const p=axis(last)==='h'?{x:to.x,y:cur.y}:{x:cur.x,y:to.y};
     pts.push(p);cur=p;
+    // 同一段線槽裡的下一個中繼點不在同一條線上：橫移過去，之後沿新的位置走
+    if(to.wp&&to.inDuct&&(Math.abs(p.x-to.x)>.01||Math.abs(p.y-to.y)>.01)){pts.push({x:to.x,y:to.y});cur={x:to.x,y:to.y};}
     if(!to.inDuct){open.i1=pts.length-1;runs.push(open);open=null;pts.push({x:to.x,y:to.y});cur=to;last=null;}
   });
   return {pts,runs};
@@ -142,7 +147,7 @@ function endpoint(e,off){
   const v=t.side==='top'||t.side==='bottom';
   return {x:d.x+t.x+(v?off:0),y:d.y+t.y+(v?0:off),side:t.side,dev:d.id,sheet:d.sheet};
 }
-function wpAnchor(p){const s=sheetAt(p);return {x:p.x,y:p.y,sheet:s,inDuct:locate(p,s)};}
+function wpAnchor(p){const s=sheetAt(p);return {x:p.x,y:p.y,sheet:s,inDuct:locate(p,s),wp:true};}
 function gates(from,to,ctr,fieldP,glandId){
   if(from==='field'||to==='field'){
     // 沒指定就選離現場設備最近的出線口
