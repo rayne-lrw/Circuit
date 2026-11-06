@@ -25,9 +25,11 @@ function exits(P){
   const out=[];
   for(const dir of ['top','bottom','left','right']){
     const vert=dir==='top'||dir==='bottom';
-    let best=null,bd=1e9;
+    let best=null,bd=1e9,ba=0;
     for(const d of S.ducts){
-      if(d.sheet!==P.sheet||axis(d)!==(vert?'h':'v')) continue;
+      if(d.sheet!==P.sheet) continue;
+      // 往上下找：橫向線槽從側面進；直向線槽從端頭進。往左右同理。
+      const across=axis(d)===(vert?'h':'v');
       let dist;
       if(vert){
         if(P.x<d.x||P.x>d.x+d.w) continue;
@@ -36,14 +38,16 @@ function exits(P){
         if(P.y<d.y||P.y>d.y+d.h) continue;
         dist=dir==='left'?P.x-(d.x+d.w):d.x-P.x;
       }
-      if(dist>=-0.01&&dist<bd){bd=dist;best=d;}
+      if(dist<-0.01||dist>=bd) continue;
+      bd=dist;best=d;
+      ba=across?(vert?P.x:P.y):(vert?(dir==='top'?d.y+d.h:d.y):(dir==='left'?d.x+d.w:d.x));
     }
     if(!best) continue;
     const ex=vert?P.x:(dir==='left'?P.x-bd:P.x+bd), ey=vert?(dir==='top'?P.y-bd:P.y+bd):P.y;
     const blocked=!!segHits(P.x,P.y,ex,ey,P.dev?famIds(P.dev):null); // 接觸器與正面附件互相不算阻擋
     let cost=bd+(blocked?3000:0);
     if(P.side&&dir!==P.side) cost+=500; // 不從接點正常出線方向走，等於線要壓過自身器具
-    out.push({duct:best,along:vert?P.x:P.y,cost,blocked});
+    out.push({duct:best,along:ba,cost,blocked});
   }
   return out;
 }
@@ -119,11 +123,20 @@ function realize(wid,anchors,legs,lane0){
     if(leg.direct){ leg.pts.slice(1).forEach(p=>pts.push({x:p.x,y:p.y})); cur=to; last=null; return; }
     for(const d of leg.ducts){
       if(d===last) continue;
-      const c=lane(wid,d), p=axis(d)==='h'?{x:cur.x,y:c}:{x:c,y:cur.y};
+      const c=lane(wid,d);
+      // 從線槽端頭進去時，先沿原方向走到端頭，進了線槽再對齊線道，不在器具旁邊橫移
+      if(!last){
+        if(axis(d)==='h'&&(cur.x<d.x||cur.x>d.x+d.w)){const q={x:cur.x<d.x?d.x+2:d.x+d.w-2,y:cur.y};pts.push(q);cur=q;}
+        else if(axis(d)==='v'&&(cur.y<d.y||cur.y>d.y+d.h)){const q={x:cur.x,y:cur.y<d.y?d.y+2:d.y+d.h-2};pts.push(q);cur=q;}
+      }
+      const p=axis(d)==='h'?{x:cur.x,y:c}:{x:c,y:cur.y};
       pts.push(p);cur=p;
       if(open){open.i1=pts.length-1;runs.push(open);}
       open={d,i0:pts.length-1};last=d;
     }
+    // 從線槽端頭出來接到旁邊的接點：先在線槽裡對齊接點，再沿原方向出去
+    if(!to.inDuct&&axis(last)==='h'&&(to.x<last.x||to.x>last.x+last.w)){const ex=to.x<last.x?last.x+2:last.x+last.w-2;pts.push({x:ex,y:cur.y});pts.push({x:ex,y:to.y});cur={x:ex,y:to.y};}
+    else if(!to.inDuct&&axis(last)==='v'&&(to.y<last.y||to.y>last.y+last.h)){const ey=to.y<last.y?last.y+2:last.y+last.h-2;pts.push({x:cur.x,y:ey});pts.push({x:to.x,y:ey});cur={x:to.x,y:ey};}
     const p=axis(last)==='h'?{x:to.x,y:cur.y}:{x:cur.x,y:to.y};
     pts.push(p);cur=p;
     // 同一段線槽裡的下一個中繼點不在同一條線上：橫移過去，之後沿新的位置走
