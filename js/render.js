@@ -136,9 +136,13 @@ function applyWireClasses(){
   if(bundle&&sel!==bundleSel){computeRoutes();renderWires();return;}
   const focus=listHover||hoverW||sel;
   const g=$('wires');g.classList.toggle('focus',!!focus);
+  // 點選或在清單上停留時，兩端接點上的並線一起淡淡亮起
+  const fw=(listHover||sel)&&S.wires.find(x=>x.id===(listHover||sel)),rel=new Set();
+  if(fw){const pr=parallelOf(fw);[...pr.a,...pr.b].forEach(x=>rel.add(x.id));}
   g.querySelectorAll('.wire').forEach(el=>{
     const id=el.dataset.wid,w=S.wires.find(x=>x.id===id);
     el.classList.toggle('on',id===focus);
+    el.classList.toggle('rel',rel.has(id)&&id!==focus);
     el.classList.toggle('off',w?!passes(w):false);
   });
   const f=focus&&g.querySelector(`.wire[data-wid="${focus}"]`);

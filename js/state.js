@@ -116,6 +116,18 @@ const effDepth=d=>tplOf(d).d+Math.max(0,...riders(d).filter(r=>attachOf(r)==='fr
 /* 器具編號：d.tag 是顯示用、可以改；d.id 是內部識別，導線用它接，改編號不影響接線 */
 const tagOf=id=>{const d=devOf(id);return d?d.tag:id;};
 const tagUsed=(v,except)=>S.devices.some(d=>d!==except&&(d.tag===v||d.id===v));
+/* 並線：接在同一個接點上的其他線；端子台同一片的上下各點算同一個接點 */
+function sameNode(e){
+  const d=devOf(e.d),m=d&&hasSlots(tplOf(d))&&SLOT_RE.exec(e.t);
+  return m?(x=>x.d===e.d&&(SLOT_RE.exec(x.t)||[])[1]===m[1]):(x=>x.d===e.d&&x.t===e.t);
+}
+function parallelOf(w){
+  const fa=sameNode(w.a),fb=sameNode(w.b),others=S.wires.filter(x=>x!==w);
+  return {a:others.filter(x=>fa(x.a)||fa(x.b)),b:others.filter(x=>fb(x.a)||fb(x.b))};
+}
+// 線號：不可重複；新線取下一個沒人用的號碼
+const noUsed=(v,except)=>S.wires.some(w=>w!==except&&w.no===v);
+function nextWireNo(){let n=S.nextNo||1;while(noUsed('W'+String(n).padStart(3,'0')))n++;return n;}
 const epText=e=>`${tagOf(e.d)}·${termLabel(devOf(e.d),e.t)}`;
 const KINDS={in:'箱內',door:'過門',ext:'外線'};
 

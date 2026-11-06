@@ -539,6 +539,7 @@ $('detail').addEventListener('change',e=>{
 $('detail').addEventListener('input',e=>{if(e.target.id==='mvD'){const v=Number(e.target.value);if(v>0)moveStep=v;}});
 $('detail').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.pw){sel=b.dataset.pw;renderList();renderDetail();applyWireClasses();return;} // 點並線跳過去
   if(b.id==='delWire'||b.id==='delPicked'){deleteSel();return;}
   if(b.dataset.mv){moveBy(b.dataset.mv,true);return;}
   if(b.id==='rotDev'){rotatePicked();return;}

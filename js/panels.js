@@ -77,8 +77,9 @@ function renderDetail(){
     if(!w||!r){sel=null;box.hidden=true;return;}
     const c=colorOf(w),kind=wireKind(w);
     box.hidden=false;
-    box.innerHTML=`<div class="big"><span class="sw" style="background:${swatch(c)}"></span> ${w.no}　${esc(c.n)}　${w.gauge} mm²　${KINDS[kind]}</div>
-    <dl><dt>起點</dt><dd>${esc(epText(w.a))}</dd><dt>終點</dt><dd>${esc(epText(w.b))}</dd><dt>路徑</dt><dd>${w.direct?'不進線槽，直接拉線':r.via.length?esc(r.via.join(' → ')):'直接跨接'}${r.gland?' → '+esc(r.gland):''}</dd><dt>中繼點</dt><dd>${w.wps.length} 個</dd><dt>圖面線長</dt><dd>${(r.len/1000).toFixed(2)} m</dd></dl>
+    const pr=parallelOf(w),pl=a=>a.length?a.map(x=>`<button class="lnk" data-pw="${x.id}">${esc(x.no)}</button>`).join(' '):'無';
+    box.innerHTML=`<div class="fields"><label for="wNo">線號<input id="wNo" maxlength="16" value="${esc(w.no)}" style="font-size:15px;font-weight:600"></label></div><div class="big"><span class="sw" style="background:${swatch(c)}"></span> ${esc(c.n)}　${w.gauge} mm²　${KINDS[kind]}</div>
+    <dl><dt>起點</dt><dd>${esc(epText(w.a))}</dd><dt>終點</dt><dd>${esc(epText(w.b))}</dd><dt>路徑</dt><dd>${w.direct?'不進線槽，直接拉線':r.via.length?esc(r.via.join(' → ')):'直接跨接'}${r.gland?' → '+esc(r.gland):''}</dd><dt>中繼點</dt><dd>${w.wps.length} 個</dd><dt>起點並線</dt><dd>${pl(pr.a)}</dd><dt>終點並線</dt><dd>${pl(pr.b)}</dd><dt>圖面線長</dt><dd>${(r.len/1000).toFixed(2)} m</dd></dl>
     ${r.warn?`<span class="flag">${esc(r.warn)}：請加中繼點或調整線槽</span>`:''}
     ${kind==='ext'?`<div class="fields"><label for="xCable">電纜編號<input id="xCable" maxlength="12" value="${esc((w.ext&&w.ext.cable)||'')}"></label><label for="xCore">芯線<input id="xCore" maxlength="10" value="${esc((w.ext&&w.ext.core)||'')}"></label>
       <label for="xSpec" style="grid-column:1/-1">電纜規格<select id="xSpec">${cableOptions(w.ext&&w.ext.spec)}</select></label>
@@ -88,6 +89,7 @@ function renderDetail(){
     <div><div class="sub-h">顏色</div>${colorChips(w.color,'dn',w)}</div>
     <p class="note">${esc(stockMsg(w.gauge,w.color))}</p>
     <div class="row">${w.wps.length?'<button class="tool" id="clearWp">清除中繼點</button>':''}<button class="tool danger" id="delWire">刪除這條線</button></div>`;
+    $('wNo').onchange=e=>{const v=e.target.value.trim();if(!v||v===w.no){e.target.value=w.no;return;}if(noUsed(v,w)){toast(`線號 ${v} 已經有線在用`);e.target.value=w.no;return;}w.no=v;commit();recompute();};
     $('wDirect').onchange=e=>{if(e.target.checked)w.direct=true;else delete w.direct;commit();recompute();};
     if(kind==='ext'){
       const upd=(fn)=>e=>{w.ext=w.ext||{cable:'',core:'',spec:''};fn(e.target.value);commit();recompute();};

@@ -24,18 +24,22 @@ function fillPop(){
   const ex=draftIsExt();
   $('pop').innerHTML=`<div class="ends">${esc(epText(draft.a))} → ${esc(epText(draft.end))}${draft.wps.length?`（${draft.wps.length} 中繼點）`:''}${ex?'　外線':''}</div>
   ${ex?`<div class="fields"><label for="pCable">電纜編號<input id="pCable" maxlength="12" value="${esc(draft.ext.cable)}"></label><label for="pCore">芯線<input id="pCore" maxlength="10" value="${esc(draft.ext.core)}"></label><label for="pSpec" style="grid-column:1/-1">電纜規格<select id="pSpec">${cableOptions(draft.ext.spec)}</select></label></div>`:''}
+  <div class="fields"><label for="pNo">線號<input id="pNo" maxlength="16" value="${esc(draft.no||'W'+String(nextWireNo()).padStart(3,'0'))}"></label></div>
   <div><h3>線徑 mm²</h3>${gaugeChips(last.gauge,'pg','pn')}</div>
   <div><h3>顏色</h3>${colorChips(last.color,'pn')}</div>
   <p class="note">${esc(stockMsg(last.gauge,last.color))}。臨時顏色重新整理後會從選單移除，已接的線顏色不變。</p>
   <label class="check"><input type="checkbox" id="pDirect"${last.direct?' checked':''}>不進線槽（直接拉線，例如動力線）</label>
   <div class="row"><button class="tool" id="popNo">取消</button><button class="primary" id="popOk">建立</button></div>`;
+  $('pNo').oninput=e=>{draft.no=e.target.value;};
   $('pDirect').onchange=e=>{last.direct=e.target.checked;renderOverlay();};
   if(ex){$('pCable').oninput=e=>draft.ext.cable=e.target.value;$('pCore').oninput=e=>draft.ext.core=e.target.value;$('pSpec').onchange=e=>draft.ext.spec=e.target.value;}
 }
 function closePop(){$('pop').hidden=true;}
 function finishWire(){
-  const n=S.nextNo++;
-  const w={id:'w'+n+'_'+Date.now().toString(36),no:'W'+String(n).padStart(3,'0'),a:draft.a,b:draft.end,wps:draft.wps,gauge:last.gauge,color:last.color};
+  const n=nextWireNo(),no=(draft.no||'').trim()||'W'+String(n).padStart(3,'0');
+  if(noUsed(no)){toast(`線號 ${no} 已經有線在用`);$('pNo').focus();return;}
+  if(no==='W'+String(n).padStart(3,'0'))S.nextNo=n+1;
+  const w={id:'w'+n+'_'+Date.now().toString(36),no,a:draft.a,b:draft.end,wps:draft.wps,gauge:last.gauge,color:last.color};
   applyColor(w,last.color);
   if(last.direct) w.direct=true;
   if(draftIsExt()) w.ext={cable:draft.ext.cable,core:draft.ext.core,spec:draft.ext.spec};

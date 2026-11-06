@@ -116,6 +116,7 @@ select.flash{outline:2px solid var(--accent);outline-offset:1px}
 .revert{display:flex;flex-direction:column;gap:6px;align-items:flex-start;background:var(--warn-bg);border-radius:6px;padding:8px}
 #edSlotNote{background:var(--warn-bg);color:var(--fg);border-radius:6px;padding:8px 10px}
 #edSlotNote b{color:var(--warn)}
+.lnk{border:0;background:none;padding:0 2px;color:var(--accent);font-family:var(--mono);font-size:12.5px;text-decoration:underline;cursor:pointer}
 label.check{display:flex;gap:6px;align-items:center;font-size:13px}
 .slots{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
 .slots label{display:flex;align-items:center;gap:3px;font-family:var(--mono);font-size:10.5px;color:var(--muted)}
@@ -183,6 +184,7 @@ label.check{display:flex;gap:6px;align-items:center;font-size:13px}
 .z2 .wn,.labels-on .wn{display:block}
 .ct{font-family:var(--mono);font-size:6px;font-weight:600;fill:#14181a;paint-order:stroke;stroke:#fff;stroke-width:1.6px;pointer-events:none}
 #wires.focus .wire:not(.on){opacity:.13}
+#wires.focus .wire.rel:not(.on){opacity:.5}
 .wire.off{opacity:.05;pointer-events:none}
 #wires.focus .wire.off:not(.on){opacity:.03}
 .wire.on .wn{display:block}
