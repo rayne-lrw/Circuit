@@ -174,8 +174,11 @@ function slotGroup(d,i){
 // 全部接點同電位的器具（接地銅板、共點排）：器具範本預設，也可以在器具資料逐台開關
 const BUS_RE=/接地銅|銅排|共點排|接地排/;
 function busOf(d){if(!d)return false;if(d.bus!=null)return d.bus;const t=tplOf(d);return !!(t.bus||BUS_RE.test(t.n||''));}
+// 器具內部本來就相通的接點（例如 NHT 端子台同一極的 L1、T1）
+function linkOf(d,t){const L=d&&tplOf(d).links;if(!L)return -1;return L.findIndex(g=>g.includes(t));}
 function sameNode(e){
   const d=devOf(e.d);if(busOf(d)) return x=>x.d===e.d;
+  const li=linkOf(d,e.t);if(li>=0) return x=>x.d===e.d&&linkOf(d,x.t)===li;
   const m=d&&hasSlots(tplOf(d))&&SLOT_RE.exec(e.t);
   if(!m) return x=>x.d===e.d&&x.t===e.t;
   const g=slotGroup(d,+m[1]);
@@ -186,7 +189,7 @@ function parallelOf(w){
   return {a:others.filter(x=>fa(x.a)||fa(x.b)),b:others.filter(x=>fb(x.a)||fb(x.b))};
 }
 /* 電位：導線把兩端的接點連起來；端子台同一片的上下各點算同一點。回傳 線 id → 電位編號 */
-function nodeKey(e){const d=devOf(e.d);if(busOf(d))return e.d+'|*';const m=d&&hasSlots(tplOf(d))&&SLOT_RE.exec(e.t);return e.d+'|'+(m?'#'+slotGroup(d,+m[1]):e.t);}
+function nodeKey(e){const d=devOf(e.d);if(busOf(d))return e.d+'|*';const li=linkOf(d,e.t);if(li>=0)return e.d+'|~'+li;const m=d&&hasSlots(tplOf(d))&&SLOT_RE.exec(e.t);return e.d+'|'+(m?'#'+slotGroup(d,+m[1]):e.t);}
 function netsOf(){
   const P=new Map(),f=k=>{while(P.get(k)!==k){P.set(k,P.get(P.get(k)));k=P.get(k);}return k;};
   const add=k=>{if(!P.has(k))P.set(k,k);};
