@@ -8,7 +8,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23334'/%3E%3Cpath d='M3 4h5v8h5' fill='none' stroke='%23fc3' stroke-width='2'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/style.css?v=1793945623">
+<link rel="stylesheet" href="css/style.css?v=1793945849">
 </head>
 <body>
 <div id="app">
@@ -65,7 +65,7 @@
           <p class="note" id="setSum"></p>
         </div>
         <div>
-          <h2 class="h2ver"><span>器具庫 <button class="hq" data-help="lib" aria-expanded="false" aria-label="說明">?</button></span><span id="ver" title="目前版本；更新後這個號碼會改變">v1793945623</span></h2>
+          <h2 class="h2ver"><span>器具庫 <button class="hq" data-help="lib" aria-expanded="false" aria-label="說明">?</button></span><span id="ver" title="目前版本；更新後這個號碼會改變">v1793945849</span></h2>
           <p class="note hn" data-helpfor="lib" hidden>滑鼠停在器具上可看尺寸來源。接點只對到實物的區塊與順序，選取器具後可按「編輯器具」修正。</p>
           <input id="libQ" type="search" placeholder="搜尋型號、品名、廠牌" aria-label="搜尋器具">
           <div class="row" style="margin-top:6px;justify-content:flex-start"><button class="tool" id="newTpl">新增自訂器具</button></div>
@@ -79,9 +79,10 @@
           <g id="board"></g>
           <g id="wires"></g>
           <g id="top"></g>
-          <g id="ov"></g>
         </g>
       </svg>
+      <!-- 提示圖層（滑鼠經過的高亮、接點標籤、拖曳預覽）另外一張 SVG：變動時不會讓底下的大圖重新點陣化 -->
+      <svg id="svgov" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><g id="world2"><g id="ov"></g></g></svg>
       <div id="help"><div id="helpP" hidden role="status"><p id="hintT"></p><div class="row" style="justify-content:space-between;align-items:center"><button class="lnk" id="helpReset">重設提示紀錄</button><button class="tool" id="helpClose">收合</button></div></div><button class="tool" id="helpB" aria-expanded="false" aria-controls="helpP">? 說明</button></div>
       <div id="viewTag" hidden>檢視中，不能修改</div>
       <div id="tip" hidden></div>
@@ -173,20 +174,20 @@
   </div>
 </div>
 
-<script src="js/inventory.js?v=1793945623"></script>
-<script src="js/devices.js?v=1793945623"></script>
-<script src="js/cable.js?v=1793945623"></script>
-<script src="js/sample.js?v=1793945623"></script>
-<script src="js/state.js?v=1793945623"></script>
-<script src="js/routing.js?v=1793945623"></script>
-<script src="js/render.js?v=1793945623"></script>
-<script src="js/panels.js?v=1793945623"></script>
-<script src="js/popup.js?v=1793945623"></script>
-<script src="js/report.js?v=1793945623"></script>
-<script src="js/interact.js?v=1793945623"></script>
-<script src="js/cables-ui.js?v=1793945623"></script>
-<script src="js/multi.js?v=1793945623"></script>
-<script src="js/editor.js?v=1793945623"></script>
-<script src="js/main.js?v=1793945623"></script>
+<script src="js/inventory.js?v=1793945849"></script>
+<script src="js/devices.js?v=1793945849"></script>
+<script src="js/cable.js?v=1793945849"></script>
+<script src="js/sample.js?v=1793945849"></script>
+<script src="js/state.js?v=1793945849"></script>
+<script src="js/routing.js?v=1793945849"></script>
+<script src="js/render.js?v=1793945849"></script>
+<script src="js/panels.js?v=1793945849"></script>
+<script src="js/popup.js?v=1793945849"></script>
+<script src="js/report.js?v=1793945849"></script>
+<script src="js/interact.js?v=1793945849"></script>
+<script src="js/cables-ui.js?v=1793945849"></script>
+<script src="js/multi.js?v=1793945849"></script>
+<script src="js/editor.js?v=1793945849"></script>
+<script src="js/main.js?v=1793945849"></script>
 </body>
 </html>

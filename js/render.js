@@ -270,6 +270,7 @@ function renderOverlay(){
 const countAt=(d,t)=>S.wires.filter(w=>(w.a.d===d&&w.a.t===t)||(w.b.d===d&&w.b.t===t)).length;
 function applyView(){
   $('world').setAttribute('transform',`translate(${view.x} ${view.y}) scale(${view.k})`);
+  $('world2').setAttribute('transform',`translate(${view.x} ${view.y}) scale(${view.k})`);
   $('svg').classList.toggle('z2',view.k>=2.2);
   $('svg').classList.toggle('labels-on',showNo);
   $('svg').classList.toggle('place',mode==='place');
