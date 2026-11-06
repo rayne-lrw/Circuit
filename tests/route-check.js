@@ -92,7 +92,7 @@ function checkInPage(expectClean,expectVia,expectCable,expectBack){
     const p=r.pts,msgs=[];
     const want=expectClean==='all'||expectClean.includes(w.no);
     const cx=crosses(w,p);
-    if(!r.warn&&cx.length) msgs.push('沒有警告卻穿過 '+cx.join('、'));
+    if(!r.warn&&cx.length&&!plugWire(w)) msgs.push('沒有警告卻穿過 '+cx.join('、'));
     if(want&&r.warn) msgs.push('預期沒有警告，實際：'+r.warn);
     const manual=(w.wps||[]).length>0;
     const local=famIds(w.a.d).includes(w.b.d); // 主體與自己的附件之間：直接在器具前面連，不檢查出線方向

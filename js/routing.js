@@ -319,6 +319,8 @@ function backtrack(p){
     if(col&&((b.x-a.x)*(c.x-b.x)+(b.y-a.y)*(c.y-b.y))<-.01) return true;}
   return false;
 }
+// 接到插座「插頭」點的線：外部插頭的電線，實際隨使用者拉，不檢查穿過器具
+const plugWire=w=>[w.a,w.b].some(e=>e.t==='插頭');
 const key=(e)=>e.d+'|'+e.t;
 function computeRoutes(){
   ROUTES.clear();DUCTUSE.clear();ROUTES_MANUAL.clear();CABROUTES.clear();fixBatteries();syncCables();bundleSel=sel;
@@ -438,6 +440,7 @@ function computeRoutes(){
     if(it.manual)(manualVia.get(it.id)||[]).forEach(id=>{if(!via.includes(id))via.push(id);});
     let warn=(it.legs.find(l=>l.warn)||{}).warn||null;
     if(it.manual&&warn==='直接拉線穿過其他器具')warn='手動路徑穿過其他器具';
+    if(it.w&&warn&&warn.includes('穿過')&&plugWire(it.w))warn=null; // 插頭線本來就隨使用者拉，不警告穿過器具
     const g=it.anchors.find(a=>a.gland);
     FIN.set(it.id,{pts,len,via,warn,gland:g?g.gland:null});
     if(it.w){ROUTES_MANUAL.add(it.manual?it.w.id:null);ROUTES.set(it.w.id,FIN.get(it.id));}
