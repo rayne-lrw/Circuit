@@ -63,7 +63,9 @@ function renderBoard(){
     }
     // 短路片：以每片上下接點的中點連成一條，旋轉後也對得上
     (d.jumpers||[]).forEach(j=>{
-      const mid=i=>{const a=t.terms.find(q=>q.id===i+'A'),c=t.terms.find(q=>q.id===i+'C');return a&&c?{x:d.x+(a.x+c.x)/2,y:d.y+(a.y+c.y)/2}:null;};
+      // 上排、下排插槽：從中點沿上下接點的方向各偏 8%（2202-1401 約 4 mm）
+      const off=j.row===2?.08:-.08;
+      const mid=i=>{const a=t.terms.find(q=>q.id===i+'A'),c=t.terms.find(q=>q.id===i+'C');return a&&c?{x:d.x+(a.x+c.x)/2+(c.x-a.x)*off,y:d.y+(a.y+c.y)/2+(c.y-a.y)*off}:null;};
       const p0=mid(j.at),p1=mid(Math.min(j.at+j.p-1,d.count||t.cnt||0));if(!p0||!p1)return;
       const jh=`<g class="jumper"><line x1="${p0.x}" y1="${p0.y}" x2="${p1.x}" y2="${p1.y}"/><text x="${(p0.x+p1.x)/2}" y="${(p0.y+p1.y)/2+1.2}" text-anchor="middle">${j.p}P</text></g>`;
       h=h.slice(0,bodyEnd)+jh+h.slice(bodyEnd);

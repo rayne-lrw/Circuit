@@ -200,12 +200,12 @@ function slotHtml(d){
 }
 /* 短路片：選起始片與規格加入，列出已加的可刪除 */
 function jumperHtml(d){
-  const n=d.count||resolveTpl(d.tpl).cnt,J=(d.jumpers||[]).slice().sort((a,b)=>a.at-b.at);
+  const n=d.count||resolveTpl(d.tpl).cnt,J=(d.jumpers||[]).slice().sort((a,b)=>(a.row||1)-(b.row||1)||a.at-b.at);
   const lb=i=>esc(termLabel(d,i+'A').replace(/A$/,'')||String(i));
-  const list=J.map((j,k)=>`<div class="jrow"><span>第 ${j.at}～${j.at+j.p-1} 片（${lb(j.at)}～${lb(j.at+j.p-1)}）　${j.p}P</span><button class="tool" data-jdel="${d.jumpers.indexOf(j)}">刪除</button></div>`).join('');
-  return `<div><div class="sub-h">短路片（接起來的幾片算同一個電位）</div>${list||'<p class="note">還沒有短路片。</p>'}
+  const list=J.map((j,k)=>`<div class="jrow"><span>${j.row===2?'下排':'上排'}　第 ${j.at}～${j.at+j.p-1} 片（${lb(j.at)}～${lb(j.at+j.p-1)}）　${j.p}P</span><button class="tool" data-jdel="${d.jumpers.indexOf(j)}">刪除</button></div>`).join('');
+  return `<div><div class="sub-h">短路片（每片有上下兩排插槽；接起來的幾片算同一個電位）</div>${list||'<p class="note">還沒有短路片。</p>'}
     <div class="row" style="justify-content:flex-start;align-items:center;margin-top:6px"><span class="note">從第</span><input id="jAt" type="number" min="1" max="${n}" value="1" aria-label="起始片" style="width:56px;border:1px solid var(--line);background:var(--panel-2);border-radius:5px;padding:4px 6px;font-family:var(--mono);font-size:12.5px"><span class="note">片</span>
-    <select id="jP" aria-label="短路片規格">${[2,3,4,5].map(p=>`<option value="${p}">${p}P</option>`).join('')}</select><button class="tool" id="jAdd">加入</button></div></div>`;
+    <select id="jRow" aria-label="插槽"><option value="1">上排</option><option value="2">下排</option></select><select id="jP" aria-label="短路片規格">${[2,3,4,5].map(p=>`<option value="${p}">${p}P</option>`).join('')}</select><button class="tool" id="jAdd">加入</button></div></div>`;
 }
 function setSlots(d,L){
   while(L.length&&!L[L.length-1])L.pop();
