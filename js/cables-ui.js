@@ -8,7 +8,7 @@ function selectCable(id){selCab=id;sel=null;picked=null;multi=[];coreEdit=null;}
 function renderCables(){
   const cs=[...S.cables].sort((a,b)=>natCmp(a.no,b.no)),loose=S.wires.filter(w=>wireKind(w)==='ext'&&!isCable(w));
   $('listH').textContent=`電纜　${cs.length} 條`;
-  let h=`<div class="hrow" style="margin-bottom:6px"><button class="tool" id="cabNew"${mode==='view'?' disabled':''}>${cabForm?'取消新增':'新增電纜'}</button>${hq('cab')}</div>${hn('cab','箱內的隔離線和接到現場的外部電纜都在這裡。點電纜可以看芯線表：每一芯可以用下拉選單選兩端接點，也可以按「接下一芯」直接在圖上點。剝線點（白色小方塊）預設自動放在最近的線槽裡，拖曳可以移到別處，移過的會變黃色。')}`;
+  let h=`<div class="hrow" style="margin-bottom:6px"><button class="tool" id="cabNew"${mode==='view'?' disabled':''}>${cabForm?'取消新增':'新增電纜'}</button>${hq('cab')}</div>${hn('cab','箱內的隔離線和接到現場的外部電纜都在這裡。點電纜可以看芯線表：每一芯可以用下拉選單選兩端接點，也可以按「接下一芯」直接在圖上點。剝線點（白色小方塊）預設自動放在最近的線槽裡，拖曳可以移到別處（線槽裡任何位置都可以，包含靠線槽邊），移過的會變黃色。')}`;
   if(cabForm) h+=`<div class="fields cabform"><label for="nfNo">電纜編號<input id="nfNo" maxlength="12" value="${esc(nextCableNo())}"></label><label for="nfSpec" style="grid-column:1/-1">規格<select id="nfSpec">${specOptions('')}</select></label><label for="nfCustom" id="nfCustomL" style="grid-column:1/-1" hidden>自訂規格（例如 0.75mm²*7C 號碼、0.3mm²*2C 隔離 棕藍）<input id="nfCustom" maxlength="60"></label><div class="row" style="grid-column:1/-1;justify-content:flex-start"><button class="primary" id="nfOk">建立電纜</button></div></div>`;
   h+=cs.map(c=>{
     const cw=coresOf(c).sort((a,b)=>coreOrder(c)(a)-coreOrder(c)(b)),L=cabLen(c);

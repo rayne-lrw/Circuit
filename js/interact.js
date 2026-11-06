@@ -30,11 +30,20 @@ function showTip(id,sx,sy){
   let x=sx+14,y=sy+14;if(x+tw>st.width-6)x=sx-tw-14;if(y+th>st.height-6)y=sy-th-14;
   tip.style.left=Math.max(6,x)+'px';tip.style.top=Math.max(6,y)+'px';
 }
+// 滑鼠在電纜外被上：最上層畫高亮，提示框顯示電纜資料
+function cabHover(e,p,blocked){
+  const g=!blocked&&e.target.closest&&e.target.closest('[data-cab]'),hc=g?g.dataset.cab:null;
+  if(hc!==hoverCab){hoverCab=hc;renderOverlay();}
+  if(hc){const c=cabOf(hc),r=CABROUTES.get(hc);if(c&&r){const tip=$('tip'),L=cabLen(c);
+    tip.innerHTML=`<b>電纜 ${esc(c.no)}</b>　${esc(specName(c.spec))}<br>${coresOf(c).length}/${c.cores.length} 芯　${r.via.length?'經 '+esc(r.via.join(' → ')):'直接'}${r.gland?' → '+esc(r.gland):''}　${m1(L.total)} m`;
+    tip.hidden=false;const st=$('stage').getBoundingClientRect(),tw=tip.offsetWidth,th=tip.offsetHeight;let x=p.sx+14,y=p.sy+14;if(x+tw>st.width-6)x=p.sx-tw-14;if(y+th>st.height-6)y=p.sy-th-14;tip.style.left=Math.max(6,x)+'px';tip.style.top=Math.max(6,y)+'px';}}
+  return !!hc;
+}
 function hoverUpdate(e){
   const p=toWorld(e);cursor=p;
   if(mode==='view'){ // 檢視：只顯示導線提示
     const g=e.target.closest&&e.target.closest('.wire'),hw=g?g.dataset.wid:null;
-    if(hw!==hoverW){hoverW=hw;applyWireClasses();}showTip(hw,p.sx,p.sy);return;
+    if(hw!==hoverW){hoverW=hw;applyWireClasses();}if(cabHover(e,p,!!hw))return;showTip(hw,p.sx,p.sy);return;
   }
   if(mode!=='wire'||(draft&&draft.pop)){if(snap){snap=null;renderOverlay();}return;}
   const s=findSnap(p,e.altKey);
@@ -43,6 +52,7 @@ function hoverUpdate(e){
   if(!s&&!draft){const g=e.target.closest&&e.target.closest('.wire');hw=g?g.dataset.wid:null;}
   if(hw!==hoverW){hoverW=hw;applyWireClasses();}
   else if(s||was||draft) renderOverlay();
+  if(cabHover(e,p,!!(hw||s||draft)))return;
   showTip(hw,p.sx,p.sy);
 }
 let act=null;
@@ -140,9 +150,8 @@ svg.addEventListener('pointermove',e=>{
     w.lab=labFrac(w,r,toWorld(e));frame(renderWires);
   }else if(act.t==='bo'){
     const c=cabOf(act.cid);if(!c)return;const p=toWorld(e);
-    // 拖進線槽時吸到線槽中心線，按住 Alt 不吸附
-    let q={x:Math.round(p.x),y:Math.round(p.y)};const d=!e.altKey&&locate(q,sheetAt(q));
-    if(d){if(axis(d)==='h')q.y=r1(center(d));else q.x=r1(center(d));}
+    // 剝線點可以放在線槽裡任何位置（包含靠線槽邊），不吸到中心線
+    const q={x:Math.round(p.x),y:Math.round(p.y)};
     c.bo[act.k]=q;frame(()=>{computeRoutes();renderWires();});
   }else if(act.t==='wp'){
     // 拖曳中只在最上層畫這條線的預覽，原本那條先藏起來；整張重畫在放開時才做（放大時整張重畫會閃）
@@ -173,7 +182,7 @@ svg.addEventListener('pointerup',e=>{
 svg.addEventListener('pointercancel',()=>{const a=act;act=null;if(a&&a.t==='wp'){dragPrev=null;recompute();}});
 svg.addEventListener('pointerenter',()=>{cursorIn=true;});
 svg.addEventListener('pointerleave',()=>{cursorIn=false;});
-svg.addEventListener('pointerleave',()=>{if(!act&&(snap||hoverW)){snap=null;hoverW=null;$('tip').hidden=true;applyWireClasses();}});
+svg.addEventListener('pointerleave',()=>{if(!act&&(snap||hoverW||hoverCab)){snap=null;hoverW=null;hoverCab=null;$('tip').hidden=true;applyWireClasses();}});
 // 檢視模式點一下：選線或看器具，不做任何修改
 function viewClick(a){
   const t=a.target&&a.target.closest?a.target:null,g=t&&t.closest('.wire'),dg=!g&&t&&t.closest('[data-dev]'),cg=!g&&!dg&&t&&t.closest('[data-duct]'),gg=!g&&!dg&&!cg&&t&&t.closest('[data-gland]');
