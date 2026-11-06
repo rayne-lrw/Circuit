@@ -61,6 +61,8 @@ function renderBoard(){
     h+=`<g class="dev${d.on?' rider':''}" data-dev="${d.id}">`; // 裝在接觸器正面的附件畫成半透明，看得到底下的線圈與輔助接點
     if(t.round) h+=`<rect class="body" x="${d.x}" y="${d.y}" width="${t.w}" height="${t.h}" rx="${Math.min(t.w,t.h)/2}" fill="${t.f}"/>`;
     else h+=`<rect class="body" x="${d.x}" y="${d.y}" width="${t.w}" height="${t.h}" rx="2.5" fill="${t.f}"/>`;
+    // 器具上的示意圖形（例如伺服的內置回生電阻）；旋轉的器具不畫
+    if(t.deco&&!d.rot) t.deco.forEach(g=>{if(g.k==='res'){const cx=d.x+g.x+g.w/2;h+=`<g class="deco"><line x1="${cx}" y1="${d.y+(g.a??g.y-4)}" x2="${cx}" y2="${d.y+g.y-.3}"/><line x1="${cx}" y1="${d.y+g.y+g.h+.3}" x2="${cx}" y2="${d.y+(g.b??g.y+g.h+4)}"/><rect x="${d.x+g.x}" y="${d.y+g.y}" width="${g.w}" height="${g.h}" rx=".6"/><text x="${cx+g.w/2+2}" y="${d.y+g.y+g.h/2}" dominant-baseline="central">${esc(g.label||'')}</text></g>`;}});
     const bodyEnd=h.length; // 短路片插在外殼後面，編號與接點畫在它上面
     const cy=d.y+t.h/2,small=t.w<28||t.h<26,tagSize=small?Math.max(4.5,Math.min(t.w/3.6,8)):10;
     if(d.on) h+=`<text class="tag" style="font-size:5px" x="${d.x+t.w/2}" y="${d.y+5.5}" text-anchor="middle" fill="${t.i}">${esc(d.tag)}</text>`; // 附件編號放上緣，不和接觸器的編號疊在一起
