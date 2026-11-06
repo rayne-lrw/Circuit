@@ -13,6 +13,21 @@ function pathD(pts){
   }
   const e=pts[pts.length-1];return d+`L${e.x} ${e.y}`;
 }
+// 器具編號放中間會壓到接點（含接點旁的文字）時，改放到接點之間最寬的直向空白帶；空白帶太窄就直書
+function tagPlace(d,t,fs,small){
+  const n=[...String(d.tag)].reduce((s,c)=>s+(c.charCodeAt(0)>255?1:.62),0),cx=t.w/2,cy=t.h/2,pad=1.5;
+  const span=p=>p.side==='right'?[p.x-11,p.x+3]:p.side==='left'?[p.x-3,p.x+11]:[p.x-4,p.x+4];
+  const tw=n*fs,bot=small?fs*.4:8+fs*.1;
+  if(small) return {x:cx,y:cy,fs}; // 小器具維持原樣
+  // 只有接點圓點真的落在編號範圍內才移動
+  if(!t.terms.some(p=>p.x>cx-tw/2-2.5&&p.x<cx+tw/2+2.5&&p.y>cy-fs*.7-2.5&&p.y<cy+bot+2.5)) return {x:cx,y:cy,fs};
+  const sp=t.terms.map(span).sort((a,b)=>a[0]-b[0]);let x=0,gx=cx,gw=0;
+  for(const [a,b] of [...sp,[t.w,t.w]]){if(a-x>gw){gw=a-x;gx=(a+x)/2;}x=Math.max(x,b);}
+  gw-=2*pad;
+  if(gw>=n*Math.min(fs,6)) {const f=Math.min(fs,gw/n);return {x:gx,y:cy,fs:f,sub:gw>=9};}
+  if(gw>=4){const f=Math.min(fs,gw/1.1,(t.h-6)/n);return {x:gx,y:cy,fs:f,rot:true};}
+  return {x:cx,y:cy,fs};
+}
 function renderBoard(){
   const P=S.plate,B=S.box,bo=boxOrigin(),dr=sheetRect('door'),fr=sheetRect('field');let h='';
   h+=`<rect class="boxr" x="${bo.x}" y="${bo.y}" width="${B.w}" height="${B.h}" rx="4"/>`;
@@ -51,8 +66,11 @@ function renderBoard(){
     if(d.on) h+=`<text class="tag" style="font-size:5px" x="${d.x+t.w/2}" y="${d.y+5.5}" text-anchor="middle" fill="${t.i}">${esc(d.tag)}</text>`; // 附件編號放上緣，不和接觸器的編號疊在一起
     else if(t.noOv) h+=`<text class="sub" x="${d.x+t.w/2}" y="${cy+1.5}" text-anchor="middle" fill="${t.i}">${esc(d.tag)} 鋁軌 ${t.w} mm</text>`;
     else{
-      h+=`<text class="tag" style="font-size:${tagSize}px" x="${d.x+t.w/2}" y="${cy+tagSize*.25}" text-anchor="middle" fill="${t.i}">${esc(d.tag)}</text>`;
-      if(!small) h+=`<text class="sub" x="${d.x+t.w/2}" y="${cy+8}" text-anchor="middle" fill="${t.i}">${esc(t.b)}</text>`;
+      const L=tagPlace(d,t,tagSize,small);
+      const tx=d.x+L.x,ty=d.y+L.y;
+      h+=L.rot?`<text class="tag" style="font-size:${L.fs.toFixed(2)}px" x="${tx}" y="${ty}" text-anchor="middle" dominant-baseline="central" transform="rotate(-90 ${tx} ${ty})" fill="${t.i}">${esc(d.tag)}</text>`
+        :`<text class="tag" style="font-size:${L.fs.toFixed(2)}px" x="${tx}" y="${ty+L.fs*.25}" text-anchor="middle" fill="${t.i}">${esc(d.tag)}</text>`;
+      if(!small&&!L.rot&&L.sub!==false) h+=`<text class="sub" x="${d.x+L.x}" y="${d.y+L.y+Math.max(5.5,L.fs*.8)}" text-anchor="middle" fill="${t.i}"${L.fs<10?` style="font-size:${Math.max(3,L.fs*.44).toFixed(2)}px"`:''}>${esc(t.b)}</text>`;
     }
     const tr=t.terms.length>30?1.3:t.terms.length>14?1.7:2.3;
     for(const p of t.terms){
