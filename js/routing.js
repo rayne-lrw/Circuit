@@ -53,6 +53,23 @@ function exits(P){
     if(P.gland&&P.side&&dir!==OPP[P.side]) cost+=300; // 出線口：進箱後優先直直往箱內走，不沿著箱壁橫移
     out.push({duct:best,along:ba,cost,blocked});
   }
+  // 正前方、正下方都沒對到、但轉一個彎就能進的最近線槽（例如線槽在斜前方）：也列為候選，稍微加一點代價
+  for(const d of S.ducts){
+    if(d.sheet!==P.sheet) continue;
+    const h=axis(d)==='h',cl=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+    const ex=cl(P.x,d.x+2,d.x+d.w-2),ey=cl(P.y,d.y+2,d.y+d.h-2);
+    // 進入點：沿線槽寬度方向貼著線槽邊；先沿線槽長邊方向移到範圍內，再轉進去（和實際畫出來的走法一樣）
+    const inX=P.x>=d.x&&P.x<=d.x+d.w,inY=P.y>=d.y&&P.y<=d.y+d.h;
+    if(h?inX:inY) continue; // 已經正對著，上面的方向搜尋會處理
+    const corner=h?{x:ex,y:P.y}:{x:P.x,y:ey},entry=h?{x:ex,y:P.y<d.y?d.y:d.y+d.h}:{x:P.x<d.x?d.x:d.x+d.w,y:ey};
+    const first=h?(ex>P.x?'right':'left'):(ey>P.y?'bottom':'top');
+    if(P.dev&&P.side&&first===OPP[P.side]) continue;
+    if(P.backOf&&first===P.backOf) continue;
+    const dist=Math.abs(corner.x-P.x)+Math.abs(corner.y-P.y)+Math.abs(entry.x-corner.x)+Math.abs(entry.y-corner.y);
+    const ex2=P.dev?famIds(P.dev):null,blocked=!!(segHits(P.x,P.y,corner.x,corner.y,ex2)||segHits(corner.x,corner.y,entry.x,entry.y,ex2));
+    let cost=dist+40+(blocked?3000:0);if(P.side&&first!==P.side)cost+=500;
+    out.push({duct:d,along:h?ex:ey,cost,blocked});
+  }
   return out;
 }
 function ductPath(a,b,J){
