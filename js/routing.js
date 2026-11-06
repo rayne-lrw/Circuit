@@ -212,7 +212,9 @@ function gates(from,to,ctr,fieldP,glandId){
     const a={x:P.x+(P.ny?sp:0),y:P.y+(P.nx?sp:0),sheet:'plate',must:true,side:P.side,gland:g.id};
     // 對方在箱體下方才繞到箱底；在上方或旁邊（例如裝在箱頂的器具、上方的現場區）就直接過去
     const below=fieldP.y>by;
-    const out={x:a.x+P.nx*(12+k),y:a.y+P.ny*(12+k),sheet:'field',side:below?'bottom':null,midY:by+12+k};
+    // 往外拉的距離不超過對方離箱壁的距離：箱外器具貼著箱壁時，不會拉出去又折回來（翹一段）
+    const fp=(fieldP.dev&&stubOf(fieldP))||fieldP,far=(fp.x-a.x)*P.nx+(fp.y-a.y)*P.ny,ext=below||far<=0?12+k:Math.min(12+k,Math.max(.5,far));
+    const out={x:a.x+P.nx*ext,y:a.y+P.ny*ext,sheet:'field',side:below?'bottom':null,midY:by+12+k};
     const pts=[a,out];
     if(P.side==='top'&&below){const sx=fieldP.x<(bx0+bx1)/2?bx0-12-k:bx1+12+k;out.side=null;pts.push({x:sx,y:out.y,sheet:'field',side:'bottom',midY:by+12+k});} // 頂部：出箱後先水平移到側面，再往下
     return from==='field'?pts.reverse():pts;
@@ -228,6 +230,8 @@ function stubOf(P){
   const L=(s==='top'?P.y-r.y:s==='bottom'?r.y+r.h-P.y:s==='left'?P.x-r.x:r.x+r.w-P.x)+STUB;
   // 有出線偏移的接點（例如 16EX）：先橫移到偏移位置，再沿出線方向出去
   const q={x:P.x+(P.ox||0)+(s==='left'?-L:s==='right'?L:0),y:P.y+(P.oy||0)+(s==='top'?-L:s==='bottom'?L:0),sheet:P.sheet,side:s,dev:P.dev,stub:true,ox:P.ox,oy:P.oy};
+  // 箱外器具的出線點不可落進箱體（例如裝在箱頂、接點朝下）：停在箱壁外 1 mm
+  if(outBox(P)){const o=boxOrigin(),B={x:o.x,y:o.y,w:S.box.w,h:S.box.h};if(inR(q,B)){if(s==='bottom')q.y=Math.max(P.y,o.y-1);else if(s==='top')q.y=Math.min(P.y,o.y+S.box.h+1);else if(s==='right')q.x=Math.max(P.x,o.x-1);else q.x=Math.min(P.x,o.x+S.box.w+1);}}
   q.inDuct=locate(q,q.sheet); // 出線點已經在線槽裡就直接進線槽
   return q;
 }
