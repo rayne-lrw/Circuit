@@ -31,7 +31,7 @@ function renderCables(){
 // 線的詳細資料：電纜芯線改成顯示所屬電纜，顏色與線徑跟著電纜的芯線表
 function coreInfo(w){
   const c=cabOf(w.cab);
-  return `<div class="revert"><p class="note">這條線是電纜 <b>${esc(c.no)}</b> 的芯線 <b>${esc(w.core)}</b>（${esc(specName(c.spec))}）。顏色、線徑和路徑跟著電纜，到電纜的芯線表修改。</p><div class="row" style="justify-content:flex-start"><button class="tool" id="goCab">到電纜 ${esc(c.no)}</button><button class="tool" id="unCore">移出電纜，改回散線</button></div></div>`;
+  return `<div class="revert"><p class="note">這條線是電纜 <b>${esc(c.no)}</b> 的芯線 <b>${esc(w.core)}</b>（${esc(specName(c.spec))}）。線徑和路徑跟著電纜；芯線顏色可以在下面改，電纜芯線表會一起更新。</p><div class="row" style="justify-content:flex-start"><button class="tool" id="goCab">到電纜 ${esc(c.no)}</button><button class="tool" id="unCore">移出電纜，改回散線</button></div></div><div><div class="sub-h">芯線顏色</div>${colorChips(w.color,'kc',w)}</div>`;
 }
 function bindCoreInfo(w){
   $('goCab').onclick=()=>{selectCable(w.cab);if(tab!=='ext'){tab='ext';}renderList();renderWires();renderDetail();updateHint();};

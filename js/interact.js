@@ -676,6 +676,8 @@ $('detail').addEventListener('click',e=>{
   else if(b.dataset.newc) applyColor(w,addTemp(b.dataset.newc));
   else if(b.dataset.pc) applyColor(w,b.dataset.pc);
   else return;
+  // 電纜芯線：顏色寫回電纜的芯線表
+  if(w.cab){const c=cabOf(w.cab),k=c&&coreDef(c,w.core);if(k)setCoreColor(k,w.color);}
   commit();recompute();
 });
 $('right').addEventListener('click',e=>{
