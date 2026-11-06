@@ -3,8 +3,9 @@
 function junctions(){
   const J=[];
   for(const h of S.ducts) if(axis(h)==='h') for(const v of S.ducts) if(axis(v)==='v'&&v.sheet===h.sheet){
-    const x=center(v),y=center(h);
-    if(x>=h.x&&x<=h.x+h.w&&y>=v.y&&y<=v.y+v.h) J.push({x,y,h,v});
+    // 外框碰到或重疊就算相接（容許 3 mm 間隙），包含水平線槽頂在垂直線槽側邊的 T 字接法；轉角在兩條中心線的交點
+    const x=center(v),y=center(h),tol=3;
+    if(v.x<=h.x+h.w+tol&&v.x+v.w>=h.x-tol&&h.y<=v.y+v.h+tol&&h.y+h.h>=v.y-tol) J.push({x,y,h,v});
   }
   return J;
 }
