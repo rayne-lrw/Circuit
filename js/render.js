@@ -15,18 +15,29 @@ function pathD(pts){
 }
 // 器具編號放中間會壓到接點（含接點旁的文字）時，改放到接點之間最寬的直向空白帶；空白帶太窄就直書
 function tagPlace(d,t,fs,small){
-  const n=[...String(d.tag)].reduce((s,c)=>s+(c.charCodeAt(0)>255?1:.62),0),cx=t.w/2,cy=t.h/2,pad=1.5;
-  const span=p=>p.side==='right'?[p.x-11,p.x+3]:p.side==='left'?[p.x-3,p.x+11]:[p.x-4,p.x+4];
-  const tw=n*fs,bot=small?fs*.4:8+fs*.1;
+  const n=[...String(d.tag)].reduce((s,c)=>s+(c.charCodeAt(0)>255?1:.62),0),cx=t.w/2,cy=t.h/2,pad=1.2;
   if(small) return {x:cx,y:cy,fs}; // 小器具維持原樣
-  // 只有接點圓點真的落在編號範圍內才移動
-  if(!t.terms.some(p=>p.x>cx-tw/2-2.5&&p.x<cx+tw/2+2.5&&p.y>cy-fs*.7-2.5&&p.y<cy+bot+2.5)) return {x:cx,y:cy,fs};
-  const sp=t.terms.map(span).sort((a,b)=>a[0]-b[0]);let x=0,gx=cx,gw=0;
-  for(const [a,b] of [...sp,[t.w,t.w]]){if(a-x>gw){gw=a-x;gx=(a+x)/2;}x=Math.max(x,b);}
-  gw-=2*pad;
-  if(gw>=n*Math.min(fs,6)) {const f=Math.min(fs,gw/n);return {x:gx,y:cy,fs:f,sub:gw>=9};}
-  if(gw>=4){const f=Math.min(fs,gw/1.1,(t.h-6)/n);return {x:gx,y:cy,fs:f,rot:true};}
-  return {x:cx,y:cy,fs};
+  // 每個接點佔的範圍：圓點加上旁邊的接點文字（旋轉後接點方向跟著轉，文字位置也跟著算）
+  const boxes=t.terms.map(p=>{
+    const lb=String(termLabel(d,p.id)),lw=[...lb].reduce((s,c)=>s+(c.charCodeAt(0)>255?3.2:1.95),0),b=[p.x-2.5,p.x+2.5,p.y-2.5,p.y+2.5];
+    const vl=t.vlab&&!d.rot&&t.vlab.includes(p.id);
+    const L=vl?(p.side==='bottom'?[p.x-1.5,p.x+1.5,p.y-2.6-lw,p.y]:[p.x-1.5,p.x+1.5,p.y,p.y+2.6+lw])
+      :p.side==='top'?[p.x-lw/2,p.x+lw/2,p.y+3,p.y+7]:p.side==='bottom'?[p.x-lw/2,p.x+lw/2,p.y-6.5,p.y-2]
+      :p.side==='left'?[p.x+5-lw/2,p.x+5+lw/2,p.y-1.5,p.y+2.5]:[p.x-5-lw/2,p.x-5+lw/2,p.y-1.5,p.y+2.5];
+    return [Math.min(b[0],L[0]),Math.max(b[1],L[1]),Math.min(b[2],L[2]),Math.max(b[3],L[3])];
+  });
+  const hit=(x,y,f,sub)=>{const hw=n*f/2,top=y-f*.75,bot=y+(sub?8.5+f*.1:f*.35);return boxes.some(b=>b[1]>x-hw-pad&&b[0]<x+hw+pad&&b[3]>top-pad&&b[2]<bot+pad);};
+  if(!hit(cx,cy,fs,true)) return {x:cx,y:cy,fs};
+  // 找沒有接點的空白帶：橫向（上下之間）與直向（左右之間），選字可以放最大的那個
+  const gap=(lo,hi,iv)=>{const v=iv.slice().sort((a,b)=>a[0]-b[0]);let x=lo,best=[0,0];for(const [a,b] of [...v,[hi,hi]]){if(a-x>best[1]-best[0])best=[x,a];x=Math.max(x,b);}return best;};
+  const hy=gap(0,t.h,boxes.map(b=>[b[2],b[3]])),vx=gap(0,t.w,boxes.map(b=>[b[0],b[1]]));
+  const hh=hy[1]-hy[0]-2*pad,vw=vx[1]-vx[0]-2*pad,out=[];
+  // 橫向空白帶：字照常橫寫，放得下品牌就一起放
+  if(hh>=4){const sub=hh>=15,f=Math.min(fs,(t.w-4)/Math.max(n,1),sub?(hh-8.5)/1.0:hh/1.1),y=(hy[0]+hy[1])/2-(sub?(8.5+f*.1-f*.75)/2:0);if(f>=3.5)out.push({x:cx,y,fs:f,sub});}
+  // 直向空白帶：夠寬就橫寫，太窄就直書
+  if(vw>=4){const x=(vx[0]+vx[1])/2,fh=Math.min(fs,vw/Math.max(n,1));if(fh>=3.5&&!hit(x,cy,fh,vw>=9))out.push({x,y:cy,fs:fh,sub:vw>=9});else{const f=Math.min(fs,vw/1.1,(t.h-6)/Math.max(n,1));if(f>=3.5)out.push({x,y:cy,fs:f,rot:true});}}
+  if(!out.length) return {x:cx,y:cy,fs};
+  return out.sort((a,b)=>b.fs-a.fs||(a.rot?1:0)-(b.rot?1:0))[0];
 }
 const GAPM=new WeakMap();
 function minGap(t){if(GAPM.has(t))return GAPM.get(t);let m=99;const T=t.terms;for(let i=0;i<T.length;i++)for(let j=i+1;j<T.length;j++){const d=Math.hypot(T[i].x-T[j].x,T[i].y-T[j].y);if(d>.01&&d<m)m=d;}GAPM.set(t,m);return m;}
