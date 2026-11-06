@@ -23,7 +23,9 @@ const INDEX='file://'+path.resolve(__dirname,'..','index.html');
     await scan('初始');
     await p.click('#fileB');await scan('檔案選單');await p.keyboard.press('Escape');
     await p.click('#clearB');await scan('清除選單');await p.click('[data-clr="devs"]');await scan('清除確認');await p.keyboard.press('Escape');
-    await p.click('#setOpen');await scan('盤面設定');await p.keyboard.press('Escape');
+    await p.evaluate(()=>setDialog(true));await scan('盤面設定');await p.keyboard.press('Escape');
+    // 左欄收合、展開兩種狀態
+    await p.evaluate(()=>setLeft(true));await scan('左欄收合');await p.evaluate(()=>setLeft(false));await scan('左欄展開');
     await p.evaluate(()=>{sel=S.wires[0].id;renderDetail();});await scan('導線詳細');await p.evaluate(()=>{sel=null;renderDetail();});
     await p.evaluate(()=>{draft={a:{d:'Q2',t:'2'},wps:[],end:{d:'Q3',t:'1'}};const r=$('svg').getBoundingClientRect();cursor={x:0,y:0,sx:r.width-5,sy:5};openPop();});await scan('建線彈窗');await p.evaluate(()=>cancelDraft());
     await p.evaluate(()=>{setMode('place');picked={k:'dev',id:'X1'};renderDetail();});await scan('器具詳細');

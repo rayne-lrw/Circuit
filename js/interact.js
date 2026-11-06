@@ -545,6 +545,9 @@ function setDialog(open){
   if(open){syncSizes();$('bw').focus();}else $('setOpen').focus();
 }
 $('setOpen').onclick=()=>setDialog(true);
+$('leftClose').onclick=()=>setLeft(true,true);
+$('leftOpen').onclick=$('leftLib').onclick=()=>{setLeft(false,true);$('libQ').focus();};
+$('leftSet').onclick=()=>setDialog(true);
 $('setClose').onclick=()=>setDialog(false);
 $('setDlg').addEventListener('click',e=>{if(e.target===$('setDlg'))setDialog(false);});
 $('libQ').oninput=renderPalette;

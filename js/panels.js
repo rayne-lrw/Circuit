@@ -237,6 +237,16 @@ function helpMark(k){const s=helpSeen();s.add(k);try{localStorage.setItem('wirin
 function setHelp(open){$('helpP').hidden=!open;$('helpB').setAttribute('aria-expanded',open);}
 function helpAuto(k){if(k===helpKey)return;helpKey=k;if(!helpSeen().has(k))setHelp(true);}
 
+/* 左欄（盤面設定、器具庫）：可收合成窄條。各模式記住自己的狀態，預設擺放展開、接線與檢視收合。
+   收合或展開時圖面寬度會變，手動縮放過的畫面會補償平移，圖上的東西留在原本的螢幕位置 */
+function leftPrefs(){const d={wire:true,view:true,place:false};try{return Object.assign(d,JSON.parse(localStorage.getItem('wiring-sim-left')||'{}'));}catch(_){return d;}}
+function setLeft(collapsed,save){
+  const m=document.querySelector('main'),before=$('stage').getBoundingClientRect().left;
+  m.classList.toggle('lc',!!collapsed);
+  const after=$('stage').getBoundingClientRect().left;
+  if(view.manual&&Math.abs(before-after)>.5){view.x+=before-after;applyView();}
+  if(save){const p=leftPrefs();p[mode]=!!collapsed;try{localStorage.setItem('wiring-sim-left',JSON.stringify(p));}catch(_){}}
+}
 /* 檢視模式：只能看。會改到資料的按鈕停用，右側詳細資料的欄位反灰 */
 const VIEW_LOCK=['undo','redo','clearB','importB','setOpen','newTpl','sample'];
 function setMode(m){
@@ -246,6 +256,7 @@ function setMode(m){
   VIEW_LOCK.forEach(id=>{const el=$(id);if(el)el.disabled=m==='view';});
   if(m!=='view')syncUndo();
   try{localStorage.setItem('wiring-sim-mode',m);}catch(_){}
+  setLeft(leftPrefs()[m]);
   applyView();renderWires();renderList();renderDetail();updateHint();
 }
 function lockInputs(root){if(mode==='view')root.querySelectorAll('input,select,textarea,button:not([data-pw])').forEach(el=>el.disabled=true);}
