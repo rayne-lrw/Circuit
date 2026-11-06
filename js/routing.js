@@ -454,6 +454,12 @@ function computeRoutes(){
   });
   ISSUES=computeIssues();
 }
+// 拖曳中繼點時的預覽：只算這一條線（線槽中心線），放開後再整張重算線道
+function wirePreview(w){
+  const J=junctions(),A=buildAnchors(endpoint(w.a,0),endpoint(w.b,0),w.wps,{h:0,g:0,hn:1},w.gland),legs=[];
+  for(let i=0;i<A.length-1;i++){const a=A[i],b=A[i+1];legs.push(routeLeg(a,b,J,!!w.direct||(a.wp&&b.wp&&!a.bo&&!b.bo)));}
+  return simplify(realize('_',A,legs,(_,d)=>center(d)).pts);
+}
 function previewPts(a,wps,end,noDuct){
   const J=junctions();
   const anchors=buildAnchors(endpoint(a,0),end,wps,{h:0,g:0,hn:1},null);

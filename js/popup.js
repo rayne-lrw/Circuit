@@ -26,13 +26,14 @@ function fillPop(){
   const ex=draftIsExt();
   $('pop').innerHTML=`<div class="ends">${esc(epText(draft.a))} → ${esc(epText(draft.end))}${draft.wps.length?`（${draft.wps.length} 中繼點）`:''}${ex?'　外線':''}</div>
   ${ex?`<div class="fields"><label for="pCable">電纜編號（空白＝散線）<input id="pCable" maxlength="12" list="pCabL" value="${esc(draft.ext.cable)}"><datalist id="pCabL">${S.cables.map(c=>`<option value="${esc(c.no)}">`).join('')}</datalist></label><label for="pCore">芯線<input id="pCore" maxlength="10" value="${esc(draft.ext.core)}" placeholder="下一芯"></label>${S.cables.some(c=>c.no===draft.ext.cable.trim())?`<p class="note" style="grid-column:1/-1">編進已有的電纜 ${esc(draft.ext.cable)}，顏色與線徑照電纜芯線</p>`:`<label for="pSpec" style="grid-column:1/-1">新電纜規格<select id="pSpec">${cableOptions(draft.ext.spec)}</select></label>`}</div>`:''}
-  <div class="fields"><label for="pNo" style="grid-column:1/-1">線號<input id="pNo" maxlength="16" value="${esc(draft.no)}"></label></div>${draft.noHint?`<p class="note">${esc(draft.noHint)}</p>`:''}
+  <div class="fields"><label for="pNo">線號<input id="pNo" maxlength="16" value="${esc(draft.no)}"></label><label for="pLab">線號標在<select id="pLab">${LAB_AT.map(([k,n])=>`<option value="${k}"${(last.labAt||'start')===k?' selected':''}>${n}</option>`).join('')}</select></label></div>${draft.noHint?`<p class="note">${esc(draft.noHint)}</p>`:''}
   <div><h3>線徑 mm²</h3>${gaugeChips(last.gauge,'pg','pn')}</div>
   <div><h3>顏色</h3>${colorChips(last.color,'pn')}</div>
   <p class="note">${esc(stockMsg(last.gauge,last.color))}。臨時顏色重新整理後會從選單移除，已接的線顏色不變。</p>
   <label class="check"><input type="checkbox" id="pDirect"${last.direct?' checked':''}>不進線槽（直接拉線，例如動力線）</label>
   <div class="row"><button class="tool" id="popNo">取消</button><button class="primary" id="popOk">建立</button></div>`;
   $('pNo').oninput=e=>{draft.no=e.target.value;};
+  $('pLab').onchange=e=>{last.labAt=e.target.value;}; // 記住上次的選擇，下一條線照用
   $('pDirect').onchange=e=>{last.direct=e.target.checked;renderOverlay();};
   if(ex){$('pCable').oninput=e=>draft.ext.cable=e.target.value;$('pCable').onchange=()=>{fillPop();};$('pCore').oninput=e=>draft.ext.core=e.target.value;if($('pSpec'))$('pSpec').onchange=e=>draft.ext.spec=e.target.value;}
 }
@@ -43,6 +44,7 @@ function finishWire(){
   const w={id:'w'+n+'_'+Date.now().toString(36),no,a:draft.a,b:draft.end,wps:draft.wps,gauge:last.gauge,color:last.color};
   applyColor(w,last.color);
   if(last.direct) w.direct=true;
+  if(last.labAt&&last.labAt!=='start') w.labAt=last.labAt;
   S.wires.push(w);
   if(draftIsExt()&&draft.ext.cable.trim()){
     const no=draft.ext.cable.trim().slice(0,12),c=S.cables.find(x=>x.no===no)||newCable(no,draft.ext.spec);

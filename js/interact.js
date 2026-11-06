@@ -100,6 +100,9 @@ svg.addEventListener('pointerdown',e=>{
   }
   act={t:'press',sx:e.clientX,sy:e.clientY,vx:view.x,vy:view.y,moved:false,btn:e.button,alt:e.altKey,id:e.pointerId,target:e.target};
 });
+// 拖曳時把重畫合併成每個畫面週期一次（滑鼠事件比畫面更新頻繁，每次都整張重畫在放大時會閃）
+let framePend=null,frameReq=0;
+function frame(f){framePend=f;if(!frameReq)frameReq=requestAnimationFrame(()=>{frameReq=0;const g=framePend;framePend=null;if(g)g();});}
 svg.addEventListener('pointermove',e=>{
   if(!act){hoverUpdate(e);return;}
   const dx=e.clientX-act.sx,dy=e.clientY-act.sy;
@@ -119,46 +122,50 @@ svg.addEventListener('pointermove',e=>{
       else if(!e.altKey) railHit=railSnap(o,p.x-act.ox,p.y-act.oy);
     }
     if(act.mounted) act.mounted.forEach(m=>{m.d.x=r1(o.x+m.dx);m.d.y=r1(o.y+m.dy);m.d.sheet=o.sheet;});
-    computeRoutes();renderBoard();renderWires();
+    frame(()=>{computeRoutes();renderBoard();renderWires();});
   }else if(act.t==='zone'){
     const p=toWorld(e),z=act.obj;
     z.x=Math.round((p.x-act.ox)/10)*10;z.y=Math.round((p.y-act.oy)/10)*10;
     act.mounted.forEach(m=>{m.d.x=r1(z.x+m.dx);m.d.y=r1(z.y+m.dy);});
-    computeRoutes();renderBoard();renderWires();
+    frame(()=>{computeRoutes();renderBoard();renderWires();});
   }else if(act.t==='gland'){
     glandTo(act.obj,toWorld(e)); // 吸到最近的箱面
-    computeRoutes();renderBoard();renderWires();
+    frame(()=>{computeRoutes();renderBoard();renderWires();});
   }else if(act.t==='lab'){
     const w=S.wires.find(x=>x.id===act.wid),r=ROUTES.get(act.wid);if(!w||!r)return;
-    w.lab=labFrac(w,r,toWorld(e));renderWires();
+    w.lab=labFrac(w,r,toWorld(e));frame(renderWires);
   }else if(act.t==='bo'){
     const c=cabOf(act.cid);if(!c)return;const p=toWorld(e);
     // 拖進線槽時吸到線槽中心線，按住 Alt 不吸附
     let q={x:Math.round(p.x),y:Math.round(p.y)};const d=!e.altKey&&locate(q,sheetAt(q));
     if(d){if(axis(d)==='h')q.y=r1(center(d));else q.x=r1(center(d));}
-    c.bo[act.k]=q;computeRoutes();renderWires();
+    c.bo[act.k]=q;frame(()=>{computeRoutes();renderWires();});
   }else if(act.t==='wp'){
+    // 拖曳中只在最上層畫這條線的預覽，原本那條先藏起來；整張重畫在放開時才做（放大時整張重畫會閃）
     const p=toWorld(e);act.wp.x=Math.round(p.x/5)*5;act.wp.y=Math.round(p.y/5)*5;
-    computeRoutes();renderWires();
+    const w=S.wires.find(x=>x.id===sel);if(!w)return;
+    const el=$('wires').querySelector(`.wire[data-wid="${w.id}"]`);if(el)el.style.visibility='hidden';
+    dragPrev={w,pts:wirePreview(w)};renderOverlay();
   }else{
     view.x=act.vx+dx;view.y=act.vy+dy;view.manual=true;applyView();
   }
 });
 svg.addEventListener('pointerup',e=>{
-  const a=act;act=null;
+  const a=act;act=null;framePend=null;
   if(!a) return;
   if(railHit){railHit=null;renderWires();}
   if(a.t==='box'){endBox(a);return;}
   if(a.t==='multi'){endMultiDrag(a);return;}
   if(a.copy&&!a.moved){dropClip(a.copy);picked=a.src;recompute();return;} // Ctrl＋點一下沒拖：不複製
+  dragPrev=null;
   if(a.t==='wp'&&!a.moved&&noteTap(e)&&tryDouble(toWorld(e))) return;
-  if(a.t==='lab'){if(a.moved){commit();renderDetail();}return;}
+  if(a.t==='lab'){if(a.moved){commit();renderWires();renderDetail();}return;}
   if(a.t==='bo'){if(a.moved)commit();else selectCable(a.cid);recompute();return;}
   if(a.t==='drag'||a.t==='wp'||a.t==='gland'||a.t==='zone'){ if(a.moved){commit();} recompute(); return; }
   if(a.moved||a.btn!==0) return;
   if(mode==='wire') clickWire(e,a); else if(mode==='view') viewClick(a); else {picked=null;multi=[];sel=null;selCab=null;renderWires();renderDetail();updateHint();}
 });
-svg.addEventListener('pointercancel',()=>{act=null;});
+svg.addEventListener('pointercancel',()=>{const a=act;act=null;if(a&&a.t==='wp'){dragPrev=null;recompute();}});
 svg.addEventListener('pointerenter',()=>{cursorIn=true;});
 svg.addEventListener('pointerleave',()=>{cursorIn=false;});
 svg.addEventListener('pointerleave',()=>{if(!act&&(snap||hoverW)){snap=null;hoverW=null;$('tip').hidden=true;applyWireClasses();}});

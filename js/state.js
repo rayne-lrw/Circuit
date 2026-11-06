@@ -18,6 +18,8 @@ let view={k:1,x:0,y:0,manual:false};
 const helpOpen=new Set();
 const hq=k=>`<button class="hq" data-help="${k}" aria-expanded="${helpOpen.has(k)}" aria-label="說明">?</button>`;
 const hn=(k,t)=>`<p class="note hn" data-helpfor="${k}"${helpOpen.has(k)?'':' hidden'}>${t}</p>`;
+const LAB_AT=[['start','起點端'],['end','終點端'],['mid','中間'],['both','兩端都標']]; // 線號標示位置
+let dragPrev=null; // 拖曳中繼點時的單線預覽 {w,pts}
 let selCab=null, cabPick=null, coreEdit=null; // 選取的電纜、「接下一芯」中的電纜、芯線表正在編輯的那一芯
 let draft=null, railHit=null, bundleSel=null, multi=[], renameOffer=null, swapOffer=null;   // {a:{d,t},wps:[],end?:{d,t},pop:false,ext:{}}
 let snap=null, hoverW=null, cursor={x:0,y:0,sx:0,sy:0}, listHover=null;

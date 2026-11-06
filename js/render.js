@@ -244,6 +244,7 @@ function renderOverlay(){
       w.wps.forEach(p=>h+=`<circle class="wp" cx="${p.x}" cy="${p.y}" r="${(focus===sel?6:3.5)/k}"/>`);
     }
   }
+  if(dragPrev){const w=dragPrev.w,c=colorOf(w),d=pathD(dragPrev.pts);h+=`<path d="${d}" fill="none" stroke="${c.k}" stroke-width="${gw(w.gauge)+.9}" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="${c.c}" stroke-width="${gw(w.gauge)}" stroke-linejoin="round"/>`;}
   if(draft){
     const a=draft.a,wps=draft.wps;
     const end=draft.end?endpoint(draft.end,0):snap?{x:snap.x,y:snap.y,side:snap.side,dev:snap.d,sheet:devOf(snap.d).sheet}:wpAnchor(cursor);
