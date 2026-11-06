@@ -14,6 +14,10 @@ function syncUndo(){const v=mode==='view';$('undo').disabled=v||!hist.u.length;$
 
 let mode='wire', sel=null, picked=null, bundle=false, showNo=false, tab='all';
 let view={k:1,x:0,y:0,manual:false};
+/* 說明：? 按鈕展開或收合旁邊的說明文字，展開狀態在這次開啟的頁面內保留 */
+const helpOpen=new Set();
+const hq=k=>`<button class="hq" data-help="${k}" aria-expanded="${helpOpen.has(k)}" aria-label="說明">?</button>`;
+const hn=(k,t)=>`<p class="note hn" data-helpfor="${k}"${helpOpen.has(k)?'':' hidden'}>${t}</p>`;
 let draft=null, railHit=null, bundleSel=null, multi=[], renameOffer=null, swapOffer=null;   // {a:{d,t},wps:[],end?:{d,t},pop:false,ext:{}}
 let snap=null, hoverW=null, cursor={x:0,y:0,sx:0,sy:0}, listHover=null;
 let last={gauge:1.25,color:'white',direct:false};

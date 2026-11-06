@@ -8,7 +8,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23334'/%3E%3Cpath d='M3 4h5v8h5' fill='none' stroke='%23fc3' stroke-width='2'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261106.102554">
+<link rel="stylesheet" href="css/style.css?v=20261106.103631">
 </head>
 <body>
 <div id="app">
@@ -59,7 +59,8 @@
           <p class="note" id="setSum"></p>
         </div>
         <div>
-          <h2 class="h2ver">器具庫 <span id="ver" title="目前版本；更新後這個號碼會改變">v20261106.102554</span></h2>
+          <h2 class="h2ver"><span>器具庫 <button class="hq" data-help="lib" aria-expanded="false" aria-label="說明">?</button></span><span id="ver" title="目前版本；更新後這個號碼會改變">v20261106.103631</span></h2>
+          <p class="note hn" data-helpfor="lib" hidden>滑鼠停在器具上可看尺寸來源。接點只對到實物的區塊與順序，選取器具後可按「編輯器具」修正。</p>
           <input id="libQ" type="search" placeholder="搜尋型號、品名、廠牌" aria-label="搜尋器具">
           <div class="row" style="margin-top:6px;justify-content:flex-start"><button class="tool" id="newTpl">新增自訂器具</button></div>
         </div>
@@ -75,7 +76,7 @@
           <g id="ov"></g>
         </g>
       </svg>
-      <div id="hint"><span id="hintT"></span></div>
+      <div id="help"><div id="helpP" hidden role="status"><p id="hintT"></p><div class="row" style="justify-content:space-between;align-items:center"><button class="lnk" id="helpReset">重新顯示所有提示</button><button class="tool" id="helpClose">收合</button></div></div><button class="tool" id="helpB" aria-expanded="false" aria-controls="helpP">? 說明</button></div>
       <div id="viewTag" hidden>檢視中，不能修改</div>
       <div id="tip" hidden></div>
       <div id="pop" hidden role="dialog" aria-label="選擇線徑與顏色"></div>
@@ -119,7 +120,8 @@
 </div>
 <div id="setDlg" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="setTitle">
   <div class="card">
-    <h2 id="setTitle">盤面設定 (mm)</h2>
+    <h2 id="setTitle">盤面設定 (mm) <button class="hq" data-help="set" aria-expanded="false" aria-label="說明">?</button></h2>
+    <p class="note hn" data-helpfor="set" hidden>改箱體或底板尺寸時，面板與現場區裡的東西會一起平移。</p>
     <div class="fields">
             <label for="bw">箱寬<input id="bw" type="number" step="10" min="100"></label>
             <label for="bh">箱高<input id="bh" type="number" step="10" min="100"></label>
@@ -134,14 +136,14 @@
             <label for="fl">線槽上限 %<input id="fl" type="number" step="5" min="5" max="100"></label>
             <label class="check" style="grid-column:1/-1"><input type="checkbox" id="warnMixed">同一電位有不同線號時提示</label>
           </div>
-    <p class="note">改箱體或底板尺寸時，面板與現場區裡的東西會一起平移。</p>
     <div class="row"><button class="primary" id="setClose">完成</button></div>
   </div>
 </div>
 <div id="print" aria-hidden="true"></div>
 <div id="ed" hidden role="dialog" aria-label="器具編輯器">
   <div id="edCard">
-    <h2 id="edTitle">器具編輯器</h2>
+    <h2><span id="edTitle">器具編輯器</span> <button class="hq" data-help="ed" aria-expanded="false" aria-label="說明">?</button></h2>
+    <p class="note hn wide" data-helpfor="ed" hidden>接點文字改動後會重新平均排列。排好後可在右圖拖曳接點到實際位置。</p>
     <p id="edSlotNote" class="note wide" hidden><b>WAGO 端子台的端子號不用在這裡改。</b>請關掉這個視窗，在右側面板的「端子號」每片一格填寫。在這裡儲存會把它變成自訂器具，之後就不能每片填端子號，也不能直接改片數。</p>
     <div style="display:flex;flex-direction:column;gap:8px">
       <div class="fields">
@@ -159,25 +161,24 @@
         <label for="eBot">下排接點（逗號分隔）<input id="eBot"></label>
       </div>
       <label class="check"><input type="checkbox" id="eOk">尺寸與接點已對照型錄或實物</label>
-      <p class="note">接點文字改動後會重新平均排列。排好後可在右圖拖曳接點到實際位置。</p>
     </div>
     <div><svg id="edPrev" aria-label="器具預覽"></svg></div>
     <div class="row wide"><button class="tool" id="edCancel">取消</button><button class="primary" id="edSave">儲存器具</button></div>
   </div>
 </div>
 
-<script src="js/inventory.js?v=20261106.102554"></script>
-<script src="js/devices.js?v=20261106.102554"></script>
-<script src="js/sample.js?v=20261106.102554"></script>
-<script src="js/state.js?v=20261106.102554"></script>
-<script src="js/routing.js?v=20261106.102554"></script>
-<script src="js/render.js?v=20261106.102554"></script>
-<script src="js/panels.js?v=20261106.102554"></script>
-<script src="js/popup.js?v=20261106.102554"></script>
-<script src="js/report.js?v=20261106.102554"></script>
-<script src="js/interact.js?v=20261106.102554"></script>
-<script src="js/multi.js?v=20261106.102554"></script>
-<script src="js/editor.js?v=20261106.102554"></script>
-<script src="js/main.js?v=20261106.102554"></script>
+<script src="js/inventory.js?v=20261106.103631"></script>
+<script src="js/devices.js?v=20261106.103631"></script>
+<script src="js/sample.js?v=20261106.103631"></script>
+<script src="js/state.js?v=20261106.103631"></script>
+<script src="js/routing.js?v=20261106.103631"></script>
+<script src="js/render.js?v=20261106.103631"></script>
+<script src="js/panels.js?v=20261106.103631"></script>
+<script src="js/popup.js?v=20261106.103631"></script>
+<script src="js/report.js?v=20261106.103631"></script>
+<script src="js/interact.js?v=20261106.103631"></script>
+<script src="js/multi.js?v=20261106.103631"></script>
+<script src="js/editor.js?v=20261106.103631"></script>
+<script src="js/main.js?v=20261106.103631"></script>
 </body>
 </html>

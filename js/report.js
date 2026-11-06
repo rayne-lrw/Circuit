@@ -148,13 +148,13 @@ function renderBom(){
     if(r.sec!==sec){sec=r.sec;h+=`<div class="bom-h">${esc(sec)}</div>`;}
     h+=`<div class="bom"><span class="nm">${esc(r.name)}${r.brand?`<small>${esc(r.brand)}</small>`:''}</span><span class="q">${esc(r.qty)} ${esc(r.unit)}</span>${r.tags||r.note?`<span class="tg">${esc([r.tags,r.note].filter(Boolean).join('　'))}</span>`:''}</div>`;
   });
-  $('list').innerHTML=h+`<p class="note" style="margin-top:8px">器具數量照盤面擺放計算；電線與電纜長度是圖面估算值，到「線長」分頁可設定預留長度。</p>`;
+  $('list').innerHTML=`<div class="hrow"><span class="note">怎麼計算 ${hq('bom')}</span></div>${hn('bom','器具數量照盤面擺放計算；電線與電纜長度是圖面估算值，到「線長」分頁可設定預留長度。')}`+h;
 }
 function renderLen(){
   $('listH').textContent='線長統計';
   const secs=lenSections();
   $('list').innerHTML=`<div class="fields" style="margin-bottom:8px"><label for="spareIn">每條預留 mm<input id="spareIn" type="number" min="0" step="10" value="${spare()}"></label></div>
-    <p class="note" style="margin-bottom:6px">${esc(LEN_NOTE())}</p>`+
+    <div class="hrow"><span class="note">怎麼計算 ${hq('len')}</span></div>${hn('len',esc(LEN_NOTE()))}`+
     (secs.length?secs.map(s=>`<div class="bom-h">${esc(s.h)}</div>`+tableHtml(s.head,s.rows,s.num)).join(''):'<p class="note">還沒有導線。</p>');
   lockInputs($('list'));
 }

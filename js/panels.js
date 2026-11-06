@@ -22,7 +22,6 @@ function renderPalette(){
   if(rest.length){
     h+=`<details${q?' open':''}><summary>其他電料，不畫成器具（${rest.length} 項）</summary>`+Object.entries(groups).map(([g,rs])=>`<h2 style="margin-top:8px">${esc(g)}</h2>`+rs.map(r=>`<div class="inv-row"><span>${esc(r[1])}${r[2]&&r[2]!==r[1]?`　${esc(r[2])}`:''}</span><span>${esc(r[3])}</span></div>`).join('')).join('')+`</details>`;
   }
-  h+=`<p class="note">滑鼠停在器具上可看尺寸來源。接點只對到實物的區塊與順序，選取器具後可按「編輯器具」修正。</p>`;
   $('palette').innerHTML=h||'<p class="note">找不到符合的器具。</p>';
 }
 function renderFilters(){
@@ -135,11 +134,11 @@ function renderDetailInner(){
       if(t.gen) $('dCount').onchange=e=>{const v=Number(e.target.value);if(!(v>=1))return;const before=S.wires.length;d.count=Math.min(t.cntLabel.includes('mm')?2000:96,Math.round(v));commit();recompute();snapshotPrev=JSON.stringify(S);save();if(S.wires.length<before)toast(`接點變少，移除了 ${before-S.wires.length} 條線；可按復原`);};
     }else if(picked.k==='zone'){
       const z=S.fields.find(x=>x.id===picked.id),devs=S.devices.filter(d=>inZone(z,d)),bo=boxOrigin();
-      box.innerHTML=`<div class="big">${esc(z.name)}</div><dl><dt>器具</dt><dd>${devs.map(d=>esc(d.tag)).join(' ')||'無'}</dd></dl>
+      box.innerHTML=`<div class="big">${esc(z.name)} ${hq('zone')}</div>${hn('zone','拖曳左上角的名稱可移動整區，區內器具會一起移動。現場區只是示意，位置不影響線長。')}<dl><dt>器具</dt><dd>${devs.map(d=>esc(d.tag)).join(' ')||'無'}</dd></dl>
       <div class="fields"><label for="zName" style="grid-column:1/-1">名稱<input id="zName" maxlength="20" value="${esc(z.name)}"></label>
       <label for="zx">X（距箱體左緣）<input id="zx" type="number" step="10" value="${r1(z.x-bo.x)}"></label><label for="zy">Y（距箱底）<input id="zy" type="number" step="10" value="${r1(z.y-bo.y-S.box.h)}"></label>
       <label for="zw">寬 (mm)<input id="zw" type="number" step="10" min="50" value="${z.w}"></label><label for="zh">高 (mm)<input id="zh" type="number" step="10" min="50" value="${z.h}"></label></div>
-      ${moveHtml(false)}<p class="note">拖曳左上角的名稱可移動整區，區內器具會一起移動。現場區只是示意，位置不影響線長。</p>
+      ${moveHtml(false)}
       <div class="row"><button class="tool danger" id="delPicked">刪除現場區</button></div>`;
       $('zName').onchange=e=>{z.name=e.target.value.trim().slice(0,20)||z.id;commit();recompute();};
       const mvz=(dx,dy)=>{devs.forEach(d=>{d.x=r1(d.x+dx);d.y=r1(d.y+dy);});z.x=r1(z.x+dx);z.y=r1(z.y+dy);};
@@ -148,10 +147,10 @@ function renderDetailInner(){
       ['w','h'].forEach(f=>{$('z'+f).onchange=e=>{const v=Number(e.target.value);if(!(v>=50))return;z[f]=Math.round(v);commit();recompute();};});
     }else if(picked.k==='gland'){
       const g=S.glands.find(x=>x.id===picked.id),n=[...ROUTES.values()].filter(r=>r.gland===g.id).length;
-      box.innerHTML=`<div class="big">出線口 ${esc(g.id)}</div><dl><dt>規格</dt><dd>${esc(g.spec)}</dd><dt>外線</dt><dd>${n} 芯</dd><dt>位置</dt><dd>${GSIDE[g.side||'bottom']}</dd></dl>
+      box.innerHTML=`<div class="big">出線口 ${esc(g.id)} ${hq('gland')}</div>${hn('gland','拖曳出線口會吸到最近的箱面（箱底、箱頂、左右兩側）。外線會自動選離現場設備最近的出線口，也可以在外線的資料裡指定。')}<dl><dt>規格</dt><dd>${esc(g.spec)}</dd><dt>外線</dt><dd>${n} 芯</dd><dt>位置</dt><dd>${GSIDE[g.side||'bottom']}</dd></dl>
       <div class="fields"><label for="gSide">裝在<select id="gSide">${Object.entries(GSIDE).map(([k,n])=>`<option value="${k}"${(g.side||'bottom')===k?' selected':''}>${n}</option>`).join('')}</select></label>
       <label for="gPos">${g.side==='left'||g.side==='right'?'距箱頂':'距箱體左緣'} mm<input id="gPos" type="number" step="5" value="${r1((g.side==='left'||g.side==='right')?g.y-boxOrigin().y:g.x-boxOrigin().x)}"></label></div>
-      <p class="note">拖曳出線口會吸到最近的箱面。</p>${moveHtml(!(g.side==='left'||g.side==='right'))}<div class="row"><button class="tool danger" id="delPicked">刪除出線口</button></div>`;
+${moveHtml(!(g.side==='left'||g.side==='right'))}<div class="row"><button class="tool danger" id="delPicked">刪除出線口</button></div>`;
       const bo=boxOrigin(),vert=()=>g.side==='left'||g.side==='right';
       $('gSide').onchange=e=>{const P=glandPt(g),c={x:bo.x+S.box.w/2,y:bo.y+S.box.h/2},s=e.target.value;glandTo(g,{x:s==='left'?bo.x:s==='right'?bo.x+S.box.w:(P.ny?P.x:c.x),y:s==='top'?bo.y:s==='bottom'?bo.y+S.box.h:(P.nx?P.y:c.y)});commit();recompute();};
       $('gPos').onchange=e=>{const v=Number(e.target.value);if(e.target.value===''||!isFinite(v))return;const P=glandPt(g);glandTo(g,vert()?{x:P.x,y:bo.y+v}:{x:bo.x+v,y:P.y});commit();recompute();};
@@ -222,15 +221,22 @@ function renderStats(){
   $('stats').textContent=`${S.devices.length} 器具 · ${S.wires.length} 線 · 共 ${(t/1000).toFixed(1)} m`+(ISSUES.length?` · ${ISSUES.length} 項待處理`:'');
 }
 function updateHint(){
-  let s='';
-  if(mode==='view') s='檢視模式：只能看，不能修改。點線或器具可看詳細資料，拖曳空白處平移；按 W 回到接線、M 回到擺放。';
-  else if(mode==='place') s=(picked?'拖曳可移動，方向鍵或右側按鈕可依輸入距離移動，按 R 可旋轉，導線會自動重算；拖進面板或現場區會跟著換位置。Delete 可刪除。':'拖曳器具、線槽或出線口來擺放；左側可新增器具。')+'Shift＋點或 Shift＋拖曳框選可多選，Ctrl＋A 全選；Ctrl＋拖曳可複製，Ctrl＋C／Ctrl＋V 複製貼上。拖到 H-66 鋁軌上會自動對齊並靠齊相鄰器具，按住 Alt 不吸附。';
-  else if(draft&&draft.pop) s='選好線徑與顏色後按 Enter 建立，Esc 取消。';
-  else if(draft) s=`起點 ${epText(draft.a)}：點接點完成；點空白處加中繼點`+(draft.wps.length?`（已有 ${draft.wps.length} 個，Backspace 退回）`:'')+`；按住 Alt 可不吸附，Esc 取消。`;
-  else if(sel) s='雙擊這條線可加中繼點；拖曳白點可調整，雙擊白點可刪除。';
-  else s='滑鼠靠近接點會自動吸附放大，點一下開始接線。接到現場區就是外線，接到面板就會走過門線束。';
-  $('hintT').textContent=s;
+  let s,k;
+  if(mode==='view'){k='view';s='檢視模式：只能看，不能修改。點線或器具可看詳細資料，拖曳空白處平移；按 W 回到接線、M 回到擺放。';}
+  else if(mode==='place'){k=picked||multi.length?'place-picked':'place';s=(k==='place-picked'?'拖曳可移動，方向鍵或右側按鈕可依輸入距離移動，按 R 可旋轉，導線會自動重算；拖進面板或現場區會跟著換位置。Delete 可刪除。':'拖曳器具、線槽或出線口來擺放；左側可新增器具。')+'Shift＋點或 Shift＋拖曳框選可多選，Ctrl＋A 全選；Ctrl＋拖曳可複製，Ctrl＋C／Ctrl＋V 複製貼上。拖到 H-66 鋁軌上會自動對齊並靠齊相鄰器具，按住 Alt 不吸附。';}
+  else if(draft&&draft.pop){k='wire-pop';s='選好線號、線徑與顏色後按 Enter 建立，Esc 取消。';}
+  else if(draft){k='wire-draft';s=`起點 ${epText(draft.a)}：點接點完成；點空白處加中繼點`+(draft.wps.length?`（已有 ${draft.wps.length} 個，Backspace 退回）`:'')+`；按住 Alt 可不吸附，Esc 取消。`;}
+  else if(sel){k='wire-sel';s='雙擊這條線可加中繼點；拖曳白點可調整，雙擊白點可刪除。';}
+  else{k='wire';s='滑鼠靠近接點會自動吸附放大，點一下開始接線。接到現場區就是外線，接到面板就會走過門線束。';}
+  $('hintT').textContent=s;helpAuto(k);
 }
+// 每種情況只自動展開一次；收合過的記在瀏覽器，之後按「? 說明」才看得到
+let helpKey=null;
+function helpSeen(){try{return new Set(JSON.parse(localStorage.getItem('wiring-sim-help-seen')||'[]'));}catch(_){return new Set();}}
+function helpMark(k){const s=helpSeen();s.add(k);try{localStorage.setItem('wiring-sim-help-seen',JSON.stringify([...s]));}catch(_){}}
+function setHelp(open){$('helpP').hidden=!open;$('helpB').setAttribute('aria-expanded',open);}
+function helpAuto(k){if(k===helpKey)return;helpKey=k;if(!helpSeen().has(k))setHelp(true);}
+
 /* 檢視模式：只能看。會改到資料的按鈕停用，右側詳細資料的欄位反灰 */
 const VIEW_LOCK=['undo','redo','clearB','importB','setOpen','newTpl','sample'];
 function setMode(m){

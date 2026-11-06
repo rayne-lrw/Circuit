@@ -498,7 +498,7 @@ function clearMenu(step){
     m.innerHTML=`<p class="mq">確定要${c.n.replace('只','')}？<br><b>會刪除 ${esc(c.what())}</b><br>刪除後可以按「復原」救回。</p><div class="row"><button class="tool" data-clr="">取消</button><button class="tool danger" data-clr-go="${step}">確定清除</button></div>`;
     placeMenu(m);m.querySelector('[data-clr-go]').focus();return;
   }
-  m.innerHTML=Object.entries(CLEAR).map(([k,c])=>`<button class="mi" role="menuitem" data-clr="${k}"${c.ok()?'':' disabled'}><span>${c.n}</span><small>${esc(c.what())}</small></button>`).join('')+`<p class="note" style="padding:4px 8px 2px">箱體尺寸、面板設定、現場區與自訂器具都會保留。</p>`;
+  m.innerHTML=Object.entries(CLEAR).map(([k,c])=>`<button class="mi" role="menuitem" data-clr="${k}"${c.ok()?'':' disabled'}><span>${c.n}</span><small>${esc(c.what())}</small></button>`).join('')+`<div style="padding:4px 8px 2px"><span class="note">會保留哪些 ${hq('clear')}</span>${hn('clear','箱體尺寸、面板設定、現場區與自訂器具都會保留。')}</div>`;
 }
 // 下拉選單打開後確認在畫面內：預設對齊按鈕右緣往左展開，左邊超出就改往右，右邊超出就往左移
 function placeMenu(m){
@@ -527,6 +527,18 @@ $('oldDraft').onclick=()=>{
   try{const n=normalize(JSON.parse(localStorage.getItem(OLDKEY)));if(n){S=n.state;resetUi();commit();recompute();fit();toast('已讀回舊版暫存；可按復原');}}catch(_){toast('舊版暫存讀取失敗');}
   $('oldDraft').hidden=true;
 };
+/* 說明 */
+$('helpB').onclick=()=>{const open=$('helpP').hidden;if(!open)helpMark(helpKey);setHelp(open);};
+$('helpClose').onclick=()=>{helpMark(helpKey);setHelp(false);};
+$('helpReset').onclick=()=>{try{localStorage.removeItem('wiring-sim-help-seen');}catch(_){}setHelp(true);toast('之後每種操作的提示都會再自動跳出一次');};
+// ? 按鈕：展開或收合旁邊的說明（用捕獲階段，選單裡的 ? 也能用，不會把選單關掉）
+document.addEventListener('click',e=>{
+  const b=e.target.closest&&e.target.closest('.hq');if(!b)return;
+  e.stopPropagation();e.preventDefault();
+  const k=b.dataset.help,open=!helpOpen.has(k);if(open)helpOpen.add(k);else helpOpen.delete(k);
+  document.querySelectorAll(`.hq[data-help="${k}"]`).forEach(x=>x.setAttribute('aria-expanded',open));
+  document.querySelectorAll(`[data-helpfor="${k}"]`).forEach(x=>x.hidden=!open);
+},true);
 /* 盤面設定視窗：欄位 id 不變，原本的尺寸輸入處理照常運作 */
 function setDialog(open){
   $('setDlg').hidden=!open;

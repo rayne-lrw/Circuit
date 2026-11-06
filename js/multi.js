@@ -176,12 +176,12 @@ function multiDetail(box){
   const nd=multi.filter(s=>s.k==='dev').length,nu=multi.filter(s=>s.k==='duct').length,ng=multi.filter(s=>s.k==='gland').length;
   const btn=(op,t,l)=>`<button class="tool" data-al="${op}" title="${l}">${t}</button>`;
   box.hidden=false;
-  box.innerHTML=`<div class="big">已選 ${multi.length} 個</div><dl>${nd?`<dt>器具</dt><dd>${by('dev')}</dd>`:''}${nu?`<dt>線槽</dt><dd>${by('duct')}</dd>`:''}${ng?`<dt>出線口</dt><dd>${by('gland')}</dd>`:''}</dl>
+  box.innerHTML=`<div class="big">已選 ${multi.length} 個 ${hq('multi')}</div>${hn('multi','Shift＋點可加入或移出選取；拖曳其中任一個可一起移動，Ctrl＋拖曳一起複製。兩端都在選取範圍內的線會一起複製。')}<dl>${nd?`<dt>器具</dt><dd>${by('dev')}</dd>`:''}${nu?`<dt>線槽</dt><dd>${by('duct')}</dd>`:''}${ng?`<dt>出線口</dt><dd>${by('gland')}</dd>`:''}</dl>
     <div><div class="sub-h">對齊（以選取範圍的外框為準）</div><div class="row aligns" style="justify-content:flex-start">${btn('l','靠左','左緣對齊')}${btn('hc','水平置中','中心線對齊到左右正中')}${btn('r','靠右','右緣對齊')}${btn('t','靠上','上緣對齊')}${btn('vc','垂直置中','中心線對齊到上下正中')}${btn('b','靠下','下緣對齊')}</div></div>
     <div><div class="sub-h">等距排列（至少三個）</div><div class="row" style="justify-content:flex-start">${btn('dh','水平等距','左右間隔相等')}${btn('dv','垂直等距','上下間隔相等')}</div></div>
     ${moveHtml(false)}
     <div class="row"><button class="tool" id="mRot">各自旋轉 90°</button><button class="tool" id="mCopy">複製一份</button><button class="tool danger" id="mDel">刪除 ${multi.length} 個</button></div>
-    <p class="note">Shift＋點可加入或移出選取；拖曳其中任一個可一起移動，Ctrl＋拖曳一起複製。兩端都在選取範圍內的線會一起複製。</p>`;
+`;
 }
 $('detail').addEventListener('click',e=>{
   if(!multi.length) return;
