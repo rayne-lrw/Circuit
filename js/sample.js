@@ -42,7 +42,7 @@ function cleanTpl(t){
   const ss=(v,n)=>String(v==null?'':v).slice(0,n),num=(v,d)=>{const x=Number(v);return Number.isFinite(x)?x:d;};
   if(!t||!Array.isArray(t.terms)) return null;
   const hex=v=>typeof v==='string'&&/^#[0-9a-fA-F]{6}$/.test(v)?v:'#54595b';
-  return {inv:[],cat:'自訂器具',b:ss(t.b,20),n:ss(t.n,40)||'自訂器具',w:Math.max(5,num(t.w,40)),h:Math.max(5,num(t.h,40)),d:Math.max(0,num(t.d,50)),pre:ss(t.pre,6).replace(/[^\w]/g,'')||'U',f:hex(t.f),i:casing(hex(t.f))==='#222725'?'#15181a':'#f1f2ee',sheet:['plate','door','field'].includes(t.sheet)?t.sheet:'plate',ok:!!t.ok,note:ss(t.note,60),gen:null,src:typeof t.src==='string'&&/^[\w-]{1,32}$/.test(t.src)?t.src:undefined,
+  return {inv:[],cat:'自訂器具',b:ss(t.b,20),n:ss(t.n,40)||'自訂器具',w:Math.max(5,num(t.w,40)),h:Math.max(5,num(t.h,40)),d:Math.max(0,num(t.d,50)),pre:ss(t.pre,6).replace(/[^\w]/g,'')||'U',f:hex(t.f),i:casing(hex(t.f))==='#222725'?'#15181a':'#f1f2ee',sheet:['plate','door','field'].includes(t.sheet)?t.sheet:'plate',ok:!!t.ok,face:!!t.face,note:ss(t.note,60),gen:null,src:typeof t.src==='string'&&/^[\w-]{1,32}$/.test(t.src)?t.src:undefined,
     terms:t.terms.filter(x=>x&&x.id!=null).slice(0,200).map(x=>({id:ss(x.id,12),x:num(x.x,0),y:num(x.y,0),side:['top','bottom','left','right'].includes(x.side)?x.side:'top',desc:ss(x.desc,20)}))};
 }
 const cleanSpec=v=>{const s=String(v==null?'':v).slice(0,60);return /^E\d{5}$/.test(s)?'':s;};
@@ -83,7 +83,7 @@ function normalize(o){
   if(!fields.length) fields.push(defaultField(box,plate,door));
   const doorMode=['door','console','none'].includes(o.doorMode)?o.doorMode:'door';
   migrateCables({wires,cables});
-  return {state:{box,plate,door,doorMode,fields,...(o.warnMixedNo===true?{warnMixedNo:true}:{}),hinge:num(o.hinge,plate.h/2),fillLimit:Math.min(100,Math.max(5,num(o.fillLimit,50))),spare:Math.min(5000,Math.max(0,num(o.spare,0))),glands,tpls,devices,ducts,wires,cables,nextNo},
+  return {state:{box,plate,door,doorMode,fields,...(o.warnMixedNo===true?{warnMixedNo:true}:{}),...(o.faceAll===true?{faceAll:true}:{}),hinge:num(o.hinge,plate.h/2),fillLimit:Math.min(100,Math.max(5,num(o.fillLimit,50))),spare:Math.min(5000,Math.max(0,num(o.spare,0))),glands,tpls,devices,ducts,wires,cables,nextNo},
     dropped:(o.devices.length-devices.length)+(o.ducts.length-ducts.length)+(o.wires.length-wires.length)};
 }
 

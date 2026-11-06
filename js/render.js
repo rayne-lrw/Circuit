@@ -286,7 +286,7 @@ function syncSizes(){
   applyDoorMode();
   const m=S.doorMode||'door';
   $('setSum').innerHTML=[`箱 ${S.box.w}×${S.box.h}×${S.box.d}`,`底板 ${S.plate.w}×${S.plate.h}`,m==='none'?'不使用面板':`${m==='console'?'操作台':'門板'} ${S.door.w}×${S.door.h}`].map(t=>`<span>${esc(t)}</span>`).join('');
-  $('warnMixed').checked=!!S.warnMixedNo;
+  $('warnMixed').checked=!!S.warnMixedNo;$('faceAll').checked=!!S.faceAll;
   set('bw',S.box.w);set('bh',S.box.h);set('bd',S.box.d);set('bk',S.box.back);set('pw',S.plate.w);set('ph',S.plate.h);set('dw',S.door.w);set('dh',S.door.h);set('hy',S.hinge);set('fl',S.fillLimit);
 }
 let toastT=0;

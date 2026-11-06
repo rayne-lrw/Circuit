@@ -26,6 +26,7 @@ function exits(P){
   const OPP={top:'bottom',bottom:'top',left:'right',right:'left'};
   for(const dir of ['top','bottom','left','right']){
     if(P.dev&&P.side&&dir===OPP[P.side]) continue; // 器具接點不可反方向出線，會從器具本體上穿過去
+    if(P.faceOf&&dir===P.faceOf) continue; // 正面轉入點：不可再往接點那邊走
     const vert=dir==='top'||dir==='bottom';
     let best=null,bd=1e9,ba=0;
     for(const d of S.ducts){
@@ -75,7 +76,7 @@ function ductPath(a,b,J){
 }
 // 要接到出線點，但起點在器具的另一側：從器具旁邊繞過去，不穿過器具本體
 function aroundPts(A,B){
-  const s=B.side,d=devOf(B.dev);if(!d) return null;
+  const s=B.side,d=devOf(B.dev);if(!d||!s) return null;
   const r=rectOf('dev',d),v={top:[0,-1],bottom:[0,1],left:[-1,0],right:[1,0]}[s];
   if((A.x-B.x)*v[0]+(A.y-B.y)*v[1]>=-.01) return null; // 起點已經在出線方向那一側
   if(s==='top'||s==='bottom'){const lx=Math.abs(A.x-(r.x-STUB))<Math.abs(A.x-(r.x+r.w+STUB))?r.x-STUB:r.x+r.w+STUB;return [A,{x:lx,y:A.y},{x:lx,y:B.y},B];}
@@ -219,13 +220,29 @@ function stubOf(P){
   q.inDuct=locate(q,q.sheet); // 出線點已經在線槽裡就直接進線槽
   return q;
 }
+// 正面接點：線槽在接點出線方向的反方向時，不從器具外面繞，改成沿器具正面走到接點旁邊 4 mm，再轉 90 度接進去
+const FACE_IN=4;
+function faceOK(P){const d=P.dev&&devOf(P.dev);if(!d||!P.side||d.sheet==='field')return false;return !!(S.faceAll||tplOf(d).face);}
+function faceStub(P){
+  const s=P.side,v={top:[0,-1],bottom:[0,1],left:[-1,0],right:[1,0]}[s];
+  const q={x:P.x-v[0]*FACE_IN,y:P.y-v[1]*FACE_IN,sheet:P.sheet,side:null,faceOf:s,dev:P.dev,stub:true};
+  q.inDuct=locate(q,q.sheet);return q;
+}
+// 外面出線點與正面轉入點各自到線槽的代價，正面明顯比較近才用正面
+// 比較時連到另一端的大概距離一起算，避免往反方向的線槽繞遠路
+function pickStub(P,T){
+  const out=stubOf(P);if(!out||!faceOK(P)) return out;
+  const cost=q=>Math.min(1e9,...exits(q).map(x=>{const d=x.duct,e=axis(d)==='h'?{x:x.along,y:center(d)}:{x:center(d),y:x.along};return x.cost+(T&&T.sheet===P.sheet?Math.abs(e.x-T.x)+Math.abs(e.y-T.y):0);}));
+  const ci=faceStub(P);
+  return cost(ci)+30<cost(out)?ci:out;
+}
 function buildAnchors(ea,eb,wps,ctr,glandId){
   const sa=ea.sheet,sb=eb.sheet;
   const chain=sa===sb?[sa]:(sa!=='plate'&&sb!=='plate')?[sa,'plate',sb]:[sa,sb];
   const fieldP=sa==='field'?ea:eb;
   // 同一組器具（主體與正面附件、伺服電池）之間的線直接在器具前面連，不拉出線點
   const fam=ea.dev&&eb.dev&&ea.sheet===eb.sheet&&famIds(ea.dev).includes(eb.dev);
-  const out=[ea],qa=fam?null:stubOf(ea),qb=fam?null:stubOf(eb);
+  const out=[ea],qa=fam?null:pickStub(ea,wps.length?wps[0]&&wpAnchor(wps[0]):eb),qb=fam?null:pickStub(eb,wps.length?wpAnchor(wps[wps.length-1]):ea);
   if(fam&&!wps.length){out.push(eb);out.local=true;return out;}
   if(qa) out.push(qa);
   chain.forEach((sh,i)=>{

@@ -8,7 +8,7 @@ function openEditor(tplId,dev){
   $('edTitle').textContent=base?`編輯器具：${base.n}`:'新增自訂器具';
   $('edSlotNote').hidden=!hasSlots(base);
   $('eName').value=base?base.n:'';$('eBrand').value=base?base.b:'';$('eSheet').value=base?(base.sheet||'plate'):'plate';$('ePre').value=base?base.pre:'U';
-  $('eW').value=base?+base.w.toFixed(1):45;$('eH').value=base?base.h:80;$('eD').value=base?base.d:60;$('eCol').value=base?base.f:'#54595b';$('eOk').checked=!!(base&&base.ok);
+  $('eW').value=base?+base.w.toFixed(1):45;$('eH').value=base?base.h:80;$('eD').value=base?base.d:60;$('eCol').value=base?base.f:'#54595b';$('eOk').checked=!!(base&&base.ok);$('eFace').checked=!!(base&&base.face);
   $('eTop').value=ed.terms.filter(t=>t.side==='top').map(t=>t.id).join(',');$('eBot').value=ed.terms.filter(t=>t.side==='bottom').map(t=>t.id).join(',');
   $('ed').hidden=false;drawEd();$('eName').focus();
 }
@@ -49,7 +49,7 @@ $('edSave').onclick=()=>{
   const name=$('eName').value.trim();
   if(!name){toast('請填器具名稱');$('eName').focus();return;}
   if(!ed.terms.length&&!confirmNoTerms()) return;
-  const raw={b:$('eBrand').value,n:name,w:Number($('eW').value),h:Number($('eH').value),d:Number($('eD').value),pre:$('ePre').value,f:$('eCol').value,sheet:$('eSheet').value,ok:$('eOk').checked,terms:ed.terms};
+  const raw={b:$('eBrand').value,n:name,w:Number($('eW').value),h:Number($('eH').value),d:Number($('eD').value),pre:$('ePre').value,f:$('eCol').value,sheet:$('eSheet').value,ok:$('eOk').checked,face:$('eFace').checked,terms:ed.terms};
   const c=cleanTpl(raw);if(!c)return;
   const src=ed.srcId&&(S.tpls[ed.srcId]||TPL[ed.srcId]);
   if(src){c.note=src.note||'';c.cat=src.cat||c.cat;}

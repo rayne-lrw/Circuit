@@ -481,6 +481,7 @@ sizeInput('bd',v=>S.box.d=Math.max(50,v));sizeInput('bk',v=>S.box.back=Math.max(
 sizeInput('pw',v=>S.plate.w=Math.max(100,v),true);sizeInput('ph',v=>S.plate.h=Math.max(100,v),true);
 sizeInput('dw',v=>S.door.w=Math.max(100,v));sizeInput('dh',v=>S.door.h=Math.max(100,v));
 sizeInput('hy',v=>S.hinge=v);
+$('faceAll').onchange=e=>{if(e.target.checked)S.faceAll=true;else delete S.faceAll;commit();recompute();};
 $('warnMixed').onchange=e=>{if(e.target.checked)S.warnMixedNo=true;else delete S.warnMixedNo;commit();recompute();};
 $('dm').onchange=e=>{
   const v=e.target.value,n=S.devices.filter(d=>d.sheet==='door').length;
