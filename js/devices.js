@@ -78,7 +78,7 @@ const SENS3=[['棕',10,8,'top','+24V'],['藍',25,8,'top','0V'],['黑',40,8,'top'
 const LOOK={dark:['#2f3437','#f1f2ee'],mid:['#54595b','#f1f2ee'],gray:['#a9adaa','#15181a'],light:['#e3e1d6','#23211a'],blue:['#2c3f4e','#eef3f5'],red:['#7a2a2a','#fff3f1'],steel:['#8e9794','#10140f']};
 /* ---------- 器具庫：[inv, 分類, 廠牌, 名稱, 寬, 高, 深, 字首, 外殼, 接點, 其他] 尺寸為參考值 ---------- */
 const TPL={};
-function def(id,inv,cat,b,n,w,h,d,pre,look,terms,x={}){TPL[id]={inv:[].concat(inv||[]),cat,b,n,w,h,d,pre,f:LOOK[look][0],i:LOOK[look][1],t:terms,sheet:x.sheet||'plate',gen:x.gen||null,cnt:x.cnt||null,cntLabel:x.cntLabel||null,noOv:!!x.noOv,round:!!x.round,legacy:!!x.legacy,front:!!x.front,jumper:!!x.jumper,attach:x.attach||(x.front?'front':null),note:x.note||''};}
+function def(id,inv,cat,b,n,w,h,d,pre,look,terms,x={}){TPL[id]={inv:[].concat(inv||[]),cat,b,n,w,h,d,pre,f:LOOK[look][0],i:LOOK[look][1],t:terms,sheet:x.sheet||'plate',gen:x.gen||null,cnt:x.cnt||null,cntLabel:x.cntLabel||null,noOv:!!x.noOv,round:!!x.round,legacy:!!x.legacy,front:!!x.front,jumper:!!x.jumper,bus:!!x.bus,attach:x.attach||(x.front?'front':null),note:x.note||''};}
 const C1='斷路器',C2='電磁接觸器',C3='繼電器／計時',C4='PLC',C5='伺服驅動',C6='電源／濾波',C7='端子台／接地',C8='網路／插座',C9='其他元件',D1='面板：按鈕與顯示',F1='現場：馬達',F2='現場：感測器',F3='現場：接線盒與其他';
 def('fuji-bw50',null,C1,'FUJI','BW50EAG 3P50A',75,100,84,'Q','dark',[...pole(['1','3','5'],[12.5,37.5,62.5],10,'top','電源側'),...pole(['2','4','6'],[12.5,37.5,62.5],90,'bottom','負載側')]);
 [['3P40A',3],['3P16A',3],['3P4A',3],['2P4A',2],['1P6A',1],['1P4A',1],['1P2A',1],['1P1A',1]].forEach(([r,p])=>def('ic60-'+r,null,C1,'施耐德','iC60N '+r,18*p,85,78.5,'Q','light',brk(p,85)));
@@ -127,8 +127,8 @@ def('w2202-1401',null,C7,'WAGO','2202-1401 端子台 2對2',0,69.9,39.5,'X','gra
 def('w2202-1201',null,C7,'WAGO','2202-1201 端子台 1對1',0,48.5,39.5,'X','gray',null,{gen:n=>({w:5.2*n+2,h:48.5,t:wago2(n)}),cnt:10,cntLabel:'片數',jumper:true});
 def('w2202-1611',null,C7,'WAGO','2202-1611 保險絲端子台',0,48,45,'FU','gray',null,{gen:n=>({w:5.2*n+2,h:48,t:wago2(n)}),cnt:3,cntLabel:'片數'});
 def('nht60',null,C7,'賀電','NHT-60 電木端子台 3P',60,50,35,'TB','dark',[...row(['L1','L2','L3'],8,'top',60,'電源側',10),...row(['T1','T2','T3'],42,'bottom',60,'負載側',10)]);
-def('gnd13',null,C7,'','接地銅板 13P',104,18,15,'E','steel',nterm(13,8,18,'top',9));
-def('gnd15',null,C7,'','接地銅板 15P',120,18,15,'E','steel',nterm(15,8,18,'top',9));
+def('gnd13',null,C7,'','接地銅板 13P',104,18,15,'E','steel',nterm(13,8,18,'top',9),{bus:true});
+def('gnd15',null,C7,'','接地銅板 15P',120,18,15,'E','steel',nterm(15,8,18,'top',9),{bus:true});
 def('mec10',null,C7,'賀電','MEC-15-53 短路銅片 10P',80,14,8,'E','steel',nterm(10,8,14,'top',7));
 [['231-604 針型 4極',4],['231-104 孔型 4極',4],['231-606 針型 6極',6],['231-106 孔型 6極',6],['231-612 針型 12極',12],['231-112 孔型 12極',12]].forEach(([n,p])=>def('w'+n.slice(0,7),null,C7,'WAGO',n,5*p+2,18,20,'CN','gray',nterm(p,5,18,'top',9)));
 def('w852-111',null,C8,'WAGO','852-111 交換器 5埠 100M',23.4,109.2,73.8,'SW','gray',[['24V',4,6,'top','電源（上方）'],['0V',11.7,6,'top','電源（上方）'],['FG',19.4,6,'top','接地'],...['P1','P2','P3','P4','P5'].map((id,i)=>[id,12,28+i*16,'right','正面網路埠'])]);
