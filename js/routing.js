@@ -15,7 +15,7 @@ function segHits(ax,ay,bx,by,exclude){
   const x0=Math.min(ax,bx),x1=Math.max(ax,bx),y0=Math.min(ay,by),y1=Math.max(ay,by);
   for(const d of S.devices){
     if(exclude&&exclude.includes(d.id)) continue;
-    const t=tplOf(d);if(t.noOv) continue;
+    const t=tplOf(d);if(t.noOv||t.sym==='diode') continue; // 二極體很小，導線不把它當成阻擋
     if(x1>d.x+1&&x0<d.x+t.w-1&&y1>d.y+1&&y0<d.y+t.h-1) return d;
   }
   return null;
@@ -269,9 +269,9 @@ function computeIssues(){
   // 器具可以放在底板、面板、現場區以外（例如裝在箱體外側板金），所以不檢查器具是否在範圍內
   S.ducts.forEach(d=>{if(outside(rectOf('duct',d),d.sheet==='door'?D0:P0)) out.push({t:`線槽 ${d.id} 超出${d.sheet==='door'?doorShort():'底板'}`,k:'duct',id:d.id});});
   S.devices.forEach((a,i)=>{
-    if(a.sheet==='field'||tplOf(a).noOv) return;
+    if(a.sheet==='field'||tplOf(a).noOv||tplOf(a).sym==='diode') return;
     const ra=rectOf('dev',a);
-    S.devices.slice(i+1).forEach(b=>{if(a.on===b.id||b.on===a.id||(a.on&&a.on===b.on))return;if(b.sheet===a.sheet&&!tplOf(b).noOv&&overlap(ra,rectOf('dev',b))) out.push({t:`${a.tag} 與 ${b.tag} 重疊`,k:'dev',id:a.id});});
+    S.devices.slice(i+1).forEach(b=>{if(a.on===b.id||b.on===a.id||(a.on&&a.on===b.on)||tplOf(b).sym==='diode')return;if(b.sheet===a.sheet&&!tplOf(b).noOv&&overlap(ra,rectOf('dev',b))) out.push({t:`${a.tag} 與 ${b.tag} 重疊`,k:'dev',id:a.id});});
     // 線槽可以局部切除讓器具，所以器具壓到線槽不警告
   });
   // 深度：關門後面板器具投影到底板，兩者深度相加不可超過可用深度

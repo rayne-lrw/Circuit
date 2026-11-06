@@ -144,19 +144,16 @@ function placeOn(r,h){
     const t=tplOf(r);
     if(a){r.x=r1(h.x+a.x);r.y=r1(h.y+a.y);}else{r.x=r1(h.x+Math.min(6,Math.max(0,ht.w-t.w)));r.y=r1(h.y+ht.h);}
   }else if(tplOf(r).coil){
-    // 線圈二極體：放在線圈兩個接點中間、往器具裡面靠，並轉向讓 K 朝向線圈 +，自動接的兩條線最短
+    // 線圈二極體：橫放在器具下邊緣的線上（不蓋住接點），水平位置對齊線圈兩個接點，K 朝向線圈 + 那一側
     const c=coilOf(h),P=ht.terms.find(p=>p.id===c.p),M=ht.terms.find(p=>p.id===c.m);
     let best=null;
-    for(const rot of [0,90,180,270]){
-      if(rot)r.rot=rot;else delete r.rot;
-      const t=tplOf(r),K=t.terms.find(p=>p.id==='K'),A=t.terms.find(p=>p.id==='A');
-      const mx=(P.x+M.x)/2,my=(P.y+M.y)/2,vx=ht.w/2-mx,vy=ht.h/2-my,vl=Math.hypot(vx,vy)||1,off=Math.min(8,vl);
-      const cx=mx+vx/vl*off,cy=my+vy/vl*off,x=cx-t.w/2,y=cy-t.h/2;
+    for(const rot of [90,270]){
+      r.rot=rot;const t=tplOf(r),K=t.terms.find(p=>p.id==='K'),A=t.terms.find(p=>p.id==='A');
+      const cx=Math.max(t.w/2,Math.min(ht.w-t.w/2,(P.x+M.x)/2)),x=cx-t.w/2,y=ht.h-t.h/2;
       const cost=Math.hypot(x+K.x-P.x,y+K.y-P.y)+Math.hypot(x+A.x-M.x,y+A.y-M.y);
       if(!best||cost<best.cost)best={rot,x,y,cost};
     }
-    if(best.rot)r.rot=best.rot;else delete r.rot;
-    r.x=r1(h.x+best.x);r.y=r1(h.y+best.y);
+    r.rot=best.rot;r.x=r1(h.x+best.x);r.y=r1(h.y+best.y);
   }else{const t=tplOf(r),a=t.at&&t.at[h.tpl];if(a){r.x=r1(h.x+a.x);r.y=r1(h.y+a.y);}else{r.x=r1(h.x+(ht.w-t.w)/2);r.y=r1(h.y+(ht.h-t.h)/2);}} // 指定位置的附件（例如 PLC 擴充板）照位置裝，其他置中
 }
 const famIds=id=>{const d=devOf(id);if(!d)return [id];return [d.id,...(d.on?[d.on]:[]),...riders(d).map(r=>r.id)];};
