@@ -24,7 +24,9 @@ const SCENARIOS=[
     // 中繼點點在 D3 與 D4 交界（使用者回報的情況）與 D3 中段
     W('M1','FL1',"L2'",'Q5','4',[{x:506,y:466}]);
     W('M2','FL1',"L3'",'K1','L2',[{x:506,y:300},{x:506,y:150}]);
-    return {state:st,expectClean:['T1','T2','T3','T4','T5','M1','M2']};
+    // 中繼點點在 D3（靠近 D7 轉角）：其餘照樣自動，最後要從上方的 D6 接進 K1，不可緊貼 K1 上緣
+    W('M3','Q5','5','K1','L2',[{x:506,y:328}]);
+    return {state:st,expectClean:['T1','T2','T3','T4','T5','M1','M2','M3'],expectVia:{M3:['D7','D3','D6']}};
   }},
   {name:'正面附件與伺服電池',build:()=>{
     const st=normalize(sampleState()).state,k=st.devices.find(d=>d.id==='K0');
@@ -48,7 +50,7 @@ const SCENARIOS=[
   }},
 ];
 
-function checkInPage(expectClean){
+function checkInPage(expectClean,expectVia){
   const res=[];
   const fam=id=>famIds(id);
   const crosses=(w,pts)=>{
@@ -78,10 +80,11 @@ function checkInPage(expectClean){
       if(j>=0&&B.side&&devOf(w.b.d).sheet!=='field'&&dirOf(p[p.length-1],p[j])!==B.side) msgs.push(`終點進線方向應為 ${B.side}，實際 ${dirOf(p[p.length-1],p[j])}`);
     }
     (w.wps||[]).forEach((q,k)=>{if(!onPath(p,q))msgs.push(`沒有經過第 ${k+1} 個中繼點`);});
+    if(expectVia&&expectVia[w.no]){const v=r.via.join('>'),want=expectVia[w.no].join('>');if(v!==want)msgs.push(`經過的線槽應為 ${want}，實際 ${v||'無'}`);}
     for(let i=2;i<p.length;i++){
       const a=p[i-2],b=p[i-1],c=p[i];
       const col=(Math.abs(a.x-b.x)<.01&&Math.abs(b.x-c.x)<.01)||(Math.abs(a.y-b.y)<.01&&Math.abs(b.y-c.y)<.01);
-      if(col&&((b.x-a.x)*(c.x-b.x)+(b.y-a.y)*(c.y-b.y))<-.01){msgs.push('同一條直線上來回折返');break;}
+      if(col&&((b.x-a.x)*(c.x-b.x)+(b.y-a.y)*(c.y-b.y))<-.01){msgs.push(`同一條直線上來回折返（${[a,b,c].map(q=>Math.round(q.x)+','+Math.round(q.y)).join(' → ')}）`);break;}
     }
     res.push({no:w.no,ok:!msgs.length,msg:msgs.join('；')});
   }
@@ -99,7 +102,7 @@ function checkInPage(expectClean){
     const out=await p.evaluate(([src,arg,chk])=>{
       const sc=new Function('arg','return ('+src+')(arg)')(arg);
       S=sc.state;resetUi();computeRoutes();
-      return new Function('expectClean','return ('+chk+')(expectClean)')(sc.expectClean);
+      return new Function('expectClean','expectVia','return ('+chk+')(expectClean,expectVia)')(sc.expectClean,sc.expectVia);
     },[fnSrc,arg,checkInPage.toString()]);
     const bad=out.filter(x=>!x.ok);total+=out.length;fail+=bad.length;
     console.log(`${bad.length?'✗':'✓'} ${name}：${out.length} 條線，${bad.length} 條失敗`);

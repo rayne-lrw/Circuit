@@ -127,7 +127,20 @@ function routeLeg(A,B,J,noDuct){
   return {ducts:best.ducts,warn:best.blocked?'穿過其他器具':null};
 }
 function realize(wid,anchors,legs,lane0){
-  const lane=lane0;
+  // 中繼點只落在一條線槽裡：這條線在那條線槽裡沿中繼點的位置走（進出都一樣，不會橫移再折回）；
+  // 落在兩條線槽交界時不改，只橫移經過
+  const ovr=new Map();
+  anchors.forEach(a=>{if(!a.wp||!a.inDuct||ovr.has(a.inDuct))return;if(S.ducts.filter(d=>d.sheet===a.sheet&&inR(a,d)).length!==1)return;ovr.set(a.inDuct,axis(a.inDuct)==='h'?a.y:a.x);});
+  // 中繼點也落在前後相鄰線槽的寬度範圍內（點在轉角附近）：那條線槽也沿中繼點的位置走，轉角就在中繼點上
+  anchors.forEach((a,i)=>{
+    if(!a.wp||!a.inDuct) return;
+    [legs[i-1],legs[i]].forEach(L=>{(L&&L.ducts||[]).forEach(d=>{
+      if(d===a.inDuct||ovr.has(d)||axis(d)===axis(a.inDuct)) return;
+      const v=axis(d)==='h'?a.y:a.x,lo=axis(d)==='h'?d.y:d.x,hi=lo+(axis(d)==='h'?d.h:d.w);
+      if(v>=lo&&v<=hi) ovr.set(d,v);
+    });});
+  });
+  const lane=(id,d)=>ovr.has(d)?ovr.get(d):lane0(id,d);
   const pts=[{x:anchors[0].x,y:anchors[0].y}],runs=[];
   let cur=pts[0],last=null,open=null;
   legs.forEach((leg,i)=>{
@@ -151,6 +164,8 @@ function realize(wid,anchors,legs,lane0){
     else if(!to.inDuct&&axis(last)==='v'&&(to.y<last.y||to.y>last.y+last.h)){const ey=to.y<last.y?last.y+2:last.y+last.h-2;pts.push({x:cur.x,y:ey});pts.push({x:to.x,y:ey});cur={x:to.x,y:ey};}
     const p=axis(last)==='h'?{x:to.x,y:cur.y}:{x:cur.x,y:to.y};
     pts.push(p);cur=p;
+    // 中繼點在線槽裡：從線道橫移到中繼點的實際位置，下一段從那裡出發
+    if(to.wp&&to.inDuct&&(Math.abs(p.x-to.x)>.01||Math.abs(p.y-to.y)>.01)){pts.push({x:to.x,y:to.y});cur={x:to.x,y:to.y};last=null;if(open){open.i1=pts.length-2;runs.push(open);open=null;}}
     if(!to.inDuct){open.i1=pts.length-1;runs.push(open);open=null;pts.push({x:to.x,y:to.y});cur=to;last=null;}
   });
   return {pts,runs};
@@ -284,9 +299,10 @@ function computeRoutes(){
   const center_=(_,d)=>center(d);
   const items=S.wires.map(w=>{
     const anchors=buildAnchors(endpoint(w.a,off(w.a)),endpoint(w.b,off(w.b)),w.wps,ctr,w.gland);
-    // 有中繼點：手動路徑，完全照中繼點走，不套用線槽規則
+    // 有中繼點：線一定經過每個中繼點的位置；中繼點與中繼點之間照點的位置直接連（手動），
+    // 接點到第一個中繼點、最後一個中繼點到接點照樣自動走線槽
     const manual=w.wps.length>0;
-    const legs=[];for(let i=0;i<anchors.length-1;i++) legs.push(routeLeg(anchors[i],anchors[i+1],J,!!w.direct||manual));
+    const legs=[];for(let i=0;i<anchors.length-1;i++){const A=anchors[i],B=anchors[i+1];legs.push(routeLeg(A,B,J,!!w.direct||(A.wp&&B.wp)));}
     return {w,anchors,legs,manual,first:realize(w.id,anchors,legs,center_)};
   });
   // 線道分配
@@ -308,6 +324,8 @@ function computeRoutes(){
   for(const it of items){
     if(!it.manual) continue;
     const pts=simplify(it.first.pts),via=[];
+    const own=[];it.legs.forEach((L,i)=>{if(L.direct&&it.anchors[i].wp&&it.anchors[i+1].wp)own.push(...L.pts.map((q,j)=>j?[L.pts[j-1],q]:null).filter(Boolean));});
+    const isOwn=(a,b)=>own.some(([p,q])=>Math.abs(p.x-a.x)+Math.abs(p.y-a.y)+Math.abs(q.x-b.x)+Math.abs(q.y-b.y)<.1);
     for(let i=1;i<pts.length;i++){
       const a=pts[i-1],b=pts[i];
       for(const d of S.ducts){
@@ -315,6 +333,7 @@ function computeRoutes(){
         if(!inR(a,R)||!inR(b,R)) continue;
         const ax=axis(d),lo=Math.min(ax==='h'?a.x:a.y,ax==='h'?b.x:b.y),hi=Math.max(ax==='h'?a.x:a.y,ax==='h'?b.x:b.y);
         if(hi-lo<1) continue;
+        if(!isOwn(a,b)) continue;
         if(!manualUse.has(d))manualUse.set(d,[]);manualUse.get(d).push({id:it.w.id,lo,hi,g:it.w.gauge});
         if(via[via.length-1]!==d.id)via.push(d.id);
       }
@@ -322,6 +341,8 @@ function computeRoutes(){
     manualVia.set(it.w.id,via);
   }
   manualUse.forEach((l,d)=>{if(!perDuct.has(d))perDuct.set(d,[]);});
+  // 線道分配只算自動那幾段；同一條線同一段線槽已經有自動線道時，手動段不重複計數
+  manualUse.forEach((l,d)=>{const auto=new Set((perDuct.get(d)||[]).map(e=>e.id));manualUse.set(d,l.filter(e=>!auto.has(e.id)));});
   const lanes=new Map();
   for(const [d,list0] of perDuct){
     const list=list0,mlist=manualUse.get(d)||[];
@@ -361,7 +382,8 @@ function computeRoutes(){
     const f=realize(it.w.id,it.anchors,it.legs,(id,d)=>lanes.get(id+'|'+d.id)??center(d));
     const pts=simplify(f.pts);
     let len=0;for(let i=1;i<pts.length;i++)len+=Math.abs(pts[i].x-pts[i-1].x)+Math.abs(pts[i].y-pts[i-1].y);
-    const via=it.manual?manualVia.get(it.w.id)||[]:[];if(!it.manual)f.runs.forEach(r=>{if(via[via.length-1]!==r.d.id)via.push(r.d.id);});
+    const via=[];f.runs.forEach(r=>{if(via[via.length-1]!==r.d.id)via.push(r.d.id);});
+    if(it.manual)(manualVia.get(it.w.id)||[]).forEach(id=>{if(!via.includes(id))via.push(id);});
     let warn=(it.legs.find(l=>l.warn)||{}).warn||null;
     if(it.manual&&warn==='直接拉線穿過其他器具')warn='手動路徑穿過其他器具';
     ROUTES_MANUAL.add(it.manual?it.w.id:null);
