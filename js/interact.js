@@ -496,17 +496,24 @@ function clearMenu(step){
   if(step){
     const c=CLEAR[step];
     m.innerHTML=`<p class="mq">確定要${c.n.replace('只','')}？<br><b>會刪除 ${esc(c.what())}</b><br>刪除後可以按「復原」救回。</p><div class="row"><button class="tool" data-clr="">取消</button><button class="tool danger" data-clr-go="${step}">確定清除</button></div>`;
-    m.querySelector('[data-clr-go]').focus();return;
+    placeMenu(m);m.querySelector('[data-clr-go]').focus();return;
   }
   m.innerHTML=Object.entries(CLEAR).map(([k,c])=>`<button class="mi" role="menuitem" data-clr="${k}"${c.ok()?'':' disabled'}><span>${c.n}</span><small>${esc(c.what())}</small></button>`).join('')+`<p class="note" style="padding:4px 8px 2px">箱體尺寸、面板設定、現場區與自訂器具都會保留。</p>`;
 }
+// 下拉選單打開後確認在畫面內：預設對齊按鈕右緣往左展開，左邊超出就改往右，右邊超出就往左移
+function placeMenu(m){
+  m.style.left='';m.style.right='0';
+  const r=m.getBoundingClientRect(),W=document.documentElement.clientWidth,pr=m.offsetParent.getBoundingClientRect();
+  if(r.left<8){m.style.right='auto';m.style.left=Math.min(0,W-8-r.width-pr.left)+'px';if(m.getBoundingClientRect().left<8)m.style.left=(8-pr.left)+'px';}
+  else if(r.right>W-8){m.style.right=(r.right-(W-8))+'px';}
+}
 /* 檔案選單：匯出、匯入、列印、範例。點了項目就關閉 */
-function setFileMenu(open){$('fileM').hidden=!open;$('fileB').setAttribute('aria-expanded',open);if(open){const f=$('fileM').querySelector('.mi:not(:disabled)');if(f)f.focus();}}
+function setFileMenu(open){$('fileM').hidden=!open;$('fileB').setAttribute('aria-expanded',open);if(open){placeMenu($('fileM'));const f=$('fileM').querySelector('.mi:not(:disabled)');if(f)f.focus();}}
 $('fileB').onclick=e=>{e.stopPropagation();setClearMenu(false);setFileMenu($('fileM').hidden);};
 $('fileM').addEventListener('click',e=>{if(e.target.closest('.mi'))setFileMenu(false);});
 document.addEventListener('click',e=>{if(!$('fileM').hidden&&!e.target.closest('#fileM,#fileB'))setFileMenu(false);});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('fileM').hidden){setFileMenu(false);$('fileB').focus();e.stopImmediatePropagation();}},true);
-function setClearMenu(open){$('clearM').hidden=!open;$('clearB').setAttribute('aria-expanded',open);if(open){clearMenu(null);const f=$('clearM').querySelector('.mi:not(:disabled)');if(f)f.focus();}}
+function setClearMenu(open){$('clearM').hidden=!open;$('clearB').setAttribute('aria-expanded',open);if(open){clearMenu(null);placeMenu($('clearM'));const f=$('clearM').querySelector('.mi:not(:disabled)');if(f)f.focus();}}
 $('clearB').onclick=e=>{e.stopPropagation();setFileMenu(false);setClearMenu($('clearM').hidden);};
 $('clearM').addEventListener('click',e=>{
   e.stopPropagation();const b=e.target.closest('button');if(!b)return;

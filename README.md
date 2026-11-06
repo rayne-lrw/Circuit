@@ -42,7 +42,7 @@ python -m http.server 8000
 
 ### 走線測試
 
-修改走線相關程式（`js/routing.js` 等）後先執行：
+修改走線相關程式（`js/routing.js` 等）後先執行 `node tests/route-check.js`；修改介面後執行 `node tests/layout-check.js`，在手機到桌機寬度下打開各種選單與視窗，檢查有沒有超出畫面。走線測試：
 
 ```bash
 node tests/route-check.js
