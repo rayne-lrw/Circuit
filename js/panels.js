@@ -57,7 +57,7 @@ function renderList(){
     }).join('')||`<p class="note">還沒有外線。從箱內接點點到「現場設備」區的接點就會建立外線。</p>`;
     return;
   }
-  const rows=S.wires.filter(passes);
+  const rows=S.wires.filter(passes).slice().sort((a,b)=>natCmp(a.no,b.no)); // 照線號排，同號排在一起
   $('listH').textContent=`線號表　${rows.length} / ${S.wires.length} 條`;
   $('list').innerHTML=rows.map(wireRow).join('')||`<p class="note">沒有符合條件的線。</p>`;
 }
@@ -80,8 +80,11 @@ function renderDetailInner(){
     const c=colorOf(w),kind=wireKind(w);
     box.hidden=false;
     const pr=parallelOf(w),pl=a=>a.length?a.map(x=>`<button class="lnk" data-pw="${x.id}">${esc(x.no)}</button>`).join(' '):'無';
-    box.innerHTML=`<div class="fields"><label for="wNo">線號<input id="wNo" maxlength="16" value="${esc(w.no)}" style="font-size:15px;font-weight:600"></label></div><div class="big"><span class="sw" style="background:${swatch(c)}"></span> ${esc(c.n)}　${w.gauge} mm²　${KINDS[kind]}</div>
-    <dl><dt>起點</dt><dd>${esc(epText(w.a))}</dd><dt>終點</dt><dd>${esc(epText(w.b))}</dd><dt>路徑</dt><dd>${w.direct?'不進線槽，直接拉線':w.wps.length?'手動（依中繼點）'+(r.via.length?'，經 '+esc(r.via.join(' → ')):''):r.via.length?'自動：'+esc(r.via.join(' → ')):'自動：直接跨接'}${r.gland?' → '+esc(r.gland):''}</dd><dt>中繼點</dt><dd>${w.wps.length} 個</dd><dt>起點並線</dt><dd>${pl(pr.a)}</dd><dt>終點並線</dt><dd>${pl(pr.b)}</dd><dt>圖面線長</dt><dd>${(r.len/1000).toFixed(2)} m</dd></dl>
+    if(renameOffer&&renameOffer.wid!==w.id)renameOffer=null;
+    const ro=renameOffer;
+    box.innerHTML=`<div class="fields"><label for="wNo">線號（可以重複，同電位可用同一個號碼）<input id="wNo" maxlength="16" value="${esc(w.no)}" style="font-size:15px;font-weight:600"></label></div>
+    ${ro?`<div class="revert"><p class="note">同電位還有 ${ro.ids.length} 條線號是 ${esc(ro.from)}，要一起改成 ${esc(ro.to)} 嗎？</p><div class="row" style="justify-content:flex-start"><button class="tool" id="renAll">一起改</button><button class="tool" id="renNo">不用</button></div></div>`:''}<div class="big"><span class="sw" style="background:${swatch(c)}"></span> ${esc(c.n)}　${w.gauge} mm²　${KINDS[kind]}</div>
+    <dl><dt>起點</dt><dd>${esc(epText(w.a))}</dd><dt>終點</dt><dd>${esc(epText(w.b))}</dd><dt>路徑</dt><dd>${w.direct?'不進線槽，直接拉線':w.wps.length?'手動（依中繼點）'+(r.via.length?'，經 '+esc(r.via.join(' → ')):''):r.via.length?'自動：'+esc(r.via.join(' → ')):'自動：直接跨接'}${r.gland?' → '+esc(r.gland):''}</dd><dt>中繼點</dt><dd>${w.wps.length} 個</dd>${sameNo(w).length?`<dt>同號</dt><dd>${sameNo(w).length} 條：${pl(sameNo(w))}</dd>`:''}<dt>起點並線</dt><dd>${pl(pr.a)}</dd><dt>終點並線</dt><dd>${pl(pr.b)}</dd><dt>圖面線長</dt><dd>${(r.len/1000).toFixed(2)} m</dd></dl>
     ${r.warn?`<span class="flag">${esc(r.warn)}：請加中繼點或調整線槽</span>`:''}
     ${kind==='ext'?`<div class="fields"><label for="xCable">電纜編號<input id="xCable" maxlength="12" value="${esc((w.ext&&w.ext.cable)||'')}"></label><label for="xCore">芯線<input id="xCore" maxlength="10" value="${esc((w.ext&&w.ext.core)||'')}"></label>
       <label for="xSpec" style="grid-column:1/-1">電纜規格<select id="xSpec">${cableOptions(w.ext&&w.ext.spec)}</select></label>
@@ -91,7 +94,14 @@ function renderDetailInner(){
     <div><div class="sub-h">顏色</div>${colorChips(w.color,'dn',w)}</div>
     <p class="note">${esc(stockMsg(w.gauge,w.color))}</p>
     <div class="row">${w.wps.length?'<button class="tool" id="clearWp">清除中繼點，改回自動</button>':''}<button class="tool danger" id="delWire">刪除這條線</button></div>`;
-    $('wNo').onchange=e=>{const v=e.target.value.trim();if(!v||v===w.no){e.target.value=w.no;return;}if(noUsed(v,w)){toast(`線號 ${v} 已經有線在用`);e.target.value=w.no;return;}w.no=v;commit();recompute();};
+    $('wNo').onchange=e=>{
+      const v=e.target.value.trim();if(!v||v===w.no){e.target.value=w.no;return;}
+      // 同電位還有同號的線：改完後問要不要一起改
+      const nets=netsOf(),mine=nets.get(w.id),old=w.no,grp=S.wires.filter(x=>x!==w&&x.no===old&&nets.get(x.id)===mine);
+      w.no=v;renameOffer=grp.length?{wid:w.id,from:old,to:v,ids:grp.map(x=>x.id)}:null;commit();recompute();
+    };
+    if($('renAll'))$('renAll').onclick=()=>{const o=renameOffer;S.wires.forEach(x=>{if(o.ids.includes(x.id))x.no=o.to;});renameOffer=null;commit();recompute();toast(`已把同電位的 ${o.ids.length} 條線一起改成 ${o.to}`);};
+    if($('renNo'))$('renNo').onclick=()=>{renameOffer=null;renderDetail();};
     $('wDirect').onchange=e=>{if(e.target.checked)w.direct=true;else delete w.direct;commit();recompute();};
     if(kind==='ext'){
       const upd=(fn)=>e=>{w.ext=w.ext||{cable:'',core:'',spec:''};fn(e.target.value);commit();recompute();};

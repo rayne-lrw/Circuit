@@ -14,7 +14,7 @@ function syncUndo(){const v=mode==='view';$('undo').disabled=v||!hist.u.length;$
 
 let mode='wire', sel=null, picked=null, bundle=false, showNo=false, tab='all';
 let view={k:1,x:0,y:0,manual:false};
-let draft=null, railHit=null, bundleSel=null, multi=[];   // {a:{d,t},wps:[],end?:{d,t},pop:false,ext:{}}
+let draft=null, railHit=null, bundleSel=null, multi=[], renameOffer=null;   // {a:{d,t},wps:[],end?:{d,t},pop:false,ext:{}}
 let snap=null, hoverW=null, cursor={x:0,y:0,sx:0,sy:0}, listHover=null;
 let last={gauge:1.25,color:'white',direct:false};
 const filt={color:null,gauge:null,dev:'',kind:null};
@@ -125,7 +125,24 @@ function parallelOf(w){
   const fa=sameNode(w.a),fb=sameNode(w.b),others=S.wires.filter(x=>x!==w);
   return {a:others.filter(x=>fa(x.a)||fa(x.b)),b:others.filter(x=>fb(x.a)||fb(x.b))};
 }
-// 線號：不可重複；新線取下一個沒人用的號碼
+/* 電位：導線把兩端的接點連起來；端子台同一片的上下各點算同一點。回傳 線 id → 電位編號 */
+function nodeKey(e){const d=devOf(e.d),m=d&&hasSlots(tplOf(d))&&SLOT_RE.exec(e.t);return e.d+'|'+(m?'#'+m[1]:e.t);}
+function netsOf(){
+  const P=new Map(),f=k=>{while(P.get(k)!==k){P.set(k,P.get(P.get(k)));k=P.get(k);}return k;};
+  const add=k=>{if(!P.has(k))P.set(k,k);};
+  S.wires.forEach(w=>{const a=nodeKey(w.a),b=nodeKey(w.b);add(a);add(b);P.set(f(a),f(b));});
+  const m=new Map();S.wires.forEach(w=>m.set(w.id,f(nodeKey(w.a))));return m;
+}
+// 線號可以重複（共點、同電位用同一個號碼）；重複時用「線號＋兩端」指出是哪一條
+const sameNo=w=>S.wires.filter(x=>x!==w&&x.no===w.no);
+const wireRef=w=>sameNo(w).length?`${w.no}（${epText(w.a)} → ${epText(w.b)}）`:w.no;
+// 新線預設線號：起點或終點的接點已經有線，就沿用（同電位）；否則取下一個沒人用的號碼
+function inheritNo(a,b){
+  const fa=sameNode(a),fb=sameNode(b),on=f=>S.wires.find(x=>f(x.a)||f(x.b));
+  const wa=on(fa),wb=on(fb);
+  return {no:(wa||wb||{}).no||null,a:wa&&wa.no,b:wb&&wb.no};
+}
+// 自動配號跳過已用過的號碼
 const noUsed=(v,except)=>S.wires.some(w=>w!==except&&w.no===v);
 function nextWireNo(){let n=S.nextNo||1;while(noUsed('W'+String(n).padStart(3,'0')))n++;return n;}
 const epText=e=>`${tagOf(e.d)}·${termLabel(devOf(e.d),e.t)}`;

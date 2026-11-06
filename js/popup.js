@@ -9,6 +9,7 @@ function openPop(){
     const sameDev=S.wires.find(w=>w.ext&&wireKind(w)==='ext'&&(w.a.d===fd.d||w.b.d===fd.d));
     draft.ext={cable:sameDev?sameDev.ext.cable:nextCable(),core:fd.t,spec:sameDev?sameDev.ext.spec:''};
   }
+  if(draft.no==null){const h=inheritNo(draft.a,draft.end);draft.no=h.no||'W'+String(nextWireNo()).padStart(3,'0');draft.noHint=h.a&&h.b&&h.a!==h.b?`起點已有 ${h.a}、終點已有 ${h.b}，預設用起點的線號`:h.no?`沿用接點上已有的線號 ${h.no}（同電位）`:'';}
   const pop=$('pop'),st=$('stage').getBoundingClientRect();
   fillPop();
   pop.hidden=false;
@@ -24,7 +25,7 @@ function fillPop(){
   const ex=draftIsExt();
   $('pop').innerHTML=`<div class="ends">${esc(epText(draft.a))} → ${esc(epText(draft.end))}${draft.wps.length?`（${draft.wps.length} 中繼點）`:''}${ex?'　外線':''}</div>
   ${ex?`<div class="fields"><label for="pCable">電纜編號<input id="pCable" maxlength="12" value="${esc(draft.ext.cable)}"></label><label for="pCore">芯線<input id="pCore" maxlength="10" value="${esc(draft.ext.core)}"></label><label for="pSpec" style="grid-column:1/-1">電纜規格<select id="pSpec">${cableOptions(draft.ext.spec)}</select></label></div>`:''}
-  <div class="fields"><label for="pNo">線號<input id="pNo" maxlength="16" value="${esc(draft.no||'W'+String(nextWireNo()).padStart(3,'0'))}"></label></div>
+  <div class="fields"><label for="pNo">線號<input id="pNo" maxlength="16" value="${esc(draft.no)}"></label></div>${draft.noHint?`<p class="note">${esc(draft.noHint)}</p>`:''}
   <div><h3>線徑 mm²</h3>${gaugeChips(last.gauge,'pg','pn')}</div>
   <div><h3>顏色</h3>${colorChips(last.color,'pn')}</div>
   <p class="note">${esc(stockMsg(last.gauge,last.color))}。臨時顏色重新整理後會從選單移除，已接的線顏色不變。</p>
@@ -37,7 +38,6 @@ function fillPop(){
 function closePop(){$('pop').hidden=true;}
 function finishWire(){
   const n=nextWireNo(),no=(draft.no||'').trim()||'W'+String(n).padStart(3,'0');
-  if(noUsed(no)){toast(`線號 ${no} 已經有線在用`);$('pNo').focus();return;}
   if(no==='W'+String(n).padStart(3,'0'))S.nextNo=n+1;
   const w={id:'w'+n+'_'+Date.now().toString(36),no,a:draft.a,b:draft.end,wps:draft.wps,gauge:last.gauge,color:last.color};
   applyColor(w,last.color);

@@ -470,6 +470,7 @@ sizeInput('bd',v=>S.box.d=Math.max(50,v));sizeInput('bk',v=>S.box.back=Math.max(
 sizeInput('pw',v=>S.plate.w=Math.max(100,v),true);sizeInput('ph',v=>S.plate.h=Math.max(100,v),true);
 sizeInput('dw',v=>S.door.w=Math.max(100,v));sizeInput('dh',v=>S.door.h=Math.max(100,v));
 sizeInput('hy',v=>S.hinge=v);
+$('warnMixed').onchange=e=>{if(e.target.checked)S.warnMixedNo=true;else delete S.warnMixedNo;commit();recompute();};
 $('dm').onchange=e=>{
   const v=e.target.value,n=S.devices.filter(d=>d.sheet==='door').length;
   if(v==='none'&&n){toast(`面板上還有 ${n} 個器具，請先移走或刪除`);e.target.value=S.doorMode||'door';return;}

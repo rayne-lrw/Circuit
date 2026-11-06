@@ -260,7 +260,15 @@ function computeIssues(){
     if(u.pct>S.fillLimit) out.push({t:`線槽 ${d.id} 占用 ${u.pct}%，超過上限 ${S.fillLimit}%`,k:'duct',id:d.id});
     else if(u.pitch<1.5) out.push({t:`線槽 ${d.id} 排了 ${u.lanes} 道線，畫面過密，建議加寬或分流`,k:'duct',id:d.id});
   });
-  S.wires.forEach(w=>{const r=ROUTES.get(w.id);if(r&&r.warn) out.push({t:`${w.no} ${r.warn}`,k:'wire',id:w.id});});
+  S.wires.forEach(w=>{const r=ROUTES.get(w.id);if(r&&r.warn) out.push({t:`${wireRef(w)} ${r.warn}`,k:'wire',id:w.id});});
+  // 同號但電位不相連：多半是打錯號碼；反過來同一電位有不同線號，可在盤面設定開啟提示
+  const nets=netsOf(),byNo=new Map();
+  S.wires.forEach(w=>{if(!byNo.has(w.no))byNo.set(w.no,new Map());const m=byNo.get(w.no),n=nets.get(w.id);if(!m.has(n))m.set(n,[]);m.get(n).push(w);});
+  byNo.forEach((m,no)=>{if(m.size>1){const g=[...m.values()].sort((a,b)=>a.length-b.length)[0];out.push({t:`線號 ${no} 分成 ${m.size} 組不相連的電位，請確認是不是打錯號碼`,k:'wire',id:g[0].id});}});
+  if(S.warnMixedNo){
+    const byNet=new Map();S.wires.forEach(w=>{const n=nets.get(w.id);if(!byNet.has(n))byNet.set(n,new Set());byNet.get(n).add(w.no);});
+    byNet.forEach((set,n)=>{if(set.size>1){const w=S.wires.find(x=>nets.get(x.id)===n);out.push({t:`同一電位有不同線號：${[...set].sort(natCmp).join('、')}`,k:'wire',id:w.id});}});
+  }
   return out;
 }
 const key=(e)=>e.d+'|'+e.t;

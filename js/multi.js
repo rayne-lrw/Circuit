@@ -137,9 +137,11 @@ function pasteMulti(c,dx,dy){
   made.devs.forEach(d=>{if(d.on){if(idm[d.on])d.on=idm[d.on];else delete d.on;}});
   c.ducts.forEach(e=>{const d=snapCopy(e);d.x=r1(d.x+dx);d.y=r1(d.y+dy);d.id=nextId('D',id=>S.ducts.some(x=>x.id===id));S.ducts.push(d);made.ducts.push(d);});
   c.glands.forEach(e=>{const g=snapCopy(e),P=glandPt(g);glandTo(g,{x:P.x+(P.ny?dx:0),y:P.y+(P.nx?dy:0)});g.id=nextId('G',id=>S.glands.some(x=>x.id===id));gm[e.id]=g.id;S.glands.push(g);made.glands.push(g);});
+  const nm={}; // 線號對照：原本同號的線，複製後仍然同號，但換成新號碼
   c.wires.forEach(e=>{
-    const n=nextWireNo(),w=snapCopy(e);
-    w.id='w'+n+'_'+Date.now().toString(36)+made.wires.length;w.no='W'+String(n).padStart(3,'0');S.nextNo=n+1;
+    const w=snapCopy(e);
+    if(!nm[e.no]){const n=nextWireNo();nm[e.no]='W'+String(n).padStart(3,'0');S.nextNo=n+1;}
+    w.id='w'+Date.now().toString(36)+'_'+made.wires.length+'_'+Math.random().toString(36).slice(2,6);w.no=nm[e.no];
     w.a.d=idm[e.a.d];w.b.d=idm[e.b.d];w.wps=(w.wps||[]).map(p=>({x:p.x+dx,y:p.y+dy}));
     if(w.gland)w.gland=gm[w.gland]||w.gland;
     if(w.ext&&w.ext.cable){if(!cm[e.ext.cable])cm[e.ext.cable]=nextCable();w.ext.cable=cm[e.ext.cable];}
