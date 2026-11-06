@@ -206,9 +206,11 @@ function gates(from,to,ctr,fieldP,glandId){
     // 側面或頂部：先往箱外拉出一段，再沿箱外繞到箱底下方，不穿過箱體
     const P=glandPt(g),o=boxOrigin(),bx0=o.x,bx1=o.x+S.box.w;
     const a={x:P.x+(P.ny?sp:0),y:P.y+(P.nx?sp:0),sheet:'plate',must:true,side:P.side,gland:g.id};
-    const out={x:a.x+P.nx*(12+k),y:a.y+P.ny*(12+k),sheet:'field',side:'bottom',midY:by+12+k};
+    // 對方在箱體下方才繞到箱底；在上方或旁邊（例如裝在箱頂的器具、上方的現場區）就直接過去
+    const below=fieldP.y>by;
+    const out={x:a.x+P.nx*(12+k),y:a.y+P.ny*(12+k),sheet:'field',side:below?'bottom':null,midY:by+12+k};
     const pts=[a,out];
-    if(P.side==='top'){const sx=fieldP.x<(bx0+bx1)/2?bx0-12-k:bx1+12+k;out.side=null;pts.push({x:sx,y:out.y,sheet:'field',side:'bottom',midY:by+12+k});} // 頂部：出箱後先水平移到側面，再往下
+    if(P.side==='top'&&below){const sx=fieldP.x<(bx0+bx1)/2?bx0-12-k:bx1+12+k;out.side=null;pts.push({x:sx,y:out.y,sheet:'field',side:'bottom',midY:by+12+k});} // 頂部：出箱後先水平移到側面，再往下
     return from==='field'?pts.reverse():pts;
   }
   const i=ctr.h++,y=S.hinge+(i-(ctr.hn-1)/2)*2.6,H1={x:S.plate.w,y,sheet:'plate',must:true,side:null},H2={x:doorO().x,y,sheet:'door',side:null};
@@ -239,8 +241,14 @@ function backStub(P,W){
   const q={x:P.x-v[0]*BACK_IN,y:P.y-v[1]*BACK_IN,sheet:P.sheet,side:null,backOf:P.side,dev:P.dev,stub:true};
   q.inDuct=locate(q,q.sheet);return q;
 }
+// 裝在箱體外面的器具（例如箱頂的端子台、回生電阻）：和箱內器具之間的線要經過出線口，跟現場設備一樣
+function outBox(P){
+  if(P.sheet!=='plate'||!P.dev) return false;
+  const d=devOf(P.dev);if(!d) return false;const r=rectOf('dev',d),o=boxOrigin();
+  return r.x>=o.x+S.box.w-.01||r.x+r.w<=o.x+.01||r.y>=o.y+S.box.h-.01||r.y+r.h<=o.y+.01;
+}
 function buildAnchors(ea,eb,wps,ctr,glandId){
-  const sa=ea.sheet,sb=eb.sheet;
+  const sa=outBox(ea)?'field':ea.sheet,sb=outBox(eb)?'field':eb.sheet;
   const chain=sa===sb?[sa]:(sa!=='plate'&&sb!=='plate')?[sa,'plate',sb]:[sa,sb];
   const fieldP=sa==='field'?ea:eb;
   // 同一組器具（主體與正面附件、伺服電池）之間的線直接在器具前面連，不拉出線點
@@ -350,7 +358,9 @@ function computeRoutes(){
   const off=(e)=>{const k=key(e),n=use.get(k)||1,i=seen.get(k)||0;seen.set(k,i+1);return (i-(n-1)/2)*1.7;};
   const ctr={h:0,g:0,hn:S.wires.filter(w=>{const a=devOf(w.a.d).sheet,b=devOf(w.b.d).sheet;return a!==b&&(a==='door'||b==='door');}).length};
   const center_=(_,d)=>center(d);
-  const legsOf=(anchors,noDuct)=>{const L=[];for(let i=0;i<anchors.length-1;i++){const A=anchors[i],B=anchors[i+1];L.push(routeLeg(A,B,J,noDuct||(A.wp&&B.wp&&!A.bo&&!B.bo)));}return L;};
+  // 中繼點之間、出線口與緊接的中繼點之間：照點直接連（使用者手動指定的路徑）
+  const manualLeg=(A,B)=>(A.wp&&B.wp&&!A.bo&&!B.bo)||(A.gland&&B.wp&&!B.bo)||(A.wp&&!A.bo&&B.gland);
+  const legsOf=(anchors,noDuct)=>{const L=[];for(let i=0;i<anchors.length-1;i++){const A=anchors[i],B=anchors[i+1];L.push(routeLeg(A,B,J,noDuct||manualLeg(A,B)));}return L;};
   const job=(id,g,anchors,legs,manual,od)=>({id,g,od,anchors,legs,manual,first:realize(id,anchors,legs,center_)});
   const items=[];
   S.wires.forEach(w=>{
@@ -480,7 +490,7 @@ function computeRoutes(){
 // 拖曳中繼點時的預覽：只算這一條線（線槽中心線），放開後再整張重算線道
 function wirePreview(w){
   const J=junctions(),A=buildAnchors(endpoint(w.a,0),endpoint(w.b,0),w.wps,{h:0,g:0,hn:1},w.gland),legs=[];
-  for(let i=0;i<A.length-1;i++){const a=A[i],b=A[i+1];legs.push(routeLeg(a,b,J,!!w.direct||(a.wp&&b.wp&&!a.bo&&!b.bo)));}
+  for(let i=0;i<A.length-1;i++){const a=A[i],b=A[i+1];legs.push(routeLeg(a,b,J,!!w.direct||(a.wp&&b.wp&&!a.bo&&!b.bo)||(a.gland&&b.wp)||(a.wp&&b.gland)));}
   return simplify(realize('_',A,legs,(_,d)=>center(d)).pts);
 }
 function previewPts(a,wps,end,noDuct){

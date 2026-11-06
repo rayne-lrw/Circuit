@@ -72,6 +72,14 @@ const SCENARIOS=[
     placeOn(st.devices.find(d=>d.id==='DD1'),k);placeOn(st.devices.find(d=>d.id==='DD2'),r);
     return {state:st,expectClean:'all',expectCoil:{DD1:['A1','A2'],DD2:['14','13']}};
   }},
+  {name:'箱外器具經過出線口',build:()=>{
+    const st=normalize(sampleState()).state;S=st;
+    st.glands.push({id:'G9',side:'top',x:250,y:0,spec:'M20-14 電纜固定頭'});
+    st.devices.push({id:'TB5',tag:'TB5',tpl:'nht60',x:300,y:-110,sheet:'plate'});
+    const t=resolveTpl('nht60').terms;
+    st.wires.push({id:'tt1',no:'TT1',a:{d:'TB5',t:t[0].id},b:{d:'SV1',t:'L11'},wps:[],gauge:1.25,color:'red'},{id:'tt2',no:'TT2',a:{d:'K0',t:'A1'},b:{d:'TB5',t:t[1].id},wps:[],gauge:1.25,color:'blue'});
+    return {state:st,expectClean:['TT1','TT2'],expectGland:{TT1:'G9',TT2:'G9'}};
+  }},
   {name:'不進線槽與旋轉器具',build:()=>{
     const st=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:800,h:600},door:{w:900,h:700},
       devices:[{id:'Q1',tpl:'fuji-bw50',x:100,y:300,rot:270},{id:'FL1',tpl:'fn3270',x:300,y:290,rot:270},{id:'Q2',tpl:'fuji-bw50',x:100,y:100,rot:90}],
@@ -81,7 +89,7 @@ const SCENARIOS=[
   }},
 ];
 
-function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil){
+function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,expectGland){
   const res=[];
   const fam=id=>famIds(id);
   const crosses=(w,pts)=>{
@@ -116,6 +124,9 @@ function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil){
     if(expectBack&&w.no in expectBack){const E=endpoint(w.a,0),O={top:'bottom',bottom:'top',left:'right',right:'left'}[E.side],d=dirOf(p[0],p[1]);
       if(expectBack[w.no]&&d!==O)msgs.push(`應直接往中繼點方向（${O}）出線，實際 ${d}`);if(!expectBack[w.no]&&d!==E.side)msgs.push(`中繼點不在器具正後方，應照原本方向 ${E.side} 出線，實際 ${d}`);}
     if(w.wps&&w.wps.length&&ISSUES.some(i=>i.id===w.id&&i.t.includes('折返')))msgs.push('中繼點造成折返');
+    // 箱外器具到箱內：要經過指定的出線口，且不可在出線口以外穿過箱壁
+    if(expectGland&&expectGland[w.no]){if(r.gland!==expectGland[w.no])msgs.push(`應經過出線口 ${expectGland[w.no]}，實際 ${r.gland||'沒有'}`);
+      const o=boxOrigin(),B={x:o.x,y:o.y,w:S.box.w,h:S.box.h},cross=p.filter((q,i)=>i&&(inR(q,B)!==inR(p[i-1],B))).length;if(cross!==1)msgs.push(`進出箱壁 ${cross} 次（應只有出線口 1 次）`);}
     (w.wps||[]).forEach((q,k)=>{if(!onPath(p,q))msgs.push(`沒有經過第 ${k+1} 個中繼點`);});
     if(expectVia&&expectVia[w.no]){const v=r.via.join('>'),want=expectVia[w.no].join('>');if(v!==want)msgs.push(`經過的線槽應為 ${want}，實際 ${v||'無'}`);}
     // 電纜芯線：接點→剝線點、外被、剝線點→接點分開檢查（芯線在剝線點往回走是正常的）
@@ -161,7 +172,7 @@ function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil){
     const out=await p.evaluate(([src,arg,chk])=>{
       const sc=new Function('arg','return ('+src+')(arg)')(arg);
       S=sc.state;resetUi();computeRoutes();
-      return new Function('expectClean','expectVia','expectCable','expectBack','expectCoil','return ('+chk+')(expectClean,expectVia,expectCable,expectBack,expectCoil)')(sc.expectClean,sc.expectVia,sc.expectCable,sc.expectBack,sc.expectCoil);
+      return new Function('expectClean','expectVia','expectCable','expectBack','expectCoil','expectGland','return ('+chk+')(expectClean,expectVia,expectCable,expectBack,expectCoil,expectGland)')(sc.expectClean,sc.expectVia,sc.expectCable,sc.expectBack,sc.expectCoil,sc.expectGland);
     },[fnSrc,arg,checkInPage.toString()]);
     const bad=out.filter(x=>!x.ok);total+=out.length;fail+=bad.length;
     console.log(`${bad.length?'✗':'✓'} ${name}：${out.length} 條線，${bad.length} 條失敗`);
