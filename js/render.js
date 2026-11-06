@@ -108,6 +108,34 @@ function wireInner(w,r){
   if(r.warn) s+=`<path class="warnline" d="${d}"/>`;
   return s;
 }
+/* 線號位置：w.lab 是拖曳過的位置（離起點的路徑比例 0～1）；w.labAt 是選單選的固定位置
+   start 起點端（預設）、end 終點端、mid 中間、both 兩端都標 */
+const labPath=(w,r)=>r.tails?r.tails[0]:r.pts;
+const pathLen=p=>{let L=0;for(let i=1;i<p.length;i++)L+=Math.abs(p[i].x-p[i-1].x)+Math.abs(p[i].y-p[i-1].y);return L;};
+function pointAt(p,s){ // 沿折線走 s mm 的位置與該段方向
+  for(let i=1;i<p.length;i++){const a=p[i-1],b=p[i],L=Math.abs(b.x-a.x)+Math.abs(b.y-a.y);
+    if(s<=L||i===p.length-1){const t=L?Math.min(1,Math.max(0,s/L)):0;return {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,v:Math.abs(a.x-b.x)<.01&&Math.abs(a.y-b.y)>.01};}
+    s-=L;}
+  return p[0]?{x:p[0].x,y:p[0].y,v:false}:null;
+}
+function labelSpots(w,r){
+  const p=labPath(w,r);if(!p||p.length<2) return [];
+  const L=pathLen(p),end=Math.min(13,L/2);
+  if(w.lab!=null) return [pointAt(p,w.lab*L)];
+  const at=w.labAt||'start',out=[];
+  if(at==='start'||at==='both') out.push(pointAt(p,end));
+  if(at==='end'||at==='both'){const q=r.tails?r.tails[1]:p,ql=pathLen(q);out.push(pointAt(q,ql-Math.min(13,ql/2)));}
+  if(at==='mid') out.push(pointAt(p,L/2));
+  return out.filter(Boolean);
+}
+// 把滑鼠位置投影到線上，回傳路徑比例
+function labFrac(w,r,m){
+  const p=labPath(w,r),L=pathLen(p);if(!L) return 0;let best=1e9,bs=0,acc=0;
+  for(let i=1;i<p.length;i++){const a=p[i-1],b=p[i],l=Math.abs(b.x-a.x)+Math.abs(b.y-a.y);
+    const t=l?Math.max(0,Math.min(1,((m.x-a.x)*(b.x-a.x)+(m.y-a.y)*(b.y-a.y))/(((b.x-a.x)**2+(b.y-a.y)**2)||1))):0;
+    const q={x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t},d=Math.hypot(q.x-m.x,q.y-m.y);if(d<best){best=d;bs=acc+t*l;}acc+=l;}
+  return Math.round(bs/L*1000)/1000;
+}
 function renderWires(){
   let h='',boH='';const cableLabel=new Map();
   // 電纜外被畫在芯線下面；剝線點畫成小方塊，可以拖曳
@@ -126,10 +154,7 @@ function renderWires(){
     // 電纜芯線只畫剝線點到接點那兩段
     const segs=r.tails||[r.pts],vis=r.tails?{...r}:r;
     h+=`<g class="wire${r.cab?' core':''}" data-wid="${w.id}">${segs.map(p=>wireInner(w,{...vis,pts:p})).join('')}${segs.map(p=>`<path class="hit" d="${pathD(p)}"/>`).join('')}`;
-    const [a,b]=[r.pts[0],r.pts[1]];
-    if(a&&b){const v=Math.abs(a.x-b.x)<.01,dir=v?sgn(b.y-a.y):sgn(b.x-a.x),L=Math.min(13,(Math.abs(a.x-b.x)+Math.abs(a.y-b.y))/2);
-      const tx=a.x+(v?0:dir*L),ty=a.y+(v?dir*L:0);
-      h+=`<text class="wn" x="${tx}" y="${ty}" text-anchor="middle" dominant-baseline="central" ${v?`transform="rotate(-90 ${tx} ${ty})"`:''}>${w.no}</text>`;}
+    labelSpots(w,r).forEach(p=>{h+=`<text class="wn" data-lab="${w.id}" x="${p.x}" y="${p.y}" text-anchor="middle" dominant-baseline="central"${p.v?` transform="rotate(-90 ${p.x} ${p.y})"`:''}>${esc(w.no)}</text>`;});
     h+='</g>';
     if(wireKind(w)==='ext'&&w.ext&&w.ext.cable){
       const fd=devOf(w.a.d).sheet==='field'?w.a.d:w.b.d;

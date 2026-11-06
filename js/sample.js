@@ -63,6 +63,8 @@ function normalize(o){
     if(w.ext&&typeof w.ext==='object') r.ext={cable:txt(w.ext.cable,12),core:txt(w.ext.core,10),spec:cleanSpec(w.ext.spec)};
     if(safe(w.gland)) r.gland=w.gland;
     if(w.direct===true) r.direct=true;
+    if(Number.isFinite(w.lab)) r.lab=Math.min(1,Math.max(0,w.lab));
+    if(['end','mid','both'].includes(w.labAt)) r.labAt=w.labAt;
     if(safe(w.cab)){r.cab=w.cab;r.core=txt(w.core,10).trim()||'1';}
     return r;
   });

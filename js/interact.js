@@ -49,6 +49,9 @@ let act=null;
 svg.addEventListener('pointerdown',e=>{
   const p=toWorld(e);cursor=p;
   if(mode==='wire'&&e.pointerType!=='mouse') hoverUpdate(e);
+  // 拖曳線號：接線模式、選取中的線
+  const lg=mode==='wire'&&e.button===0&&!draft&&e.target.closest&&e.target.closest('[data-lab]');
+  if(lg&&lg.dataset.lab===sel){act={t:'lab',wid:sel,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId};svg.setPointerCapture(e.pointerId);return;}
   // 拖曳剝線點（接線、擺放模式都可以）
   const bg=mode!=='view'&&e.button===0&&!draft&&e.target.closest&&e.target.closest('[data-bo]');
   if(bg){const [cid,k]=bg.dataset.bo.split('|');act={t:'bo',cid,k,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId};svg.setPointerCapture(e.pointerId);return;}
@@ -125,6 +128,9 @@ svg.addEventListener('pointermove',e=>{
   }else if(act.t==='gland'){
     glandTo(act.obj,toWorld(e)); // 吸到最近的箱面
     computeRoutes();renderBoard();renderWires();
+  }else if(act.t==='lab'){
+    const w=S.wires.find(x=>x.id===act.wid),r=ROUTES.get(act.wid);if(!w||!r)return;
+    w.lab=labFrac(w,r,toWorld(e));renderWires();
   }else if(act.t==='bo'){
     const c=cabOf(act.cid);if(!c)return;const p=toWorld(e);
     // 拖進線槽時吸到線槽中心線，按住 Alt 不吸附
@@ -146,6 +152,7 @@ svg.addEventListener('pointerup',e=>{
   if(a.t==='multi'){endMultiDrag(a);return;}
   if(a.copy&&!a.moved){dropClip(a.copy);picked=a.src;recompute();return;} // Ctrl＋點一下沒拖：不複製
   if(a.t==='wp'&&!a.moved&&noteTap(e)&&tryDouble(toWorld(e))) return;
+  if(a.t==='lab'){if(a.moved){commit();renderDetail();}return;}
   if(a.t==='bo'){if(a.moved)commit();else selectCable(a.cid);recompute();return;}
   if(a.t==='drag'||a.t==='wp'||a.t==='gland'||a.t==='zone'){ if(a.moved){commit();} recompute(); return; }
   if(a.moved||a.btn!==0) return;

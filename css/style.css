@@ -224,6 +224,8 @@ label.check input{margin:2px 0 0;flex:none}
 .wire.off{opacity:.05;pointer-events:none}
 #wires.focus .wire.off:not(.on){opacity:.03}
 .wire.on .wn{display:block}
+#svg:not(.place) .wire.on .wn{pointer-events:all;cursor:grab} /* 選取中的線可以拖曳線號 */
+body.viewing .wire.on .wn{pointer-events:none}
 .cab path{fill:none;stroke-linejoin:round;stroke-linecap:round}
 .cab .cab-o{stroke:#2b2f2e;pointer-events:none}
 .cab .cab-v{stroke:#9aa29f;pointer-events:none}
