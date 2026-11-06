@@ -8,7 +8,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23334'/%3E%3Cpath d='M3 4h5v8h5' fill='none' stroke='%23fc3' stroke-width='2'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261106.115330">
+<link rel="stylesheet" href="css/style.css?v=20261106.114649">
 </head>
 <body>
 <div id="app">
@@ -65,7 +65,7 @@
           <p class="note" id="setSum"></p>
         </div>
         <div>
-          <h2 class="h2ver"><span>器具庫 <button class="hq" data-help="lib" aria-expanded="false" aria-label="說明">?</button></span><span id="ver" title="目前版本；更新後這個號碼會改變">v20261106.115330</span></h2>
+          <h2 class="h2ver"><span>器具庫 <button class="hq" data-help="lib" aria-expanded="false" aria-label="說明">?</button></span><span id="ver" title="目前版本；更新後這個號碼會改變">v20261106.114649</span></h2>
           <p class="note hn" data-helpfor="lib" hidden>滑鼠停在器具上可看尺寸來源。接點只對到實物的區塊與順序，選取器具後可按「編輯器具」修正。</p>
           <input id="libQ" type="search" placeholder="搜尋型號、品名、廠牌" aria-label="搜尋器具">
           <div class="row" style="margin-top:6px;justify-content:flex-start"><button class="tool" id="newTpl">新增自訂器具</button></div>
@@ -141,7 +141,6 @@
             <label for="hy">過門線束 Y<input id="hy" type="number" step="10"></label>
             <label for="fl">線槽上限 %<input id="fl" type="number" step="5" min="5" max="100"></label>
             <label class="check" style="grid-column:1/-1"><input type="checkbox" id="warnMixed">同一電位有不同線號時提示</label>
-            <label class="check" style="grid-column:1/-1"><input type="checkbox" id="faceAll">所有接點都可以從器具正面轉 90 度接進去（預設只有接頭、PLC 這類正面接點）</label>
           </div>
     <div class="row"><button class="primary" id="setClose">完成</button></div>
   </div>
@@ -167,7 +166,6 @@
         <label for="eTop">上排接點（逗號分隔）<input id="eTop"></label>
         <label for="eBot">下排接點（逗號分隔）<input id="eBot"></label>
       </div>
-      <label class="check"><input type="checkbox" id="eFace">接點在器具正面（接頭、彈簧端子）：線槽在反方向時，線沿器具正面走到接點旁邊再轉進去</label>
       <label class="check"><input type="checkbox" id="eOk">尺寸與接點已對照型錄或實物</label>
     </div>
     <div><svg id="edPrev" aria-label="器具預覽"></svg></div>
@@ -175,20 +173,20 @@
   </div>
 </div>
 
-<script src="js/inventory.js?v=20261106.115330"></script>
-<script src="js/devices.js?v=20261106.115330"></script>
-<script src="js/cable.js?v=20261106.115330"></script>
-<script src="js/sample.js?v=20261106.115330"></script>
-<script src="js/state.js?v=20261106.115330"></script>
-<script src="js/routing.js?v=20261106.115330"></script>
-<script src="js/render.js?v=20261106.115330"></script>
-<script src="js/panels.js?v=20261106.115330"></script>
-<script src="js/popup.js?v=20261106.115330"></script>
-<script src="js/report.js?v=20261106.115330"></script>
-<script src="js/interact.js?v=20261106.115330"></script>
-<script src="js/cables-ui.js?v=20261106.115330"></script>
-<script src="js/multi.js?v=20261106.115330"></script>
-<script src="js/editor.js?v=20261106.115330"></script>
-<script src="js/main.js?v=20261106.115330"></script>
+<script src="js/inventory.js?v=20261106.114649"></script>
+<script src="js/devices.js?v=20261106.114649"></script>
+<script src="js/cable.js?v=20261106.114649"></script>
+<script src="js/sample.js?v=20261106.114649"></script>
+<script src="js/state.js?v=20261106.114649"></script>
+<script src="js/routing.js?v=20261106.114649"></script>
+<script src="js/render.js?v=20261106.114649"></script>
+<script src="js/panels.js?v=20261106.114649"></script>
+<script src="js/popup.js?v=20261106.114649"></script>
+<script src="js/report.js?v=20261106.114649"></script>
+<script src="js/interact.js?v=20261106.114649"></script>
+<script src="js/cables-ui.js?v=20261106.114649"></script>
+<script src="js/multi.js?v=20261106.114649"></script>
+<script src="js/editor.js?v=20261106.114649"></script>
+<script src="js/main.js?v=20261106.114649"></script>
 </body>
 </html>

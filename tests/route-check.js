@@ -56,11 +56,6 @@ const SCENARIOS=[
     c5.bo.a=axis(d)==='h'?{x:Math.max(d.x+5,r.a.x-60),y:r.a.y}:{x:r.a.x,y:Math.max(d.y+5,r.a.y-60)};c5.fieldLen=5000;
     return {state:st,expectClean:'all',expectCable:{C90:{cores:5,ext:false},C91:{cores:2,ext:false},C05:{field:5000,ext:true}}};
   }},
-  {name:'正面接點從正面轉進去',build:()=>{
-    const st=normalize(sampleState()).state;
-    st.wires.push({id:'tf1',no:'F1',a:{d:'SV2',t:'L11'},b:{d:'X1',t:'10A'},wps:[],gauge:1.25,color:'red'},{id:'tf2',no:'F2',a:{d:'EX1',t:'7'},b:{d:'X1',t:'11A'},wps:[],gauge:.75,color:'blue'});
-    return {state:st,expectClean:['F1','F2'],expectFace:{F1:'a',F2:'a'}};
-  }},
   {name:'不進線槽與旋轉器具',build:()=>{
     const st=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:800,h:600},door:{w:900,h:700},
       devices:[{id:'Q1',tpl:'fuji-bw50',x:100,y:300,rot:270},{id:'FL1',tpl:'fn3270',x:300,y:290,rot:270},{id:'Q2',tpl:'fuji-bw50',x:100,y:100,rot:90}],
@@ -70,7 +65,7 @@ const SCENARIOS=[
   }},
 ];
 
-function checkInPage(expectClean,expectVia,expectCable,expectFace){
+function checkInPage(expectClean,expectVia,expectCable){
   const res=[];
   const fam=id=>famIds(id);
   const crosses=(w,pts)=>{
@@ -80,9 +75,6 @@ function checkInPage(expectClean,expectVia,expectCable,expectFace){
     for(let i=1;i<pts.length;i++){const m={x:(pts[i-1].x+pts[i].x)/2,y:(pts[i-1].y+pts[i].y)/2};if(!inR(m,B))continue;const d=segHits(pts[i-1].x,pts[i-1].y,pts[i].x,pts[i].y,ex);if(d)hit.add(d.tag);}
     return [...hit];
   };
-  const OPP={top:'bottom',bottom:'top',left:'right',right:'left'};
-  // 正面接點可以從器具正面轉進去：反方向也算對
-  const okDir=(E,d)=>d===E.side||(faceOK(E)&&d===OPP[E.side]);
   const dirOf=(a,b)=>Math.abs(b.x-a.x)>Math.abs(b.y-a.y)?(b.x>a.x?'right':'left'):(b.y>a.y?'bottom':'top');
   const onPath=(pts,q)=>pts.some((a,i)=>{if(!i)return false;const b=pts[i-1];
     return q.x>=Math.min(a.x,b.x)-.5&&q.x<=Math.max(a.x,b.x)+.5&&q.y>=Math.min(a.y,b.y)-.5&&q.y<=Math.max(a.y,b.y)+.5&&(Math.abs(a.x-b.x)<.01||Math.abs(a.y-b.y)<.01);});
@@ -98,14 +90,10 @@ function checkInPage(expectClean,expectVia,expectCable,expectFace){
     if(!manual&&!w.direct&&!local&&!r.warn&&p.length>1){
       const A=endpoint(w.a,0),B=endpoint(w.b,0);
       let i=1;while(i<p.length&&Math.hypot(p[i].x-p[0].x,p[i].y-p[0].y)<.5)i++;
-      if(i<p.length&&A.side&&devOf(w.a.d).sheet!=='field'&&!okDir(A,dirOf(p[0],p[i]))) msgs.push(`起點出線方向應為 ${A.side}，實際 ${dirOf(p[0],p[i])}`);
+      if(i<p.length&&A.side&&devOf(w.a.d).sheet!=='field'&&dirOf(p[0],p[i])!==A.side) msgs.push(`起點出線方向應為 ${A.side}，實際 ${dirOf(p[0],p[i])}`);
       let j=p.length-2;while(j>=0&&Math.hypot(p[j].x-p[p.length-1].x,p[j].y-p[p.length-1].y)<.5)j--;
-      if(j>=0&&B.side&&devOf(w.b.d).sheet!=='field'&&!okDir(B,dirOf(p[p.length-1],p[j]))) msgs.push(`終點進線方向應為 ${B.side}，實際 ${dirOf(p[p.length-1],p[j])}`);
+      if(j>=0&&B.side&&devOf(w.b.d).sheet!=='field'&&dirOf(p[p.length-1],p[j])!==B.side) msgs.push(`終點進線方向應為 ${B.side}，實際 ${dirOf(p[p.length-1],p[j])}`);
     }
-    // 正面接點：第一段往器具裡面走 4 mm 再轉彎（或直線接到線槽），不可先往外拉再繞過器具
-    if(expectFace&&expectFace[w.no]){const E=endpoint(w.a,0),d=dirOf(p[0],p[1]);
-      if(d!==OPP[E.side])msgs.push(`應從器具正面轉進接點，第一段卻往 ${d}`);
-      const v={top:[0,-1],bottom:[0,1],left:[-1,0],right:[1,0]}[E.side];if(p.some(q=>(q.x-E.x)*v[0]+(q.y-E.y)*v[1]>.5&&Math.abs((q.x-E.x)*v[1])+Math.abs((q.y-E.y)*v[0])<30))msgs.push('先往接點外面拉線再繞回來');}
     (w.wps||[]).forEach((q,k)=>{if(!onPath(p,q))msgs.push(`沒有經過第 ${k+1} 個中繼點`);});
     if(expectVia&&expectVia[w.no]){const v=r.via.join('>'),want=expectVia[w.no].join('>');if(v!==want)msgs.push(`經過的線槽應為 ${want}，實際 ${v||'無'}`);}
     // 電纜芯線：接點→剝線點、外被、剝線點→接點分開檢查（芯線在剝線點往回走是正常的）
@@ -145,7 +133,7 @@ function checkInPage(expectClean,expectVia,expectCable,expectFace){
     const out=await p.evaluate(([src,arg,chk])=>{
       const sc=new Function('arg','return ('+src+')(arg)')(arg);
       S=sc.state;resetUi();computeRoutes();
-      return new Function('expectClean','expectVia','expectCable','expectFace','return ('+chk+')(expectClean,expectVia,expectCable,expectFace)')(sc.expectClean,sc.expectVia,sc.expectCable,sc.expectFace);
+      return new Function('expectClean','expectVia','expectCable','return ('+chk+')(expectClean,expectVia,expectCable)')(sc.expectClean,sc.expectVia,sc.expectCable);
     },[fnSrc,arg,checkInPage.toString()]);
     const bad=out.filter(x=>!x.ok);total+=out.length;fail+=bad.length;
     console.log(`${bad.length?'✗':'✓'} ${name}：${out.length} 條線，${bad.length} 條失敗`);
