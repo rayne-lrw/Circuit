@@ -230,12 +230,13 @@ function updateHint(){
   else{k='wire';s='滑鼠靠近接點會自動吸附放大，點一下開始接線。接到現場區就是外線，接到面板就會走過門線束。';}
   $('hintT').textContent=s;helpAuto(k);
 }
-// 每種情況只自動展開一次；收合過的記在瀏覽器，之後按「? 說明」才看得到
+// 不自動跳出：遇到還沒看過的情況，「? 說明」按鈕上出現小紅點；點開看過就記在瀏覽器，紅點消失
 let helpKey=null;
 function helpSeen(){try{return new Set(JSON.parse(localStorage.getItem('wiring-sim-help-seen')||'[]'));}catch(_){return new Set();}}
 function helpMark(k){const s=helpSeen();s.add(k);try{localStorage.setItem('wiring-sim-help-seen',JSON.stringify([...s]));}catch(_){}}
-function setHelp(open){$('helpP').hidden=!open;$('helpB').setAttribute('aria-expanded',open);}
-function helpAuto(k){if(k===helpKey)return;helpKey=k;if(!helpSeen().has(k))setHelp(true);}
+function setHelp(open){$('helpP').hidden=!open;$('helpB').setAttribute('aria-expanded',open);if(open){helpMark(helpKey);helpDot();}}
+function helpDot(){const n=!helpSeen().has(helpKey);$('helpB').classList.toggle('new',n);$('helpB').title=n?'有新的操作提示':'操作提示';}
+function helpAuto(k){if(k===helpKey)return;helpKey=k;if(!$('helpP').hidden)helpMark(k);helpDot();}
 
 /* 左欄（盤面設定、器具庫）：可收合成窄條。各模式記住自己的狀態，預設擺放展開、接線與檢視收合。
    收合或展開時圖面寬度會變，手動縮放過的畫面會補償平移，圖上的東西留在原本的螢幕位置 */

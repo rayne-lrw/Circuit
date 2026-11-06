@@ -528,9 +528,9 @@ $('oldDraft').onclick=()=>{
   $('oldDraft').hidden=true;
 };
 /* 說明 */
-$('helpB').onclick=()=>{const open=$('helpP').hidden;if(!open)helpMark(helpKey);setHelp(open);};
-$('helpClose').onclick=()=>{helpMark(helpKey);setHelp(false);};
-$('helpReset').onclick=()=>{try{localStorage.removeItem('wiring-sim-help-seen');}catch(_){}setHelp(true);toast('之後每種操作的提示都會再自動跳出一次');};
+$('helpB').onclick=()=>setHelp($('helpP').hidden);
+$('helpClose').onclick=()=>setHelp(false);
+$('helpReset').onclick=()=>{try{localStorage.removeItem('wiring-sim-help-seen');}catch(_){}setHelp(false);helpDot();toast('已重設：還沒看過的提示會在「? 說明」上顯示小紅點');};
 // ? 按鈕：展開或收合旁邊的說明（用捕獲階段，選單裡的 ? 也能用，不會把選單關掉）
 document.addEventListener('click',e=>{
   const b=e.target.closest&&e.target.closest('.hq');if(!b)return;

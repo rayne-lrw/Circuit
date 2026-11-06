@@ -136,7 +136,8 @@ label.check input{margin:2px 0 0;flex:none}
 #help{position:absolute;left:10px;bottom:10px;z-index:3;display:flex;flex-direction:column;align-items:flex-start;gap:6px;max-width:min(600px,calc(100% - 20px))}
 #helpP{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;box-shadow:0 3px 12px rgba(0,0,0,.22);display:flex;flex-direction:column;gap:6px}
 #hintT{margin:0;font-size:13px;line-height:1.55}
-#helpB{box-shadow:0 2px 8px rgba(0,0,0,.18);font-size:12.5px;padding:4px 10px}
+#helpB{box-shadow:0 2px 8px rgba(0,0,0,.18);font-size:12.5px;padding:4px 10px;position:relative}
+#helpB.new::after{content:'';position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--accent);border:2px solid var(--panel)}
 .hq{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1px solid var(--line);background:var(--panel-2);color:var(--muted);font:600 11.5px/1 var(--sans);padding:0;vertical-align:1px;cursor:pointer}
 .hq[aria-expanded="true"]{border-color:var(--accent);color:var(--accent)}
 .hn{margin:2px 0 4px}
