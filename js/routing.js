@@ -216,7 +216,9 @@ function gates(from,to,ctr,fieldP,glandId){
   if(from==='field'||to==='field'){
     // 沒指定就選離現場設備最近的出線口
     const dist=g=>{const P=glandPt(g);return Math.hypot(P.x-fieldP.x,P.y-fieldP.y);};
-    const g=(glandId&&S.glands.find(x=>x.id===glandId))||S.glands.reduce((b,x)=>!b||dist(x)<dist(b)?x:b,null);
+    // 指定的出線口優先，其次是現場設備（或箱外器具）設定的預設出線口，都沒有就選最近的
+    const dg=fieldP.dev&&devOf(fieldP.dev),gid=glandId||(dg&&dg.gland);
+    const g=(gid&&S.glands.find(x=>x.id===gid))||S.glands.reduce((b,x)=>!b||dist(x)<dist(b)?x:b,null);
     // 同一個出線口的多條線在出線口直徑範圍內錯開（M20 約 ±4 mm），外面再依序往外拉開，不會偏到出線口旁邊
     const i=ctr.g++,k=(i%24)*2.2,sp=((i%8)-3.5)*1.1,by=boxBottom();
     if(!g||(g.side||'bottom')==='bottom'){
@@ -404,7 +406,8 @@ function computeRoutes(){
     const side=(k,ends)=>{const o=c.bo&&c.bo[k];const p=o?{x:o.x,y:o.y,sheet:sheetAt(o)}:autoBO(ends,ends[0].sheet);return {x:p.x,y:p.y,sheet:p.sheet,inDuct:locate(p,p.sheet),wp:true,bo:true,auto:!o};};
     const A=side('a',ea),B=side('b',eb);
     // 外被可以加中繼點、可以不進線槽；電纜本來就能走線槽外，穿過其他器具不警告
-    const sa=buildAnchors(A,B,c.wps||[],ctr,c.gland),sh=job('S:'+c.id,0,sa,legsOf(sa,!!c.direct),false,cabOD(c));sh.cab=true;items.push(sh);
+    const cg=c.gland||(cw.map(w=>devOf(w.b.d)).find(d=>d&&d.gland)||{}).gland; // 電纜：指定的出線口，其次是現場設備的預設出線口
+    const sa=buildAnchors(A,B,c.wps||[],ctr,cg),sh=job('S:'+c.id,0,sa,legsOf(sa,!!c.direct),false,cabOD(c));sh.cab=true;items.push(sh);
     const tails=cw.map((w,i)=>{
       const ta=buildAnchors(ea[i],{...A},[],ctr,null),tb=buildAnchors({...B},eb[i],[],ctr,null);
       const ja=job(w.id+'#a',w.gauge,ta,legsOf(ta,false),false),jb=job(w.id+'#b',w.gauge,tb,legsOf(tb,false),false);
@@ -518,9 +521,9 @@ function wirePreview(w){
   for(let i=0;i<A.length-1;i++){const a=A[i],b=A[i+1];legs.push(routeLeg(a,b,J,!!w.direct||(a.wp&&b.wp&&!a.bo&&!b.bo)||(a.gland&&b.wp)||(a.wp&&b.gland)));}
   return simplify(realize('_',A,legs,(_,d)=>center(d)).pts);
 }
-function previewPts(a,wps,end,noDuct){
+function previewPts(a,wps,end,noDuct,gland){
   const J=junctions();
-  const anchors=buildAnchors(endpoint(a,0),end,wps,{h:0,g:0,hn:1},null);
+  const anchors=buildAnchors(endpoint(a,0),end,wps,{h:0,g:0,hn:1},gland||null);
   const legs=[];for(let i=0;i<anchors.length-1;i++) legs.push(routeLeg(anchors[i],anchors[i+1],J,noDuct||wps.length>0));
   return simplify(realize('_',anchors,legs,(_,d)=>center(d)).pts);
 }

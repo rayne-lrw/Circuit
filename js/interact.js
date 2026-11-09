@@ -199,6 +199,9 @@ function clickWire(e,a){
       if(s.d===draft.a.d&&s.t===draft.a.t) return;
       draft.end={d:s.d,t:s.t};if(cabPick&&pickCore())return;openPop();return;
     }
+    // 點到出線口：這條線走這個出線口（再點一次取消）
+    const gg=a.target&&a.target.closest&&a.target.closest('[data-gland]');
+    if(gg){const id=gg.dataset.gland;draft.gland=draft.gland===id?null:id;toast(draft.gland?`這條線走出線口 ${id}`:'改回自動選最近的出線口');renderOverlay();updateHint();return;}
     draft.wps.push({x:Math.round(p.x/5)*5,y:Math.round(p.y/5)*5});
     renderOverlay();updateHint();return;
   }

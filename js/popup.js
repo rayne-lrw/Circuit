@@ -45,10 +45,12 @@ function finishWire(){
   applyColor(w,last.color);
   if(last.direct) w.direct=true;
   if(last.labAt&&last.labAt!=='start') w.labAt=last.labAt;
+  if(draft.gland) w.gland=draft.gland;
   S.wires.push(w);
   if(draftIsExt()&&draft.ext.cable.trim()){
     const no=draft.ext.cable.trim().slice(0,12),c=S.cables.find(x=>x.no===no)||newCable(no,draft.ext.spec);
     attachCore(w,c,draft.ext.core.trim()||null);
+    if(draft.gland) c.gland=draft.gland; // 電纜整條走拉線時點的出線口
   }draft=null;closePop();sel=w.id;commit();recompute();
 }
 function cancelDraft(){draft=null;closePop();renderOverlay();updateHint();}
