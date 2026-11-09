@@ -110,7 +110,7 @@ function renderDetailInner(){
       ${t.sym==='diode'?`<label class="check"><input type="checkbox" id="dShowNo"${d.hideNo?'':' checked'}>顯示接到這個二極體的線號</label>`:''}
       ${coilOf(d)?`<label class="check"><input type="checkbox" id="dCoilSwap"${d.coilSwap?' checked':''}>線圈極性對調（目前 ${esc(coilOf(d).p)} 是 +、${esc(coilOf(d).m)} 是 −）</label>`:''}
       ${t.gen?`<div class="fields"><label for="dCount">${esc(t.cntLabel)}<input id="dCount" type="number" min="1" value="${d.count||t.cnt}"></label></div>`:''}
-      ${hasSlots(t)?slotHtml(d)+(t.jumper?jumperHtml(d):''):slotSource(d)?`<div class="revert"><p class="note">這組端子台之前用「編輯器具」改過，變成了自訂器具，所以不能每片填端子號，也不能改片數。換回 WAGO 端子台後，原本改的編號會變成每片的端子號，接好的線都會保留。</p><button class="tool" id="slotRevert">換回 ${esc(TPL[slotSource(d)].n)}</button></div>`:''}
+      ${t.userLinks?linkHtml(d):''}${hasSlots(t)?slotHtml(d)+(t.jumper?jumperHtml(d):''):slotSource(d)?`<div class="revert"><p class="note">這組端子台之前用「編輯器具」改過，變成了自訂器具，所以不能每片填端子號，也不能改片數。換回 WAGO 端子台後，原本改的編號會變成每片的端子號，接好的線都會保留。</p><button class="tool" id="slotRevert">換回 ${esc(TPL[slotSource(d)].n)}</button></div>`:''}
       ${t.terms.length>1&&!hasSlots(t)?`<label class="check"><input type="checkbox" id="dBus"${busOf(d)?' checked':''}>全部接點本來就同電位（接地銅板、共點排）</label>`:''}
       <div class="fields"><label for="dX">X（距${d.sheet==='door'?doorShort():d.sheet==='field'?esc(devRef(d).name||'現場區'):'底板'}左緣）<input id="dX" type="number" step="1" value="${r1(d.x-devRef(d).x)}"></label><label for="dY">Y（距上緣）<input id="dY" type="number" step="1" value="${r1(d.y-devRef(d).y)}"></label></div>${moveHtml(false)}
       <div class="row"><button class="tool" id="rotDev">旋轉 90°</button><button class="tool" id="editTpl">編輯器具</button><button class="tool danger" id="delPicked">刪除器具${n?`與 ${n} 條線`:''}</button></div>`;
@@ -199,6 +199,16 @@ function slotHtml(d){
   let h='';for(let i=0;i<n;i++) h+=`<label><span>${i+1}</span><input data-slot="${i}" maxlength="10" value="${esc(L[i]||'')}" placeholder="${i+1}" aria-label="第 ${i+1} 片端子號"></label>`;
   return `<div><div class="sub-h">端子號（每片一格，空白就顯示原編號）</div><div class="slots">${h}</div>
     <div class="row" style="justify-content:flex-start;align-items:center;margin-top:6px"><button class="tool" id="slotSeq">依序編號</button><span class="note">從</span><input id="slotFrom" type="number" value="1" step="1" aria-label="起始號碼" style="width:64px;border:1px solid var(--line);background:var(--panel-2);border-radius:5px;padding:4px 6px;font-family:var(--mono);font-size:12.5px"><button class="tool" id="slotClr">清除端子號</button></div></div>`;
+}
+/* 接線盒的短路片：勾選幾個接點設為同電位；已設的組列出來可以刪除 */
+function linkHtml(d){
+  const t=tplOf(d),G=d.links||[],lb=id=>esc(termLabel(d,id));
+  const list=G.map((g,k)=>`<div class="jrow"><span>同電位：${g.map(lb).join('、')}</span><button class="tool" data-lkdel="${k}">刪除</button></div>`).join('');
+  const inG=id=>G.findIndex(g=>g.includes(id));
+  const chips=t.terms.map(p=>{const k=inG(p.id);return `<label class="lk${k>=0?' on':''}" title="${k>=0?'已在第 '+(k+1)+' 組':''}"><input type="checkbox" data-lk="${esc(p.id)}">${lb(p.id)}${k>=0?`<sup>${k+1}</sup>`:''}</label>`;}).join('');
+  return `<div><div class="hrow"><span class="sub-h" style="display:inline">短路片（同電位）</span> ${hq('lk')}</div>${hn('lk','勾選要接在一起的接點，按「設為同電位」。同一組的接點算同一個電位：建線時沿用線號、網路檢查都會當成相通。勾到已經在某一組的接點，會併進那一組。')}
+    ${list||'<p class="note">還沒有短路片，每個接點各自獨立。</p>'}
+    <div class="lks">${chips}</div><div class="row" style="justify-content:flex-start;margin-top:6px"><button class="tool" id="lkAdd">設為同電位</button><span class="note">勾 2 個以上</span></div></div>`;
 }
 /* 短路片：選起始片與規格加入，列出已加的可刪除 */
 function jumperHtml(d){

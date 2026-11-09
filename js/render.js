@@ -112,6 +112,16 @@ function renderBoard(){
       const ls=p.ls||p.side; // 接點文字位置（可以和出線方向不同）
       if(!(sm&&(sm[2]==='B'||sm[2]==='D'))) h+=`<text class="tl" x="${x+(ls==='left'?5:ls==='right'?-5:0)}" y="${y+(ls==='top'?5.8:ls==='bottom'?-3.6:1)}" text-anchor="middle" fill="${t.i}"${sm?` style="font-size:${Math.min(3.2,7.2/Math.max(2,[...lb].length)).toFixed(2)}px"`:''}>${esc(lb)}</text>`; // 同一片上下兩點只標一次；端子號依長度縮小字體，避免和隔壁重疊
     }
+    // 接線盒的短路片（d.links）：在接點內側畫一條，組內每個接點拉一小段上去；範圍重疊的組往內錯開
+    if(d.links){const lanes=[];d.links.forEach(g=>{
+      const ps=g.map(id=>t.terms.find(q=>q.id===id)).filter(Boolean);if(ps.length<2)return;
+      const sd=ps[0].side,hz=sd==='top'||sd==='bottom',inw={top:1,bottom:-1,left:1,right:-1}[sd]||1;
+      const along=ps.map(p=>hz?p.x:p.y),lo=Math.min(...along),hi=Math.max(...along);
+      let ln=0;while(lanes.some(L=>L.ln===ln&&L.sd===sd&&lo<=L.hi+1&&L.lo<=hi+1))ln++;lanes.push({ln,sd,lo,hi});
+      const base=hz?ps[0].y:ps[0].x,off=base+inw*(9+ln*3.2);
+      let s='';ps.forEach(p=>{s+=hz?`<line x1="${d.x+p.x}" y1="${d.y+p.y+inw*2.2}" x2="${d.x+p.x}" y2="${d.y+off}"/>`:`<line x1="${d.x+p.x+inw*2.2}" y1="${d.y+p.y}" x2="${d.x+off}" y2="${d.y+p.y}"/>`;});
+      s+=hz?`<line x1="${d.x+lo}" y1="${d.y+off}" x2="${d.x+hi}" y2="${d.y+off}"/>`:`<line x1="${d.x+off}" y1="${d.y+lo}" x2="${d.x+off}" y2="${d.y+hi}"/>`;
+      h+=`<g class="jumper lnk-bar">${s}</g>`;});}
     // 短路片：以每片上下接點的中點連成一條，旋轉後也對得上
     (d.jumpers||[]).forEach(j=>{
       // 上排、下排插槽：從中點沿上下接點的方向各偏 8%（2202-1401 約 4 mm）

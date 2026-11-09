@@ -78,7 +78,7 @@ const SENS3=[['棕',10,8,'top','+24V'],['藍',25,8,'top','0V'],['黑',40,8,'top'
 const LOOK={dark:['#2f3437','#f1f2ee'],mid:['#54595b','#f1f2ee'],gray:['#a9adaa','#15181a'],light:['#e3e1d6','#23211a'],blue:['#2c3f4e','#eef3f5'],red:['#7a2a2a','#fff3f1'],steel:['#8e9794','#10140f']};
 /* ---------- 器具庫：[inv, 分類, 廠牌, 名稱, 寬, 高, 深, 字首, 外殼, 接點, 其他] 尺寸為參考值 ---------- */
 const TPL={};
-function def(id,inv,cat,b,n,w,h,d,pre,look,terms,x={}){TPL[id]={inv:[].concat(inv||[]),cat,b,n,w,h,d,pre,f:LOOK[look][0],i:LOOK[look][1],t:terms,sheet:x.sheet||'plate',gen:x.gen||null,cnt:x.cnt||null,cntLabel:x.cntLabel||null,noOv:!!x.noOv,round:!!x.round,legacy:!!x.legacy,front:!!x.front,jumper:!!x.jumper,tagAt:x.tagAt||null,links:x.links||null,sym:x.sym||null,model:!!x.model,coil:!!x.coil,vlab:x.vlab||null,hostCat:x.hostCat||null,at:x.at||null,deco:x.deco||null,bus:!!x.bus,attach:x.attach||(x.front?'front':null),note:x.note||''};}
+function def(id,inv,cat,b,n,w,h,d,pre,look,terms,x={}){TPL[id]={inv:[].concat(inv||[]),cat,b,n,w,h,d,pre,f:LOOK[look][0],i:LOOK[look][1],t:terms,sheet:x.sheet||'plate',gen:x.gen||null,cnt:x.cnt||null,cntLabel:x.cntLabel||null,noOv:!!x.noOv,round:!!x.round,legacy:!!x.legacy,front:!!x.front,jumper:!!x.jumper,tagAt:x.tagAt||null,links:x.links||null,userLinks:!!x.userLinks,sym:x.sym||null,model:!!x.model,coil:!!x.coil,vlab:x.vlab||null,hostCat:x.hostCat||null,at:x.at||null,deco:x.deco||null,bus:!!x.bus,attach:x.attach||(x.front?'front':null),note:x.note||''};}
 const C1='斷路器',C2='電磁接觸器',C3='繼電器／計時',C4='PLC',C5='伺服驅動',C6='電源／濾波',C7='端子台／接地',C8='網路／插座',C9='其他元件',D1='面板：按鈕與顯示',F1='現場：馬達',F2='現場：感測器',F3='現場：接線盒與其他';
 def('fuji-bw50',null,C1,'FUJI','BW50EAG 3P50A',75,100,84,'Q','dark',[...pole(['1','3','5'],[12.5,37.5,62.5],10,'top','電源側'),...pole(['2','4','6'],[12.5,37.5,62.5],90,'bottom','負載側')]);
 [['3P40A',3],['3P16A',3],['3P4A',3],['2P4A',2],['1P6A',1],['1P4A',1],['1P2A',1],['1P1A',1]].forEach(([r,p])=>def('ic60-'+r,null,C1,'施耐德','iC60N '+r,18*p,85,78.5,'Q','light',brk(p,85)));
@@ -184,9 +184,9 @@ def('glr22',null,F2,'基恩斯','GL-R22L 光柵 接收器 RX',60,40,0,'LC','stee
 def('glr22-t',null,F2,'基恩斯','GL-R22L 光柵 投光器 TX',60,40,0,'LC','steel',row(GRATING.map(x=>x[0]),8,'top',60,'',6).map((t,i)=>(t[4]=['黑','白'].includes(t[0])?'未使用':GRATING[i][1],t)),{sheet:'field'});
 def('ga096',null,F2,'斯邁德','GA0-96H 量測光柵 接收器 RX',60,40,0,'LC','steel',row(MEASURE.map(x=>x[0]),8,'top',60,'',7).map((t,i)=>(t[4]=MEASURE[i][1],t)),{sheet:'field'});
 def('ga096-t',null,F2,'斯邁德','GA0-96H 量測光柵 投光器 TX',60,40,0,'LC','steel',row(MEASURE.map(x=>x[0]),8,'top',60,'',7).map((t,i)=>(t[4]=t[0]==='黑'?'未使用':MEASURE[i][1],t)),{sheet:'field'});
-def('tb10',null,F3,'ETAN','TB-PG-10P 接線盒',86,40,0,'JB','mid',nterm(10,8,40,'top',8),{sheet:'field'});
-def('tb15',null,F3,'ETAN','TB-PG-15P 接線盒',126,40,0,'JB','mid',nterm(15,8,40,'top',8),{sheet:'field'});
-def('ths62',null,F3,'天得','THS-62 吊車接線盒',60,60,0,'CB','light',row(['1','2','3','4','5','6'],8,'top',60,'',6),{sheet:'field'});
+def('tb10',null,F3,'ETAN','TB-PG-10P 接線盒',86,40,0,'JB','mid',nterm(10,8,40,'top',8),{sheet:'field',userLinks:true});
+def('tb15',null,F3,'ETAN','TB-PG-15P 接線盒',126,40,0,'JB','mid',nterm(15,8,40,'top',8),{sheet:'field',userLinks:true});
+def('ths62',null,F3,'天得','THS-62 吊車接線盒',60,60,0,'CB','light',row(['1','2','3','4','5','6'],8,'top',60,'',6),{sheet:'field',userLinks:true,});
 // 舊版範例用的器具，只為了能讀回舊暫存，不列在器具庫
 const LEG={legacy:true};
 def('sch_mc',null,C2,'施耐德','TeSys D 接觸器',45,85,100,'K','dark',mc(85),LEG);def('sch_tor',null,C2,'施耐德','LRD 積熱電驛',45,65,90,'F','mid',tor(65),LEG);def('sch_gv',null,C1,'施耐德','GV2 馬達保護',45,90,97,'Q','dark',nfb(45,90),LEG);

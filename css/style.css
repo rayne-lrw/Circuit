@@ -349,3 +349,10 @@ body{margin:0}
 .cmore .mi{text-align:left;border:0;background:none;padding:6px 8px;border-radius:4px;font-size:12.5px}
 .cmore .mi:hover{background:var(--panel-2)}
 .rtab.cores td.mono{font-family:var(--mono)}
+/* 接線盒短路片 */
+.lnk-bar line{stroke-width:1.4}
+.lks{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.lks .lk{display:inline-flex;align-items:center;gap:3px;border:1px solid var(--line);border-radius:5px;padding:2px 6px;font-family:var(--mono);font-size:12px;cursor:pointer}
+.lks .lk.on{border-color:#c0392b}
+.lks .lk sup{color:#c0392b;font-size:9px}
+.lks .lk input{margin:0}

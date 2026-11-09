@@ -686,6 +686,17 @@ $('detail').addEventListener('click',e=>{
   if(b.id==='rotDev'){rotatePicked();return;}
   if(b.id==='detachAux'){const d=devOf(picked.id),h=d&&devOf(d.on);if(!h)return;delete d.on;if(BAT_VAR.has(d.tpl))d.tpl=BAT_BASE;d.x=r1(h.x+tplOf(h).w+10);commit();recompute();toast(`已把 ${d.tag} 從 ${h.tag} 拆下`);return;}
   if(b.id==='slotRevert'){const d=devOf(picked.id),src=slotSource(d);if(!src)return;revertSlots(d,src);commit();recompute();renderPalette();toast(`已換回 ${TPL[src].n}，可以每片填端子號；可按復原`);return;}
+  if(b.id==='lkAdd'||b.dataset.lkdel!==undefined){
+    const d=devOf(picked.id);if(!d)return;
+    if(b.dataset.lkdel!==undefined){d.links.splice(Number(b.dataset.lkdel),1);if(!d.links.length)delete d.links;commit();recompute();return;}
+    const ids=[...$('detail').querySelectorAll('[data-lk]:checked')].map(x=>x.dataset.lk);
+    if(ids.length<2){toast('至少勾 2 個接點');return;}
+    // 勾到的接點已經在某幾組：那幾組併成一組
+    const G=d.links||[],hit=G.filter(g=>g.some(x=>ids.includes(x))),merged=[...new Set([...hit.flat(),...ids])];
+    const ord=tplOf(d).terms.map(p=>p.id);merged.sort((a,b)=>ord.indexOf(a)-ord.indexOf(b));
+    d.links=[...G.filter(g=>!hit.includes(g)),merged];commit();recompute();
+    toast(`已把 ${merged.map(x=>termLabel(d,x)).join('、')} 設為同電位${hit.length?'（併入原本的組）':''}`);return;
+  }
   if(b.id==='jAdd'||b.dataset.jdel!==undefined){
     const d=devOf(picked.id);if(!d)return;
     if(b.dataset.jdel!==undefined){d.jumpers.splice(Number(b.dataset.jdel),1);if(!d.jumpers.length)delete d.jumpers;commit();recompute();return;}

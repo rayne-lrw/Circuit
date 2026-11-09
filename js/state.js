@@ -176,7 +176,9 @@ function slotGroup(d,i){
 const BUS_RE=/接地銅|銅排|共點排|接地排/;
 function busOf(d){if(!d)return false;if(d.bus!=null)return d.bus;const t=tplOf(d);return !!(t.bus||BUS_RE.test(t.n||''));}
 // 器具內部本來就相通的接點（例如 NHT 端子台同一極的 L1、T1）
-function linkOf(d,t){const L=d&&tplOf(d).links;if(!L)return -1;return L.findIndex(g=>g.includes(t));}
+// 同電位接點組：範本固定的（例如 NHT 上下同極）加上這台自己設定的短路片（d.links，接線盒用）
+const linksOf=d=>{if(!d)return null;const a=tplOf(d).links,b=d.links;return a&&b?[...a,...b]:a||b||null;};
+function linkOf(d,t){const L=linksOf(d);if(!L)return -1;return L.findIndex(g=>g.includes(t));}
 function sameNode(e){
   const d=devOf(e.d);if(busOf(d)) return x=>x.d===e.d;
   const li=linkOf(d,e.t);if(li>=0) return x=>x.d===e.d&&linkOf(d,x.t)===li;
