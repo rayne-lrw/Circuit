@@ -103,6 +103,8 @@ select{border:1px solid var(--line);background:var(--panel-2);border-radius:5px;
 .rtab tr.tot td{font-weight:600}
 .cab-h{display:block;width:100%;text-align:left;border:1px solid var(--line);border-radius:6px;background:none;padding:6px 7px;margin:8px 0 2px;font-size:12.5px;overflow-wrap:anywhere;cursor:pointer}
 .cab-h .note{display:block;margin-top:2px}
+.cab-h .cab-car{display:inline-block;width:12px;color:var(--muted,#999)}
+.cab-h .note.cab-1l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cab-h.sel{border-color:var(--accent);background:var(--panel-2)}
 .cabform{border:1px solid var(--line);border-radius:6px;padding:8px;margin-bottom:6px}
 .rtab.cores td{overflow-wrap:anywhere}

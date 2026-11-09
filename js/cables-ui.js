@@ -14,7 +14,9 @@ function renderCables(){
   if(cabForm) h+=`<div class="fields cabform"><label for="nfNo">電纜編號<input id="nfNo" maxlength="12" value="${esc(nextCableNo())}"></label><label for="nfSpec" style="grid-column:1/-1">規格<select id="nfSpec">${specOptions('')}</select></label><label for="nfCustom" id="nfCustomL" style="grid-column:1/-1" hidden>自訂規格（例如 0.75mm²*7C 號碼、0.3mm²*2C 隔離 棕藍）<input id="nfCustom" maxlength="60"></label><div class="row" style="grid-column:1/-1;justify-content:flex-start"><button class="primary" id="nfOk">建立電纜</button></div></div>`;
   h+=cs.map(c=>{
     const cw=coresOf(c).sort((a,b)=>coreOrder(c)(a)-coreOrder(c)(b)),L=cabLen(c);
-    return `<button class="cab-h${selCab===c.id?' sel':''}" data-cl="${c.id}"><b>${esc(c.no)}</b>　${L.ext?'外部':'箱內'} · ${cw.length}/${c.cores.length} 芯 · ${m1(L.total)} m<span class="note">${esc(specName(c.spec))}<br>${esc(sideTags(cw,'a'))} → ${esc(sideTags(cw,'b'))}</span></button>`+cw.map(wireRow).join('');
+    // 清單預設收起：只顯示編號與兩端器具；點開（選取）才顯示規格與每一芯
+    const open=selCab===c.id||cw.some(w=>w.id===sel),ends=`${sideTags(cw,'a')} → ${sideTags(cw,'b')}`;
+    return `<button class="cab-h${open?' sel':''}" data-cl="${c.id}" aria-expanded="${open}"><span class="cab-car">${open?'▾':'▸'}</span><b>${esc(c.no)}</b>　${L.ext?'外部':'箱內'} · ${cw.length}/${c.cores.length} 芯 · ${m1(L.total)} m<span class="note${open?'':' cab-1l'}" title="${esc(specName(c.spec)+'　'+ends)}">${open?`${esc(specName(c.spec))}<br>`:''}${esc(ends)}</span></button>`+(open?cw.map(wireRow).join(''):'');
   }).join('')||'<p class="note">還沒有電纜。按「新增電纜」建立；從箱內接點接到現場區的接點時，也會自動編進電纜。</p>';
   if(loose.length) h+=`<div class="cable-h">沒有編入電纜的外線 ${loose.length} 條</div>`+loose.map(wireRow).join('');
   $('list').innerHTML=h;
