@@ -215,3 +215,13 @@ resolveTpl.m=new Map();
 def('diode',null,C9,'','二極體',20,18,8,'D','light',[['A',3,13.5,'left','陽極'],['K',17,13.5,'right','陰極']],{sym:'diode',model:true,note:'通用二極體，自己拉線接；方向：電流從 A 流向 K'});
 // 線圈二極體（飛輪二極體）：拖到繼電器座或接觸器上自動裝上，並自動接到線圈兩端（K 接 +、A 接 −）
 def('diode-coil',null,C3,'','二極體（線圈用）',8,18,0,'D','light',[['K',4,3,'top','陰極：接線圈 +'],['A',4,15,'bottom','陽極：接線圈 −']],{sym:'diode',model:true,coil:true,front:true,note:'拖到繼電器座或接觸器上會自動裝上並接到線圈兩端（K 接 +、A 接 −），拆下時自動接的兩條線一起移除；只能用在直流線圈'});
+// 一整排很密的接點（伺服驅動器的 CNP 接頭）：出線先橫移到旁邊的空白走線帶，再依器具中線往上或往下出線，
+// 往上的越下面的接點偏得越遠、往下的越上面的接點偏得越遠，彼此不交叉；接點文字放在另一側（和 16EX 同樣做法）
+function laneExit(id,ids,lane,x0,step,allDown){
+  const T=TPL[id];if(!T||!T.t)return;const mid=allDown?-1:T.h/2,tu=T.t.filter(t=>ids.includes(t[0]));
+  const up=tu.filter(t=>t[2]<mid).sort((a,b)=>a[2]-b[2]),dn=tu.filter(t=>t[2]>=mid).sort((a,b)=>b[2]-a[2]),dir=lane==='left'?-1:1;
+  [up,dn].forEach(g=>g.forEach((t,i)=>{const x=x0+dir*i*step;t[3]=t[2]<mid?'top':'bottom';t[5]={ox:+(x-t[1]).toFixed(2),oy:0,ls:lane==='left'?'left':'right'};}));
+}
+// 伺服驅動器：全部往下出線
+laneExit('j4200',['L1','L2','L3','N-','P3','P4','P+','C','D','L11','L21','U','V','W','PE'],'left',11,.7,true);
+laneExit('je40',['L1','L2','L3','P+','C','U','V','W','E','PE'],'left',33,1,true);

@@ -59,10 +59,10 @@ const SCENARIOS=[
   }},
   {name:'中繼點在出線方向反方向',build:()=>{
     const st=normalize(sampleState()).state;
-    // SV2·L11 朝上，中繼點放在下方線槽：要直接往下接到中繼點，不可先往上跑再繞回來
-    st.wires.push({id:'tb1',no:'B1',a:{d:'SV2',t:'L11'},b:{d:'K0',t:'A1'},wps:[{x:275,y:710}],gauge:.75,color:'black'});
-    // 中繼點離器具很遠（不在正後方）：照原本的出線方向
-    st.wires.push({id:'tb2',no:'B2',a:{d:'K0',t:'A1'},b:{d:'SV2',t:'L11'},wps:[{x:100,y:342}],gauge:.75,color:'black'});
+    // Q1·1 朝上，中繼點放在 Q1 正下方的線槽：要直接往下接到中繼點，不可先往上跑再繞回來
+    st.wires.push({id:'tb1',no:'B1',a:{d:'Q1',t:'1'},b:{d:'K0',t:'A1'},wps:[{x:259,y:342}],gauge:.75,color:'black'});
+    // 中繼點不在器具正後方：照原本的出線方向
+    st.wires.push({id:'tb2',no:'B2',a:{d:'K0',t:'A1'},b:{d:'Q1',t:'1'},wps:[{x:240,y:42}],gauge:.75,color:'black'});
     return {state:st,expectClean:['B1','B2'],expectBack:{B1:true,B2:false}};
   }},
   {name:'線圈二極體自動接線與接反檢查',build:()=>{
