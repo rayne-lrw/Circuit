@@ -331,7 +331,15 @@ function buildAnchors(ea,eb,wps,ctr,glandId){
   // 同一組器具（主體與正面附件、伺服電池）之間的線直接在器具前面連，不拉出線點
   const fam=ea.dev&&eb.dev&&ea.sheet===eb.sheet&&famIds(ea.dev).includes(eb.dev);
   const w0=wps.length?wpAnchor(wps[0]):null,w1=wps.length?wpAnchor(wps[wps.length-1]):null;
-  const out=[ea],qa=fam?null:(backStub(ea,w0)||stubOf(ea)),qb=fam?null:(backStub(eb,w1)||stubOf(eb));
+  const out=[ea];let qa=fam?null:(backStub(ea,w0)||stubOf(ea)),qb=fam?null:(backStub(eb,w1)||stubOf(eb));
+  // 兩個接點面對面、距離近到兩邊的出線點會交錯（例如兩台小器具並排）：出線點都改到兩點正中間，直接連過去，不會誤以為要繞到對方背面
+  if(qa&&qb&&!wps.length&&sa===sb&&ea.dev!==eb.dev&&qa.stub&&qb.stub){
+    const V={top:[0,-1],bottom:[0,1],left:[-1,0],right:[1,0]},va=V[ea.side],vb=V[eb.side];
+    if(va&&vb&&va[0]===-vb[0]&&va[1]===-vb[1]){
+      const gap=(eb.x-ea.x)*va[0]+(eb.y-ea.y)*va[1],over=(qb.x-qa.x)*va[0]+(qb.y-qa.y)*va[1];
+      if(gap>0&&over<0){const m=va[0]?{x:(ea.x+eb.x)/2}:{y:(ea.y+eb.y)/2};qa={...qa,...m};qb={...qb,...m};}
+    }
+  }
   if(fam&&!wps.length){out.push(eb);out.local=true;return out;}
   if(qa) out.push(qa);
   chain.forEach((sh,i)=>{
