@@ -413,6 +413,7 @@ function rotatePicked(){
 }
 function deleteSel(){
   if(multi.length){deleteMulti();return true;}
+  if(!sel&&!picked&&selCab&&cabOf(selCab)){askDelCable(cabOf(selCab));return true;} // 選取整條電纜：問一次再刪
   if(sel){S.wires=S.wires.filter(w=>w.id!==sel);sel=null;commit();recompute();return true;}
   if(picked){
     if(picked.k==='dev'){riders(devOf(picked.id)).forEach(r=>delete r.on);S.devices=S.devices.filter(d=>d.id!==picked.id);S.wires=S.wires.filter(w=>w.a.d!==picked.id&&w.b.d!==picked.id);if(filt.dev===picked.id)filt.dev='';}
@@ -453,6 +454,8 @@ document.addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();$('redo').click();return;}
   if(!$('setDlg').hidden){if(e.key==='Escape')setDialog(false);return;}
   if(!$('opDlg').hidden){if(e.key==='Escape')opDialog(false);return;}
+  if(!$('askDlg').hidden){if(e.key==='Escape')askClose();return;}
+  if(!$('specDlg').hidden){if(e.key==='Escape')specClose();return;}
   if(mode==='view'&&!typing){
     const k=e.key.toLowerCase();
     if(e.key==='Escape'){sel=null;picked=null;selCab=null;renderList();renderWires();renderDetail();return;}

@@ -398,7 +398,7 @@ function computeIssues(){
      });
    });}
   (S.cables||[]).forEach(c=>{
-    const cw=coresOf(c),sp=specCores(c.spec).length,seen=new Map();
+    const cw=coresOf(c),sp=specDef(c.spec).length,seen=new Map();
     if(sp&&c.cores.length>sp) out.push({t:`電纜 ${c.no} 規格是 ${sp} 芯，芯線表有 ${c.cores.length} 芯`,k:'cable',id:c.id});
     cw.forEach(w=>{if(seen.has(w.core))out.push({t:`電纜 ${c.no} 的芯線 ${w.core} 接了兩次（${seen.get(w.core).no}、${w.no}）`,k:'wire',id:w.id});else seen.set(w.core,w);});
     const fd=new Set(cw.filter(w=>devOf(w.b.d).sheet==='field').map(w=>w.b.d));

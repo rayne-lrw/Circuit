@@ -30,7 +30,10 @@ function endDevs(c,s){
 function endTermOptions(devs,cur){
   return `<option value="">選接點</option>`+devs.map(d=>`<optgroup label="${esc(d.tag)}　${esc(tplOf(d).n)}">${tplOf(d).terms.map(t=>{const v=d.id+'|'+t.id;return `<option value="${esc(v)}"${cur&&cur.d===d.id&&cur.t===t.id?' selected':''}>${esc(d.tag)}·${esc(termLabel(d,t.id))}${t.desc?'　'+esc(t.desc):''}</option>`;}).join('')}</optgroup>`).join('')+`<option value="__other">其他器具…</option>`;
 }
-const specOptions=cur=>`<option value="">未指定</option>`+cableSpecs(cur).map(v=>`<option value="${esc(v)}"${cur===v?' selected':''}>${esc(v)}</option>`).join('')+`<option value="__new">自訂規格…</option>`;
+// 規格下拉：電料清單、這個專案的自訂規格、舊檔用過的；最後一項開「自訂規格」視窗
+const specOptions=cur=>{const L=cableSpecs(cur),o=v=>`<option value="${esc(v)}"${cur===v?' selected':''}>${esc(v)}</option>`;
+  return `<option value="">未指定</option><optgroup label="電料清單">${L.inv.map(o).join('')}</optgroup>${L.cus.length?`<optgroup label="這個專案的自訂規格">${L.cus.map(o).join('')}</optgroup>`:''}${L.other.length?`<optgroup label="其他">${L.other.map(o).join('')}</optgroup>`:''}<option value="__new">＋自訂規格…</option>`;};
+let nfSpec=''; // 新增電纜表單選的規格
 const sideTags=(cw,k)=>[...new Set(cw.map(w=>tagOf(w[k].d)))].join('、')||'—';
 const coreOrder=c=>w=>{const i=c.cores.findIndex(k=>k.n===w.core);return i<0?999:i;};
 function selectCable(id){selCab=id;sel=null;picked=null;multi=[];coreEdit=null;}
@@ -38,7 +41,7 @@ function renderCables(){
   const cs=[...S.cables].sort((a,b)=>natCmp(a.no,b.no)),loose=S.wires.filter(w=>wireKind(w)==='ext'&&!isCable(w));
   $('listH').textContent=`電纜　${cs.length} 條`;
   let h=`<div class="hrow" style="margin-bottom:6px"><button class="tool" id="cabNew"${mode==='view'?' disabled':''}>${cabForm?'取消新增':'新增電纜'}</button>${hq('cab')}</div>${hn('cab','箱內的隔離線和接到現場的外部電纜都在這裡。點電纜可以看芯線表：每一芯可以用下拉選單選兩端接點，也可以按「在圖上接芯線」（或芯線表每一列的「圖上接」）直接在圖上點；接線時圖上會有工具列，可以跳過這一芯、回上一芯或完成。剝線點（白色小方塊）預設自動放在最近的線槽裡，拖曳可以移到別處（線槽裡任何位置都可以，包含靠線槽邊），移過的會變黃色。')}`;
-  if(cabForm) h+=`<div class="fields cabform"><label for="nfNo">電纜編號<input id="nfNo" maxlength="12" value="${esc(nextCableNo())}"></label><label for="nfSpec" style="grid-column:1/-1">規格<select id="nfSpec">${specOptions('')}</select></label><label for="nfCustom" id="nfCustomL" style="grid-column:1/-1" hidden>自訂規格（例如 0.75mm²*7C 號碼、0.3mm²*2C 隔離 棕藍）<input id="nfCustom" maxlength="60"></label><div class="row" style="grid-column:1/-1;justify-content:flex-start"><button class="primary" id="nfOk">建立電纜</button></div></div>`;
+  if(cabForm) h+=`<div class="fields cabform"><label for="nfNo">電纜編號<input id="nfNo" maxlength="12" value="${esc(nextCableNo())}"></label><label for="nfSpec" style="grid-column:1/-1">規格<select id="nfSpec">${specOptions(nfSpec)}</select></label>${nfSpec?`<p class="note" style="grid-column:1/-1">${esc(specSummary(nfSpec))}</p>`:''}<div class="row" style="grid-column:1/-1;justify-content:flex-start"><button class="primary" id="nfOk">建立電纜</button></div></div>`;
   h+=cs.map(c=>{
     const cw=coresOf(c).sort((a,b)=>coreOrder(c)(a)-coreOrder(c)(b)),L=cabLen(c);
     // 清單預設收起：只顯示編號與兩端器具；點開（選取）才顯示規格與每一芯
@@ -47,16 +50,19 @@ function renderCables(){
     return `<button class="cab-h${open?' sel':''}" data-cl="${c.id}" aria-expanded="${open}"><span class="cab-car">${open?'▾':'▸'}</span><b>${esc(c.no)}</b>　${L.ext?'外部':'箱內'} · ${bothPlug(c)?`${c.cores.length} 芯 · 接頭`:`${cw.length}/${c.cores.length} 芯`} · ${m1(L.total)} m<span class="note${open?'':' cab-1l'}" title="${esc(specName(c.spec)+'　'+ends)}">${open?`${esc(specName(c.spec))}<br>`:''}${esc(ends)}</span></button>`+(open?cw.map(wireRow).join(''):'');
   }).join('')||'<p class="note">還沒有電纜。按「新增電纜」建立；從箱內接點接到現場區的接點時，也會自動編進電纜。</p>';
   if(loose.length) h+=`<div class="cable-h">沒有編入電纜的外線 ${loose.length} 條</div>`+loose.map(wireRow).join('');
+  const SL=S.cableSpecs||[];
+  h+=`<details class="csec spec-list" id="specList"${specListOpen?' open':''}><summary>這個專案的自訂規格（${SL.length}）</summary>${SL.map((x,i)=>{const u=specUsers(x.name);
+    return `<div class="jrow"><span>${esc(x.name)}<br><small class="note">${esc(specSummary(x.name))}${u.length?`；${u.length} 條電纜在用`:''}</small></span><span class="row" style="flex:none"><button class="tool sm" data-sped="${i}"${mode==='view'?' disabled':''}>編輯</button><button class="tool sm danger" data-spdel="${i}"${mode==='view'?' disabled':''}>刪除</button></span></div>`;}).join('')||'<p class="note">還沒有自訂規格。在規格下拉選「＋自訂規格…」建立。</p>'}${mode==='view'?'':'<div class="row" style="justify-content:flex-start;margin-top:4px"><button class="tool sm" id="spNew">＋新增自訂規格</button></div>'}</details>`;
   $('list').innerHTML=h;
+  $('specList').addEventListener('toggle',e=>specListOpen=e.target.open);
   if(cabForm){
-    $('nfSpec').onchange=e=>{$('nfCustomL').hidden=e.target.value!=='__new';if(e.target.value==='__new')$('nfCustom').focus();};
+    $('nfSpec').onchange=e=>{const v=e.target.value;if(v==='__new'){e.target.value=nfSpec;specDialog({onSave:n=>{nfSpec=n;renderList();}});return;}nfSpec=v;renderList();};
     $('nfOk').onclick=()=>{
-      let spec=$('nfSpec').value;
-      if(spec==='__new'){spec=$('nfCustom').value.trim();if(!spec){toast('請填自訂規格');return;}if(!tempSpecs.includes(spec))tempSpecs.push(spec);}
+      const spec=nfSpec;
       const no=$('nfNo').value.trim()||nextCableNo();
       if(S.cables.some(c=>c.no===no)){toast(`電纜編號 ${no} 已經有了`);return;}
-      const c=newCable(no,spec);cabForm=false;selectCable(c.id);commit();recompute();
-      toast(c.cores.length?`已建立 ${c.no}（${c.cores.length} 芯），到右側芯線表接線`:`已建立 ${c.no}，規格看不出芯數，請在芯線表「新增一芯」`);
+      const c=newCable(no,spec);cabForm=false;nfSpec='';selectCable(c.id);commit();recompute();
+      toast(c.cores.length?`已建立 ${c.no}（${c.cores.length} 芯），到右側芯線表接線`:`已建立 ${c.no}，還沒選規格：可以選規格，或在芯線表「新增一芯」`);
     };
   }
 }
@@ -132,7 +138,7 @@ function cableDetail(box,c){
     if(on&&!ro) h+=coreEdRow(k,w);
     return h;}).join('');
   const orphan=cw.filter(w=>!coreDef(c,w.core));
-  const nsel=c.cores.filter(k=>coreSel.has(k.n)).length,specCol=specCores(c.spec).length>0;
+  const nsel=c.cores.filter(k=>coreSel.has(k.n)).length,specCol=specDef(c.spec).length>0;
   const batch=!ed?'':nsel?`<div class="batch" id="cBatch"><div class="sub-h">已勾 ${nsel} 芯：點顏色一次套用 <button class="lnk" id="cSelNone">取消勾選</button></div>${nsel===2?`<div class="row" style="justify-content:flex-start;margin:4px 0"><button class="tool" id="cSwap">這兩芯互換接線</button><span class="note">兩端接點和線號對調，芯線顏色不動</span></div>`:''}${colorChips('','cb')}<div class="fields" style="margin-top:6px"><label for="cLabAt" style="grid-column:1/-1">線號標示（套用到已接的芯線）<select id="cLabAt"><option value="">選擇…</option>${LAB_AT.map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}</select></label></div></div>`
     :'<p class="note">勾選多芯可一次改顏色或線號標示；勾兩芯可以互換接線</p>';
   // 兩端器具：已接芯線的器具會自動列進來；也可以先指定，接芯線時就只要選接點
@@ -152,8 +158,7 @@ function cableDetail(box,c){
   const boRow=k=>{const p=r&&r[k];return p?`<button class="tool" data-bor="${k}"${p.auto||ro?' disabled':''}>${k.toUpperCase()} 端${p.auto?'自動':'已移動，改回自動'}</button>`:'';};
   box.innerHTML=`<div class="fields"><label for="cNo">電纜編號<input id="cNo" maxlength="12" value="${esc(c.no)}" style="font-size:15px;font-weight:600"></label>
     <label for="cField">${L.ext?'現場長度 m':'另加長度 m'}<input id="cField" type="number" min="0" step="0.1" value="${c.fieldLen?Math.round(c.fieldLen/100)/10:''}" placeholder="${L.ext?'到現場設備':'0'}"></label>
-    <label for="cSpec" style="grid-column:1/-1">規格<select id="cSpec">${specOptions(c.spec)}</select></label>
-    <label for="cSpecNew" id="cSpecNewL" style="grid-column:1/-1" hidden>自訂規格（例如 0.75mm²*7C 號碼）<input id="cSpecNew" maxlength="60"></label>
+    <label for="cSpec" style="grid-column:1/-1">規格<span class="spec-row"><select id="cSpec">${specOptions(c.spec)}</select>${ro?'':`<button class="tool sm" id="cSpecEd" title="逐芯修改這條電纜的芯線：名稱、顏色、線徑、芯數">編輯規格…</button>`}</span></label>
     ${L.ext?`<label for="cGland" style="grid-column:1/-1">出線口<select id="cGland"><option value="">自動（現場設備的預設或最近的）</option>${S.glands.map(g=>`<option value="${g.id}"${c.gland===g.id?' selected':''}>${esc(g.id)}　${esc(g.spec)}</option>`).join('')}</select></label>`:''}</div>
     <p class="note">${pl?(L.ext?'外部電纜':'箱內電纜')+' · 兩端都是接頭':(cw.length?(L.ext?'外部電纜':'箱內電纜'):'還沒有接芯線')+` · 已接 ${cw.length} / ${c.cores.length} 芯`} · 共 <b>${m1(L.total)} m</b></p>
     ${ends}
@@ -183,7 +188,7 @@ function cableDetail(box,c){
   $('cNo').onchange=e=>{const v=e.target.value.trim();if(!v||v===c.no){e.target.value=c.no;return;}if(S.cables.some(x=>x!==c&&x.no===v)){toast(`電纜編號 ${v} 已經有了`);e.target.value=c.no;return;}c.no=v;done();};
   $('cField').onchange=e=>{const v=Number(e.target.value);if(!(v>=0)){e.target.value='';c.fieldLen=0;}else c.fieldLen=Math.min(1e6,Math.round(v*1000));done();};
   const setSpec=v=>{
-    c.spec=v;const nc=specCores(v);
+    c.spec=v;const nc=specDef(v);
     if(nc.length){
       // 已經接上的芯線照名稱對到新規格；新規格裡沒有的名稱留在芯線表後面
       coresOf(c).forEach(w=>{if(!nc.some(k=>k.n===w.core)){const o=coreDef(c,w.core);nc.push(o||{n:w.core,c:w.color,g:w.gauge});}});
@@ -191,8 +196,8 @@ function cableDetail(box,c){
     }
     coreEdit=null;done();
   };
-  $('cSpec').onchange=e=>{const v=e.target.value;if(v==='__new'){$('cSpecNewL').hidden=false;$('cSpecNew').focus();return;}setSpec(v);};
-  $('cSpecNew').onchange=e=>{const v=e.target.value.trim();if(!v)return;if(!tempSpecs.includes(v))tempSpecs.push(v);setSpec(v);};
+  $('cSpec').onchange=e=>{const v=e.target.value;if(v==='__new'){e.target.value=c.spec;specDialog({onSave:n=>{setSpec(n);const cs=customSpec(n);if(cs&&cs.color&&!c.color){setCabColor(c,cs.color);done();}}});return;}setSpec(v);};
+  $('cSpecEd').onclick=()=>specDialog({cab:c.id});
   $('cDirect').onchange=e=>{if(e.target.checked)c.direct=true;else delete c.direct;done();};
   if($('cWpClr'))$('cWpClr').onclick=()=>{delete c.wps;done();};
   if($('cGland'))$('cGland').onchange=e=>{if(e.target.value)c.gland=e.target.value;else delete c.gland;done();};
@@ -246,13 +251,13 @@ function cableDetail(box,c){
   }
   if($('cSelNone'))$('cSelNone').onclick=()=>{coreSel=new Set();renderDetail();};
   box.querySelectorAll('[data-colpick]').forEach(b=>b.onclick=()=>{colPop=colPop===b.dataset.colpick?null:b.dataset.colpick;coreEdit=null;renderDetail();});
-  if($('cColReset'))$('cColReset').onclick=()=>{const sc=specCores(c.spec);c.cores.forEach((k,i)=>{const d=sc.find(x=>x.n===k.n)||sc[i];if(d){setCoreColor(k,d.c);const w=by.get(k.n);if(w)paintCore(w,k);}});done();toast('已依規格重設芯線顏色');};
-  const addCore=()=>{let n=c.cores.length+1;while(coreDef(c,String(n)))n++;c.cores.push({n:String(n),c:'black',g:specGauge(c.spec)});coreEdit={cid:c.id,i:c.cores.length-1,a:null,b:null,no:''};cabMore=false;done();};
+  if($('cColReset'))$('cColReset').onclick=()=>{const sc=specDef(c.spec);c.cores.forEach((k,i)=>{const d=sc.find(x=>x.n===k.n)||sc[i];if(d){setCoreColor(k,d.c);const w=by.get(k.n);if(w)paintCore(w,k);}});done();toast('已依規格重設芯線顏色');};
+  const addCore=()=>{let n=c.cores.length+1;while(coreDef(c,String(n)))n++;c.cores.push({n:String(n),c:'black',g:(c.cores[0]&&c.cores[0].g)||.75});coreEdit={cid:c.id,i:c.cores.length-1,a:null,b:null,no:''};cabMore=false;done();};
   if($('coreAdd'))$('coreAdd').onclick=addCore;if($('coreAdd2'))$('coreAdd2').onclick=addCore;
   if($('cabPick'))$('cabPick').onclick=()=>{if(cabPick===c.id)stopPick();else startPick(c);};
   box.querySelectorAll('[data-pickcore]').forEach(b=>b.onclick=e=>{e.stopPropagation();startPick(c,b.dataset.pickcore);});
   if($('cabSplit'))$('cabSplit').onclick=()=>{coresOf(c).forEach(detachCore);S.cables=S.cables.filter(x=>x!==c);selCab=null;cabPick=null;done();toast(`已解散電纜 ${c.no}，芯線留成散線`);};
-  if($('cabDel'))$('cabDel').onclick=()=>{const n=coresOf(c).length;S.wires=S.wires.filter(w=>w.cab!==c.id);S.cables=S.cables.filter(x=>x!==c);selCab=null;cabPick=null;done();toast(`已刪除電纜 ${c.no}${n?`和 ${n} 條芯線`:''}，可以按復原`);};
+  if($('cabDel'))$('cabDel').onclick=()=>{cabMore=false;askDelCable(c);};
   if(!coreEdit) return;
   const k=c.cores[coreEdit.i],w=by.get(k.n);
   if($('ceNo'))$('ceNo').oninput=e=>{coreEdit.no=e.target.value;};
@@ -336,6 +341,11 @@ $('cabBar').addEventListener('click',e=>{const b=e.target.closest('[data-cb]');i
   if(b.dataset.cb==='done')stopPick('已停止在圖上接芯線');else stepPick(b.dataset.cb==='prev'?-1:1);});
 $('list').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
+  if(b.id==='spNew'){specDialog({onSave:()=>renderList()});return;}
+  if(b.dataset.sped!=null){const x=(S.cableSpecs||[])[Number(b.dataset.sped)];if(x)specDialog({name:x.name});return;}
+  if(b.dataset.spdel!=null){const x=(S.cableSpecs||[])[Number(b.dataset.spdel)];if(!x)return;const u=specUsers(x.name);
+    if(u.length){toast(`「${x.name}」還有電纜在用（${u.map(c=>c.no).join('、')}），先把那些電纜改成別的規格再刪`);return;}
+    S.cableSpecs=S.cableSpecs.filter(y=>y!==x);commit();recompute();toast(`已刪除自訂規格「${x.name}」，可以按復原`);return;}
   if(b.id==='cabNew'){cabForm=!cabForm;renderList();if(cabForm)$('nfNo').focus();return;}
   if(b.dataset.cl){const v=selCab===b.dataset.cl?null:b.dataset.cl;selectCable(v);if(mode==='place')setMode('wire');selCab=v;renderList();renderWires();renderDetail();updateHint();}
 });
@@ -352,3 +362,102 @@ $('detail').addEventListener('click',e=>{
   // 勾選多芯一次套用顏色
   if(b.closest('#cBatch')){const key=b.dataset.newc==='cb'?addTemp('cb'):b.dataset.pc;if(!key)return;const ks=c.cores.filter(k=>coreSel.has(k.n));paint(ks,key);toast(`已把 ${ks.length} 芯改成 ${keyColor(key).n}`);return;}
 });
+/* ---------- 自訂電纜規格視窗：不解析文字，使用者逐芯填名稱與顏色 ---------- */
+const SEQ_COLORS=['brown','blue','black','gray','white','red','green','yellow','orange'];
+const SPEC_GAUGES=[.3,.5,.75,1.25,2,3.5,5.5,8,14];
+let SD=null,specListOpen=false;
+function specSummary(name){
+  const k=specDef(name);if(!k.length)return '這個規格沒有芯線定義';
+  return `${k.length} 芯：${k.map(x=>{const cn=coreColor(x).n;return x.n===cn?x.n:`${x.n}（${cn}）`;}).join('、')}；線徑 ${[...new Set(k.map(x=>x.g))].join('/')} mm²`;
+}
+const specUsers=name=>S.cables.filter(c=>c.spec===name);
+// o：{onSave(name)} 新增；{cab} 編輯這條電纜的規格；{name} 從自訂規格清單編輯
+function specDialog(o){
+  const c=o.cab&&cabOf(o.cab),name=c?c.spec:(o.name||''),cus=name&&customSpec(name);
+  const src=c?c.cores.map(k=>({...k})):name?specDef(name):[];
+  const rows=src.filter(k=>k.n!=='SH').map(k=>({n:k.n,c:k.c,hex:k.hex,cn:k.cn,orig:k.n}));
+  SD={o,cab:c?c.id:null,orig:cus?name:null,builtin:!!(name&&isBuiltinSpec(name)),name:cus?name:name?name+'（自訂）':'',
+    gauge:(src[0]&&src[0].g)||.75,shield:src.some(k=>k.n==='SH'),origShield:src.some(k=>k.n==='SH'),rows:rows.length?rows:[{n:'1',c:'black'},{n:'2',c:'black'}],
+    color:cus?(cus.color||''):'',err:''};
+  $('specDlg').hidden=false;specRender();$('sdName').focus();
+}
+function specClose(){$('specDlg').hidden=true;SD=null;}
+function specRender(){
+  const D=SD,gs=[...new Set([...SPEC_GAUGES,D.gauge])].sort((a,b)=>a-b);
+  const copt=cur=>Object.keys(COLORS).map(k=>`<option value="${k}"${cur===k?' selected':''}>${COLORS[k].n}</option>`).join('');
+  const rows=D.rows.map((r,i)=>{const co=r.hex?{c:r.hex,k:casing(r.hex),n:r.cn||'自訂'}:(COLORS[r.c]||COLORS.black);
+    return `<tr><td>${i+1}</td><td><input data-sdn="${i}" maxlength="10" value="${esc(r.n)}" aria-label="第 ${i+1} 芯名稱"></td><td><span class="sw" style="background:${swatch(co)}"></span><select data-sdc="${i}" aria-label="第 ${i+1} 芯顏色">${r.hex?`<option value="" selected>${esc(r.cn||'自訂')}</option>`:''}${copt(r.hex?'':r.c)}</select></td></tr>`;}).join('');
+  const used=D.orig?specUsers(D.orig).length:0;
+  $('specCard').innerHTML=`<h2 id="specTitle">${D.orig?'編輯自訂規格':D.cab?'編輯這條電纜的規格':'新增自訂規格'}</h2>
+    ${D.builtin?'<p class="note">電料清單的內建規格不能直接改，會另存成這個專案的自訂規格，只套用到這條電纜。</p>':''}
+    ${used>1?`<p class="note">這個規格有 ${used} 條電纜在用（${specUsers(D.orig).map(c=>esc(c.no)).join('、')}），儲存後都會一起更新。</p>`:''}
+    <div class="fields">
+      <label for="sdName" style="grid-column:1/-1">規格名稱（材料表、電纜表照這個名稱列）<input id="sdName" maxlength="60" value="${esc(D.name)}" placeholder="例如 CSA細纜 0.5mm²*4C 棕藍黑白"></label>
+      <label for="sdN">芯數<input id="sdN" type="number" min="1" max="60" value="${D.rows.length}"></label>
+      <label for="sdG">線徑 mm²<select id="sdG">${gs.map(g=>`<option value="${g}"${g===D.gauge?' selected':''}>${g}</option>`).join('')}</select></label>
+      <label class="check" style="grid-column:1/-1"><input type="checkbox" id="sdSh"${D.shield?' checked':''}>有隔離網（多一芯 SH，接地用）</label>
+      <label for="sdCol" style="grid-column:1/-1">外皮顏色（新建這個規格的電纜時套用）<select id="sdCol"><option value="">黑色（預設）</option>${Object.keys(COLORS).filter(k=>k!=='black').map(k=>`<option value="${k}"${D.color===k?' selected':''}>${COLORS[k].n}</option>`).join('')}</select></label>
+    </div>
+    <div class="row" style="justify-content:flex-start;flex-wrap:wrap"><span class="note">快速填入：</span><button class="tool sm" id="sdNum">號碼 1、2、3…</button><button class="tool sm" id="sdSeq">常見色序（棕、藍、黑、灰…）</button><button class="tool sm" id="sdE">最後一芯改黃綠 E</button></div>
+    <div class="spec-cores"><table><thead><tr><th>#</th><th>芯線名稱</th><th>顏色</th></tr></thead><tbody>${rows}${D.shield?`<tr><td>—</td><td><span class="note">SH</span></td><td><span class="sw" style="background:${swatch(COLORS.gray)}"></span>隔離網</td></tr>`:''}</tbody></table></div>
+    ${D.err?`<p class="err" role="alert">${esc(D.err)}</p>`:''}
+    <div class="row"><button class="tool" id="sdX">取消</button><button class="primary" id="sdOk">${D.orig||D.cab?'儲存':'建立'}</button></div>`;
+  $('sdName').oninput=e=>D.name=e.target.value;
+  $('sdN').onchange=e=>{const n=Math.max(1,Math.min(60,Math.round(Number(e.target.value)||1)));while(D.rows.length<n){let i=D.rows.length+1;while(D.rows.some(r=>r.n===String(i)))i++;D.rows.push({n:String(i),c:'black'});}D.rows.length=n;specRender();};
+  $('sdG').onchange=e=>D.gauge=Number(e.target.value);
+  $('sdSh').onchange=e=>{D.shield=e.target.checked;specRender();};
+  $('sdCol').onchange=e=>D.color=e.target.value;
+  $('specCard').querySelectorAll('[data-sdn]').forEach(x=>x.oninput=e=>D.rows[Number(x.dataset.sdn)].n=e.target.value);
+  $('specCard').querySelectorAll('[data-sdc]').forEach(x=>x.onchange=e=>{const r=D.rows[Number(x.dataset.sdc)];if(!e.target.value)return;r.c=e.target.value;delete r.hex;delete r.cn;specRender();});
+  $('sdNum').onclick=()=>{D.rows.forEach((r,i)=>{r.n=String(i+1);r.c='black';delete r.hex;delete r.cn;});specRender();};
+  $('sdSeq').onclick=()=>{const seen={};D.rows.forEach((r,i)=>{const k=SEQ_COLORS[i%SEQ_COLORS.length],b=COLORS[k].n;seen[b]=(seen[b]||0)+1;r.c=k;r.n=seen[b]>1?b+seen[b]:b;delete r.hex;delete r.cn;});specRender();};
+  $('sdE').onclick=()=>{const r=D.rows[D.rows.length-1];if(D.rows.slice(0,-1).some(x=>x.n==='E')){D.err='已經有一芯叫 E';specRender();return;}r.n='E';r.c='ground';delete r.hex;delete r.cn;specRender();};
+  $('sdX').onclick=specClose;$('sdOk').onclick=specSave;
+}
+// 把規格的芯線套到電纜上：已接的芯照對照表（舊芯線名稱 → 新名稱）搬過去；新規格放不下的芯留在芯線表後面
+function applyDef(c,def,map){
+  const old=c.cores,dn=def.cores.filter(k=>k.n!=='SH');
+  const M=new Map(map||old.filter(k=>k.n!=='SH').map((k,i)=>[k.n,dn[i]&&dn[i].n]));
+  if(old.some(k=>k.n==='SH')&&def.cores.some(k=>k.n==='SH'))M.set('SH','SH');
+  const ws=coresOf(c),to=new Map(ws.map(w=>[w,M.get(w.core)]));
+  c.cores=def.cores.map(k=>({...k}));
+  let extra=0;
+  ws.forEach(w=>{const nn=to.get(w);if(nn&&coreDef(c,nn)){w.core=nn;return;}const o=old.find(k=>k.n===w.core)||{n:w.core,c:w.color,g:w.gauge};if(!coreDef(c,o.n))c.cores.push({...o});extra++;});
+  coresOf(c).forEach(w=>{const k=coreDef(c,w.core);if(k)paintCore(w,k);});
+  return extra;
+}
+function specSave(){
+  const D=SD,name=D.name.trim(),fail=m=>{D.err=m;specRender();};
+  if(!name)return fail('請填規格名稱');
+  if(isBuiltinSpec(name))return fail('和電料清單的規格同名，請換個名稱');
+  if((S.cableSpecs||[]).some(x=>x.name===name&&x.name!==D.orig))return fail('這個專案已經有同名的自訂規格');
+  const names=D.rows.map(r=>r.n.trim());if(names.some(n=>!n))return fail('每一芯都要有名稱');
+  const all=[...names,...(D.shield?['SH']:[])],dup=all.filter((n,i)=>all.indexOf(n)!==i);if(dup.length)return fail('芯線名稱重複：'+[...new Set(dup)].join('、'));
+  const cores=D.rows.map((r,i)=>{const k={n:names[i],c:r.c,g:D.gauge};if(r.hex){k.hex=r.hex;k.cn=r.cn;}return k;});
+  if(D.shield)cores.push({n:'SH',c:'gray',g:D.gauge});
+  const def={name,cores};if(D.color)def.color=D.color;
+  const map=D.rows.filter(r=>r.orig!=null).map(r=>[r.orig,names[D.rows.indexOf(r)]]);if(D.shield&&D.origShield)map.push(['SH','SH']);
+  S.cableSpecs=S.cableSpecs||[];
+  let n=0,extra=0;
+  if(D.orig){const i=S.cableSpecs.findIndex(x=>x.name===D.orig);S.cableSpecs[i]=def;
+    specUsers(D.orig).forEach(c=>{c.spec=name;extra+=applyDef(c,def,c.id===D.cab?map:null);n++;});}
+  else{S.cableSpecs.push(def);if(D.cab){const c=cabOf(D.cab);if(c){c.spec=name;extra+=applyDef(c,def,map);n=1;}}}
+  const cb=D.o.onSave;specClose();commit();recompute();
+  if(cb)cb(name);
+  toast(`已${D.orig?'更新':'建立'}自訂規格「${name}」${n?`，套用到 ${n} 條電纜`:''}${extra?`；有 ${extra} 條已接的芯在新規格裡找不到位置，留在芯線表後面`:''}`);
+}
+// 確認視窗（刪除電纜等）：buttons＝[{t,cls,go}]
+function askConfirm(title,html,buttons){
+  $('askCard').innerHTML=`<h2 id="askTitle">${esc(title)}</h2><p class="mq">${html}</p><div class="row"><button class="tool" id="askX">取消</button>${buttons.map((b,i)=>`<button class="${b.cls||'tool'}" data-ask="${i}">${esc(b.t)}</button>`).join('')}</div>`;
+  $('askDlg').hidden=false;$('askX').onclick=askClose;
+  $('askCard').querySelectorAll('[data-ask]').forEach(x=>x.onclick=()=>{askClose();buttons[Number(x.dataset.ask)].go();});
+  const last=$('askCard').querySelector('[data-ask]:last-child');if(last)last.focus();
+}
+function askClose(){$('askDlg').hidden=true;}
+// 選取整條電纜按 Delete：問一次再刪
+function askDelCable(c){
+  if(!c)return;const n=coresOf(c).length;
+  askConfirm('刪除電纜',`要刪除電纜 <b>${esc(c.no)}</b>${n?`和它的 ${n} 條芯線`:''}嗎？<br>刪除後可以按「復原」救回。${n?'<br>只想拿掉電纜、保留接好的線，按「解散」。':''}`,[
+    ...(n?[{t:'解散（芯線留成散線）',go:()=>{coresOf(c).forEach(detachCore);S.cables=S.cables.filter(x=>x!==c);selCab=null;cabPick=null;commit();recompute();toast(`已解散電纜 ${c.no}，芯線留成散線`);}}]:[]),
+    {t:'刪除',cls:'primary danger-bg',go:()=>{S.wires=S.wires.filter(w=>w.cab!==c.id);S.cables=S.cables.filter(x=>x!==c);selCab=null;cabPick=null;commit();recompute();toast(`已刪除電纜 ${c.no}${n?`和 ${n} 條芯線`:''}，可以按復原`);}}]);
+}

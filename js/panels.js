@@ -55,7 +55,7 @@ function stockMsg(g,colorKey){
   const r=INV.find(x=>x[0]==='CSA細芯控制電線'&&x[1].startsWith(g+'mm²')&&x[1].split(/\s+/)[1]===c);
   return r?`電料清單有這個線材：${r[0]} ${r[1]}`:'電料清單沒有這個線徑與顏色';
 }
-const cableOptions=cur=>`<option value="">未指定</option>`+cableSpecs(cur).map(v=>`<option value="${esc(v)}"${cur===v?' selected':''}>${esc(v)}</option>`).join('');
+const cableOptions=cur=>specOptions(cur);
 function renderDetail(){renderDetailInner();lockInputs($('detail'));}
 function renderDetailInner(){
   if(mode==='place'&&multi.length>1){multiDetail($('detail'));return;}

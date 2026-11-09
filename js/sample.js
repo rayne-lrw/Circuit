@@ -96,8 +96,15 @@ function normalize(o){
   const fields=(Array.isArray(o.fields)?o.fields:[]).filter(z=>z&&safe(z.id)).slice(0,30).map(z=>({id:z.id,name:txt(z.name,20)||z.id,x:num(z.x,0),y:num(z.y,0),w:Math.max(50,num(z.w,600)),h:Math.max(50,num(z.h,210))}));
   if(!fields.length) fields.push(defaultField(box,plate,door));
   const doorMode=['door','console','none'].includes(o.doorMode)?o.doorMode:'door';
-  migrateCables({wires,cables});
-  return {state:{box,plate,door,doorMode,fields,...(o.warnMixedNo===true?{warnMixedNo:true}:{}),hinge:num(o.hinge,plate.h/2),fillLimit:Math.min(100,Math.max(5,num(o.fillLimit,50))),spare:Math.min(5000,Math.max(0,num(o.spare,0))),glands,tpls,devices,ducts,wires,cables,nextNo},
+  // 自訂電纜規格：名稱不重複、不和內建規格同名，每芯有名稱和顏色
+  const hexOk=v=>typeof v==='string'&&/^#[0-9a-fA-F]{6}$/.test(v),cableSpecs=[];
+  (Array.isArray(o.cableSpecs)?o.cableSpecs:[]).slice(0,200).forEach(x=>{const name=txt(x&&x.name,60).trim();if(!name||isBuiltinSpec(name)||cableSpecs.some(y=>y.name===name))return;
+    const cores=(Array.isArray(x.cores)?x.cores:[]).filter(k=>k&&String(k.n==null?'':k.n).trim()).slice(0,80).map(k=>{const r={n:txt(k.n,10).trim(),c:safe(k.c)?k.c:'black',g:Math.max(.1,num(k.g,.75))};if(hexOk(k.hex)){r.hex=k.hex;r.cn=txt(k.cn||'自訂',8);}return r;});
+    if(!cores.length)return;const r={name,cores};if(safe(x.color))r.color=x.color;cableSpecs.push(r);});
+  // 舊檔：自訂規格以前是打文字解析的，沒有定義；用那條電纜現在的芯線表登記成自訂規格，之後可以在規格視窗編輯
+  cables.forEach(c=>{if(c.spec&&!isBuiltinSpec(c.spec)&&!cableSpecs.some(y=>y.name===c.spec)&&c.cores.length)cableSpecs.push({name:c.spec,cores:c.cores.map(k=>({...k}))});});
+  migrateCables({wires,cables,cableSpecs});
+  return {state:{box,plate,door,doorMode,fields,...(o.warnMixedNo===true?{warnMixedNo:true}:{}),hinge:num(o.hinge,plate.h/2),fillLimit:Math.min(100,Math.max(5,num(o.fillLimit,50))),spare:Math.min(5000,Math.max(0,num(o.spare,0))),glands,tpls,devices,ducts,wires,cables,cableSpecs,nextNo},
     dropped:(o.devices.length-devices.length)+(o.ducts.length-ducts.length)+(o.wires.length-wires.length)};
 }
 

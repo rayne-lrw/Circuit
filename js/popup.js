@@ -37,7 +37,7 @@ function fillPop(){
   $('pNo').oninput=e=>{draft.no=e.target.value;};
   $('pLab').onchange=e=>{last.labAt=e.target.value;}; // 記住上次的選擇，下一條線照用
   $('pDirect').onchange=e=>{last.direct=e.target.checked;renderOverlay();};
-  if(ex){$('pCable').oninput=e=>draft.ext.cable=e.target.value;$('pCable').onchange=()=>{fillPop();};$('pCore').oninput=e=>draft.ext.core=e.target.value;if($('pSpec'))$('pSpec').onchange=e=>draft.ext.spec=e.target.value;}
+  if(ex){$('pCable').oninput=e=>draft.ext.cable=e.target.value;$('pCable').onchange=()=>{fillPop();};$('pCore').oninput=e=>draft.ext.core=e.target.value;if($('pSpec'))$('pSpec').onchange=e=>{const v=e.target.value;if(v==='__new'){e.target.value=draft.ext.spec||'';specDialog({onSave:n=>{if(draft&&draft.ext){draft.ext.spec=n;fillPop();}}});return;}draft.ext.spec=v;};}
 }
 function closePop(){$('pop').hidden=true;}
 function finishWire(){

@@ -3,33 +3,45 @@
    芯線的 a 端是電纜的 A 端，b 端是 B 端；外部電纜的 B 端在現場。
    剝線點：剝掉外皮、芯線分開走的位置。兩端各一個，預設自動放在最近的線槽裡，可以拖曳（存在 c.bo.a / c.bo.b）。
    電纜外皮從 A 端剝線點走到 B 端剝線點（外部電纜經過出線口），芯線只畫剝線點到接點那一段。 */
-const AWG={24:.2,22:.3,20:.5,18:.75,16:1.25,14:2};
-const CORE_RE=/黃綠|棕|藍|黑|紅|白|灰|綠/g, CORE_KEY={棕:'brown',藍:'blue',黑:'black',紅:'red',白:'white',灰:'gray',綠:'green',黃綠:'ground'};
-// 電料清單裡的電纜；另外加上這次開啟頁面時臨時新增的規格，和專案裡已經用到的規格
+/* 電纜規格：不從文字解析。
+   內建規格（電料清單裡的電纜）照下表固定芯線：[線徑 mm², "芯線名稱:顏色 …"]；
+   自訂規格由使用者在「自訂規格」視窗逐芯填好，存在專案裡（S.cableSpecs＝[{name,cores:[{n,c,g,hex?,cn?}],color?}]） */
+const SPEC_DEF={
+  "CSA細纜 0.5mm²*2C 棕藍":[0.5,"棕:brown 藍:blue"],
+  "CSA細纜 0.5mm²*3C 棕藍黑":[0.5,"棕:brown 藍:blue 黑:black"],
+  "CSA細纜 0.5mm²*10C 耐屈尺防油超軟-號碼":[0.5,"1:black 2:black 3:black 4:black 5:black 6:black 7:black 8:black 9:black 10:black"],
+  "CSA細纜 0.5mm²*16C 號碼":[0.5,"1:black 2:black 3:black 4:black 5:black 6:black 7:black 8:black 9:black 10:black 11:black 12:black 13:black 14:black 15:black 16:black"],
+  "CSA細纜 0.75mm²*2C 棕藍":[0.75,"棕:brown 藍:blue"],
+  "CSA細纜 0.75mm²*3C 棕藍/黃綠":[0.75,"棕:brown 藍:blue 黃綠:ground"],
+  "CSA細纜 0.75mm²*3C 黑白/黃綠":[0.75,"黑:black 白:white 黃綠:ground"],
+  "CSA細纜 0.75mm²*3C 耐屈尺防油超軟-棕藍/黃綠":[0.75,"棕:brown 藍:blue 黃綠:ground"],
+  "CSA細纜 0.3mm²*4C 耐繞曲隔離電纜":[0.3,"1:black 2:black 3:black 4:black SH:gray"],
+  "CSA細纜 0.75mm²*6C 號碼":[0.75,"1:black 2:black 3:black 4:black 5:black 6:black"],
+  "CSA細纜 1.25mm²*2C 棕藍":[1.25,"棕:brown 藍:blue"],
+  "CSA細纜 8mm²*4C 號碼/黃綠":[8,"1:black 2:black 3:black E:ground"],
+  "CSA細纜 0.75mm²*2C 黑白":[0.75,"黑:black 白:white"],
+  "伺服動力線 J4 5.5mm²*4C":[5.5,"U:black V:black W:black E:ground"],
+  "伺服動力線 J4 耐繞曲2mm²*4C":[2,"U:black V:black W:black E:ground"],
+  "伺服動力線 JE 0.75mm²*4C":[0.75,"U:black V:black W:black E:ground"],
+  "伺服編碼線 J4 20AWG*6C":[0.5,"1:black 2:black 3:black 4:black 5:black 6:black"],
+  "伺服編碼線 J4 耐繞曲20AWG*6C":[0.5,"1:black 2:black 3:black 4:black 5:black 6:black"],
+  "伺服編碼線 JE 20AWG*6C":[0.5,"1:black 2:black 3:black 4:black 5:black 6:black"],
+  "伺服煞車線 J4 1.25mm²*2C":[1.25,"1:black 2:black"],
+  "伺服煞車線 JE 0.5mm²*2C":[0.5,"1:black 2:black"]
+};
 const cableInv=()=>INV.filter(r=>r[0].includes('細纜')||/^伺服(動力|編碼|煞車)線/.test(r[0])).map(r=>`${r[0]} ${r[1]}`);
-const tempSpecs=[];
+const isBuiltinSpec=name=>!!SPEC_DEF[name];
+const customSpec=(name,st)=>((st||(typeof S!=='undefined'&&S)||{}).cableSpecs||[]).find(x=>x.name===name)||null;
+// 規格的芯線定義（複本）；不認得的規格回傳空陣列（舊檔的電纜芯線本來就存在電纜上）
+function specDef(name,st){
+  const b=SPEC_DEF[name];if(b)return b[1].split(' ').map(t=>{const i=t.lastIndexOf(':');return {n:t.slice(0,i),c:t.slice(i+1),g:b[0]};});
+  const c=customSpec(name,st);return c?c.cores.map(k=>({...k})):[];
+}
+// 規格下拉的選項：電料清單、這個專案的自訂規格、其他（舊檔裡用過但沒有定義的）
 function cableSpecs(cur){
-  const s=[...cableInv()];
-  [...tempSpecs,...((typeof S!=='undefined'&&S&&S.cables)||[]).map(c=>c.spec),cur].forEach(x=>{if(x&&!s.includes(x))s.push(x);});
-  return s;
-}
-function specGauge(spec){
-  const s=String(spec||''),mm=s.match(/(\d+(?:\.\d+)?)\s*mm²/),aw=s.match(/(\d+)\s*AWG/i);
-  return mm?Number(mm[1]):aw?(AWG[aw[1]]||.5):.75;
-}
-// 從規格文字解析芯數、線徑與芯線顏色。看不懂的規格回傳空陣列，由使用者自己加芯線
-function specCores(spec){
-  const s=String(spec||''),m=s.match(/(\d+)\s*C(?![a-z])/i)||s.match(/(\d+)\s*芯/);
-  if(!m) return [];
-  const n=Math.max(1,Math.min(60,Number(m[1]))),g=specGauge(s);
-  const tail=s.slice(m.index+m[0].length),cols=tail.match(CORE_RE)||[];
-  let cores;
-  if(/^伺服動力線/.test(s)&&n===4) cores=[['U','black'],['V','black'],['W','black'],['E','ground']];
-  else if(tail.includes('號碼')){const pe=cols.includes('黃綠');cores=[...Array(n)].map((_,i)=>pe&&i===n-1?['E','ground']:[String(i+1),'black']);}
-  else if(cols.length===n){const seen={};cores=cols.map(c=>{seen[c]=(seen[c]||0)+1;return [cols.filter(x=>x===c).length>1?c+seen[c]:c,CORE_KEY[c]];});}
-  else cores=[...Array(n)].map((_,i)=>[String(i+1),'black']);
-  if(s.includes('隔離')) cores.push(['SH','gray']); // 隔離網（接地用）
-  return cores.map(([k,c])=>({n:k,c,g}));
+  const inv=cableInv(),cus=((typeof S!=='undefined'&&S&&S.cableSpecs)||[]).map(x=>x.name),other=[];
+  [...((typeof S!=='undefined'&&S&&S.cables)||[]).map(c=>c.spec),cur].forEach(x=>{if(x&&!inv.includes(x)&&!cus.includes(x)&&!other.includes(x))other.push(x);});
+  return {inv,cus,other};
 }
 const cabOf=id=>(S.cables||[]).find(c=>c.id===id);
 const coresOf=c=>S.wires.filter(w=>w.cab===c.id);
@@ -37,7 +49,8 @@ const coreDef=(c,n)=>c.cores.find(k=>k.n===n);
 function nextCableNo(){const u=new Set((S.cables||[]).map(c=>c.no));let i=1;while(u.has('C'+String(i).padStart(2,'0')))i++;return 'C'+String(i).padStart(2,'0');}
 const newCabId=()=>'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 function newCable(no,spec){
-  const c={id:newCabId(),no:(no||'').trim()||nextCableNo(),spec:spec||'',cores:specCores(spec),bo:{},fieldLen:0};
+  const c={id:newCabId(),no:(no||'').trim()||nextCableNo(),spec:spec||'',cores:specDef(spec),bo:{},fieldLen:0};
+  const cs=customSpec(spec);if(cs&&cs.color)setCabColor(c,cs.color); // 自訂規格有指定外皮顏色
   S.cables.push(c);return c;
 }
 const freeCore=c=>{const u=new Set(coresOf(c).map(w=>w.core));return c.cores.find(k=>!u.has(k.n));};
@@ -114,7 +127,7 @@ function migrateCables(st){
   st.wires.forEach(w=>{
     if(w.cab||!w.ext||!w.ext.cable) return;
     let c=st.cables.find(x=>x.no===w.ext.cable);
-    if(!c){c={id:'c'+(st.cables.length+1)+'_'+Math.random().toString(36).slice(2,6),no:w.ext.cable,spec:w.ext.spec||'',cores:specCores(w.ext.spec),bo:{},fieldLen:0};st.cables.push(c);}
+    if(!c){c={id:'c'+(st.cables.length+1)+'_'+Math.random().toString(36).slice(2,6),no:w.ext.cable,spec:w.ext.spec||'',cores:specDef(w.ext.spec,st),bo:{},fieldLen:0};st.cables.push(c);}
     if(!c.spec&&w.ext.spec){c.spec=w.ext.spec;}
     if(!c.gland&&w.gland) c.gland=w.gland; // 舊檔把出線口記在每一芯上
     const used=new Set(st.wires.filter(x=>x.cab===c.id).map(x=>x.core));
