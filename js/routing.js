@@ -176,6 +176,16 @@ function realize(wid,anchors,legs,lane0){
       const c=lane(wid,d);
       // 從線槽端頭進去時，先沿原方向走到端頭，進了線槽再對齊線道，不在器具旁邊橫移
       if(!last){
+        // 從出線口進箱、要從線槽端頭進去：先往箱內直走到線道再橫移（沒撞到器具時）；
+        // 會撞到就至少先往內退 6 mm，不貼著箱壁邊線橫走
+        const G=anchors[i];
+        if(G&&G.gland&&G.side&&((axis(d)==='h'&&(cur.x<d.x||cur.x>d.x+d.w))||(axis(d)==='v'&&(cur.y<d.y||cur.y>d.y+d.h)))){
+          const h=axis(d)==='h',endA=h?(cur.x<d.x?d.x+2:d.x+d.w-2):(cur.y<d.y?d.y+2:d.y+d.h-2);
+          const q1=h?{x:cur.x,y:c}:{x:c,y:cur.y},q2=h?{x:endA,y:c}:{x:c,y:endA};
+          const inward=h?(G.side==='top'||G.side==='bottom'):(G.side==='left'||G.side==='right');
+          if(inward&&!segHits(cur.x,cur.y,q1.x,q1.y)&&!segHits(q1.x,q1.y,q2.x,q2.y)){pts.push(q1,q2);cur=q2;}
+          else{const v={top:[0,1],bottom:[0,-1],left:[1,0],right:[-1,0]}[G.side];const q={x:cur.x+v[0]*6,y:cur.y+v[1]*6};pts.push(q);cur=q;}
+        }
         if(axis(d)==='h'&&(cur.x<d.x||cur.x>d.x+d.w)){const q={x:cur.x<d.x?d.x+2:d.x+d.w-2,y:cur.y};pts.push(q);cur=q;}
         else if(axis(d)==='v'&&(cur.y<d.y||cur.y>d.y+d.h)){const q={x:cur.x,y:cur.y<d.y?d.y+2:d.y+d.h-2};pts.push(q);cur=q;}
       }

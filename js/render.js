@@ -127,7 +127,8 @@ function renderBoard(){
 }
 function wireInner(w,r){
   const col=colorOf(w),sw=gw(w.gauge),d=pathD(r.pts),kind=wireKind(w);
-  const dash=kind==='ext'?' stroke-dasharray="7 3" style="stroke-linecap:butt"':'';
+  // 散線的外線畫虛線表示在箱外；電纜芯線已經有外被表示，不畫虛線
+  const dash=kind==='ext'&&!w.cab?' stroke-dasharray="7 3" style="stroke-linecap:butt"':'';
   let s=`<path class="vis" d="${d}" stroke="${col.k}" stroke-width="${sw+.9}"/>`;
   s+=`<path class="vis" d="${d}" stroke="${col.c}" stroke-width="${sw}"${dash}/>`;
   if(col.stripe) s+=`<path class="vis" d="${d}" stroke="${col.stripe}" stroke-width="${sw}" stroke-dasharray="6 6" style="stroke-linecap:butt"/>`;

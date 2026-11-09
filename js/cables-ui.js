@@ -71,7 +71,7 @@ function cableDetail(box,c){
     return h;}).join('');
   const orphan=cw.filter(w=>!coreDef(c,w.core));
   const nsel=c.cores.filter(k=>coreSel.has(k.n)).length,specCol=specCores(c.spec).length>0;
-  const batch=ro?'':nsel?`<div class="batch" id="cBatch"><div class="sub-h">已勾 ${nsel} 芯：點顏色一次套用 <button class="lnk" id="cSelNone">取消勾選</button></div>${colorChips('','cb')}</div>`
+  const batch=ro?'':nsel?`<div class="batch" id="cBatch"><div class="sub-h">已勾 ${nsel} 芯：點顏色一次套用 <button class="lnk" id="cSelNone">取消勾選</button></div>${colorChips('','cb')}<div class="fields" style="margin-top:6px"><label for="cLabAt" style="grid-column:1/-1">線號標示（套用到已接的芯線）<select id="cLabAt"><option value="">選擇…</option>${LAB_AT.map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}</select></label></div></div>`
     :(specCol?`<div class="row" style="justify-content:flex-start"><button class="lnk" id="cColReset">依規格重設芯線顏色</button><span class="note">勾選多芯可一次改顏色</span></div>`:'<p class="note">勾選多芯可一次改顏色</p>');
   const sec=(k,t,body)=>`<details class="csec" data-sec="${k}"${cabSecOpen.has(k)?' open':''}><summary>${t}</summary>${body}</details>`;
   const boRow=k=>{const p=r&&r[k];return p?`<button class="tool" data-bor="${k}"${p.auto||ro?' disabled':''}>${k.toUpperCase()} 端${p.auto?'自動':'已移動，改回自動'}</button>`:'';};
@@ -125,6 +125,7 @@ function cableDetail(box,c){
   box.querySelectorAll('[data-cno]').forEach(inp=>inp.onchange=e=>{const w=by.get(inp.dataset.cno),v=e.target.value.trim().slice(0,16);if(!w)return;if(!v){e.target.value=w.no;return;}w.no=v;done();});
   box.querySelectorAll('[data-csel]').forEach(cb=>cb.onchange=e=>{const n=cb.dataset.csel;if(e.target.checked)coreSel.add(n);else coreSel.delete(n);renderDetail();});
   if($('cSelAll'))$('cSelAll').onchange=e=>{coreSel=new Set(e.target.checked?c.cores.map(k=>k.n):[]);renderDetail();};
+  if($('cLabAt'))$('cLabAt').onchange=e=>{const v=e.target.value;if(!v)return;const ws=c.cores.filter(k=>coreSel.has(k.n)).map(k=>by.get(k.n)).filter(Boolean);ws.forEach(w=>{delete w.lab;if(v==='start')delete w.labAt;else w.labAt=v;});done();toast(ws.length?`已把 ${ws.length} 條芯線的線號改標在${LAB_AT.find(x=>x[0]===v)[1]}`:'勾選的芯還沒接線');};
   if($('cSelNone'))$('cSelNone').onclick=()=>{coreSel=new Set();renderDetail();};
   box.querySelectorAll('[data-colpick]').forEach(b=>b.onclick=()=>{colPop=colPop===b.dataset.colpick?null:b.dataset.colpick;coreEdit=null;renderDetail();});
   if($('cColReset'))$('cColReset').onclick=()=>{const sc=specCores(c.spec);c.cores.forEach((k,i)=>{const d=sc.find(x=>x.n===k.n)||sc[i];if(d){setCoreColor(k,d.c);const w=by.get(k.n);if(w)paintCore(w,k);}});done();toast('已依規格重設芯線顏色');};
