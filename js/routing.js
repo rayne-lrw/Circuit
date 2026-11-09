@@ -240,21 +240,31 @@ function gates(from,to,ctr,fieldP,glandId){
     const g=(gid&&S.glands.find(x=>x.id===gid))||S.glands.reduce((b,x)=>!b||dist(x)<dist(b)?x:b,null);
     // 同一個出線口的多條線在出線口直徑範圍內錯開（M20 約 ±4 mm），外面再依序往外拉開，不會偏到出線口旁邊
     const i=ctr.g++,k=(i%24)*2.2,sp=((i%8)-3.5)*1.1,by=boxBottom();
-    if(!g||(g.side||'bottom')==='bottom'){
+    const o=boxOrigin(),W=S.box.w,H=S.box.h,fp=(fieldP.dev&&stubOf(fieldP))||fieldP;
+    // 箱底出線口、對方在箱子下方：照原本的走法（往下出去）
+    if((!g||(g.side||'bottom')==='bottom')&&fp.y>by){
       const gx=g?g.x:S.plate.w/2;
-      const a={x:gx+sp,y:by,sheet:'plate',must:true,side:'bottom',midY:by+12+k,gland:g?g.id:null};
-      return to==='field'?[a]:[a];
+      return [{x:gx+sp,y:by,sheet:'plate',must:true,side:'bottom',midY:by+12+k,gland:g?g.id:null}];
     }
-    // 側面或頂部：先往箱外拉出一段，再沿箱外繞到箱底下方，不穿過箱體
-    const P=glandPt(g),o=boxOrigin(),bx0=o.x,bx1=o.x+S.box.w;
-    const a={x:P.x+(P.ny?sp:0),y:P.y+(P.nx?sp:0),sheet:'plate',must:true,side:P.side,gland:g.id};
-    // 對方在箱體下方才繞到箱底；在上方或旁邊（例如裝在箱頂的器具、上方的現場區）就直接過去
-    const below=fieldP.y>by;
-    // 往外拉的距離不超過對方離箱壁的距離：箱外器具貼著箱壁時，不會拉出去又折回來（翹一段）
-    const fp=(fieldP.dev&&stubOf(fieldP))||fieldP,far=(fp.x-a.x)*P.nx+(fp.y-a.y)*P.ny,ext=below||far<=0?12+k:Math.min(12+k,Math.max(.5,far));
-    const out={x:a.x+P.nx*ext,y:a.y+P.ny*ext,sheet:'field',side:below?'bottom':null,midY:by+12+k};
-    const pts=[a,out];
-    if(P.side==='top'&&below){const sx=fieldP.x<(bx0+bx1)/2?bx0-12-k:bx1+12+k;out.side=null;pts.push({x:sx,y:out.y,sheet:'field',side:'bottom',midY:by+12+k});} // 頂部：出箱後先水平移到側面，再往下
+    const P=g?glandPt(g):{x:S.plate.w/2,y:by,side:'bottom',nx:0,ny:1};
+    const a={x:P.x+(P.ny?sp:0),y:P.y+(P.nx?sp:0),sheet:'plate',must:true,side:P.side,gland:g?g.id:null};
+    // 對方在出線口那一面的外側：出去後直接過去。往外拉的距離不超過對方離箱壁的距離，不會拉出去又折回來（翹一段）
+    const beyond={top:fp.y<o.y,bottom:fp.y>o.y+H,left:fp.x<o.x,right:fp.x>o.x+W};
+    const m=12+k;
+    if(beyond[P.side]){
+      const far=(fp.x-a.x)*P.nx+(fp.y-a.y)*P.ny,ext=far<=0?m:Math.min(m,Math.max(.5,far));
+      const pts=[a,{x:a.x+P.nx*ext,y:a.y+P.ny*ext,sheet:'field',side:null}];
+      return from==='field'?pts.reverse():pts;
+    }
+    // 對方在別的面：出去後沿著箱體外圍（離箱壁 m）繞到對方那一面，不穿過箱體、不貼著箱壁
+    const out={x:a.x+P.nx*m,y:a.y+P.ny*m,sheet:'field',side:null},R={x0:o.x-m,y0:o.y-m,x1:o.x+W+m,y1:o.y+H+m};
+    const hs=v=>v==='left'||v==='right',cx=v=>v==='left'?R.x0:R.x1,cy=v=>v==='top'?R.y0:R.y1;
+    const corner=(u,v)=>hs(u)?{x:cx(u),y:cy(v)}:{x:cx(v),y:cy(u)};
+    const opp={top:'bottom',bottom:'top',left:'right',right:'left'}[P.side],adj=hs(P.side)?['top','bottom']:['left','right'];
+    const t=adj.find(v=>beyond[v])||opp,cs=[];
+    if(t!==opp) cs.push(corner(P.side,t));
+    else{const via=adj.map(v=>[corner(P.side,v),corner(t,v)]).sort((p,q)=>(Math.abs(p[0].x-out.x)+Math.abs(p[0].y-out.y)+Math.abs(p[1].x-fp.x)+Math.abs(p[1].y-fp.y))-(Math.abs(q[0].x-out.x)+Math.abs(q[0].y-out.y)+Math.abs(q[1].x-fp.x)+Math.abs(q[1].y-fp.y)))[0];cs.push(...via);}
+    const pts=[a,out,...cs.map(q=>({x:q.x,y:q.y,sheet:'field',side:null}))];
     return from==='field'?pts.reverse():pts;
   }
   const i=ctr.h++,y=S.hinge+(i-(ctr.hn-1)/2)*2.6,H1={x:S.plate.w,y,sheet:'plate',must:true,side:null},H2={x:doorO().x,y,sheet:'door',side:null};

@@ -80,6 +80,46 @@ const SCENARIOS=[
     st.wires.push({id:'tt1',no:'TT1',a:{d:'TB5',t:t[0].id},b:{d:'SV1',t:'L11'},wps:[],gauge:1.25,color:'red'},{id:'tt2',no:'TT2',a:{d:'K0',t:'A1'},b:{d:'TB5',t:t[1].id},wps:[],gauge:1.25,color:'blue'});
     return {state:st,expectClean:['TT1','TT2'],expectGland:{TT1:'G9',TT2:'G9'}};
   }},
+  {name:'出線口進出（四面、兩個方向、散線與電纜）',build:()=>{
+    const st=normalize(sampleState()).state;S=st;const o=boxOrigin();
+    // 箱頂兩個（一個在線槽端頭外、一個在線槽正上方）、左右側各一、原本箱底三個
+    st.glands.push({id:'GT1',side:'top',x:720,y:0,spec:'M20'},{id:'GT2',side:'top',x:300,y:0,spec:'M20'},{id:'GL',side:'left',x:0,y:o.y+500,spec:'M20'},{id:'GR',side:'right',x:0,y:o.y+420,spec:'M20'});
+    st.glands.forEach(g=>{if(g.side==='left')g.x=o.x;if(g.side==='right')g.x=o.x+S.box.w;if(g.side==='top')g.y=o.y;});
+    const gl=['GT1','GT2','GL','GR','G1','G3'],ins=[['K0','A1'],['Q1','1'],['X1','10A'],['PS1','L'],['KA1','14'],['E1','5']],fld=[['M1','U'],['M1','V'],['M2','U'],['M2','V'],['M3','U'],['M3','V']];
+    const exp={};
+    gl.forEach((g,i)=>{
+      // 從現場往箱內畫（a 在現場）與從箱內往外畫
+      st.wires.push({id:'gx'+i,no:'GX'+i,a:{d:fld[i][0],t:fld[i][1]},b:{d:ins[i][0],t:ins[i][1]},wps:[],gauge:.75,color:'black',gland:g});
+      st.wires.push({id:'gy'+i,no:'GY'+i,a:{d:ins[(i+1)%6][0],t:ins[(i+1)%6][1]},b:{d:'PH2',t:i%2?'藍':'棕'},wps:[],gauge:.75,color:'blue',gland:g});
+      exp['GX'+i]=g;exp['GY'+i]=g;
+      // 電纜：從現場那端開始接（attachCore 會把現場端放到 B 端）
+      const c=newCable('CG'+i,'CSA細纜 0.5mm²*3C 棕藍黑');c.gland=g;
+      attachCore(makeCoreWire({d:'PH1',t:'黑'},{d:'X1',t:(14+i)+'A'},'CG'+i+'a'),c);
+      exp['cab:CG'+i]=g;
+    });
+    return {state:st,expectClean:Object.keys(exp).filter(k=>!k.startsWith('cab:')),expectWall:exp};
+  }},
+  {name:'出線口進出（現場區在箱子上方）',build:()=>{
+    const st=normalize(sampleState()).state;S=st;const o=boxOrigin();
+    // 現場區搬到箱子上方（和你的專案一樣），區內器具一起搬
+    const z=st.fields[0],dy=(o.y-40-z.h)-z.y;st.devices.filter(d=>d.sheet==='field').forEach(d=>d.y+=dy);z.y+=dy;
+    // 箱頂兩個（一個在線槽端頭外、一個在線槽正上方）、左右側各一、原本箱底三個
+    st.glands.push({id:'GT1',side:'top',x:720,y:0,spec:'M20'},{id:'GT2',side:'top',x:300,y:0,spec:'M20'},{id:'GL',side:'left',x:0,y:o.y+500,spec:'M20'},{id:'GR',side:'right',x:0,y:o.y+420,spec:'M20'});
+    st.glands.forEach(g=>{if(g.side==='left')g.x=o.x;if(g.side==='right')g.x=o.x+S.box.w;if(g.side==='top')g.y=o.y;});
+    const gl=['GT1','GT2','GL','GR','G1','G3'],ins=[['K0','A1'],['Q1','1'],['X1','10A'],['PS1','L'],['KA1','14'],['E1','5']],fld=[['M1','U'],['M1','V'],['M2','U'],['M2','V'],['M3','U'],['M3','V']];
+    const exp={};
+    gl.forEach((g,i)=>{
+      // 從現場往箱內畫（a 在現場）與從箱內往外畫
+      st.wires.push({id:'gx'+i,no:'GX'+i,a:{d:fld[i][0],t:fld[i][1]},b:{d:ins[i][0],t:ins[i][1]},wps:[],gauge:.75,color:'black',gland:g});
+      st.wires.push({id:'gy'+i,no:'GY'+i,a:{d:ins[(i+1)%6][0],t:ins[(i+1)%6][1]},b:{d:'PH2',t:i%2?'藍':'棕'},wps:[],gauge:.75,color:'blue',gland:g});
+      exp['GX'+i]=g;exp['GY'+i]=g;
+      // 電纜：從現場那端開始接（attachCore 會把現場端放到 B 端）
+      const c=newCable('CG'+i,'CSA細纜 0.5mm²*3C 棕藍黑');c.gland=g;
+      attachCore(makeCoreWire({d:'PH1',t:'黑'},{d:'X1',t:(14+i)+'A'},'CG'+i+'a'),c);
+      exp['cab:CG'+i]=g;
+    });
+    return {state:st,expectClean:Object.keys(exp).filter(k=>!k.startsWith('cab:')),expectWall:exp};
+  }},
   {name:'不進線槽與旋轉器具',build:()=>{
     const st=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:800,h:600},door:{w:900,h:700},
       devices:[{id:'Q1',tpl:'fuji-bw50',x:100,y:300,rot:270},{id:'FL1',tpl:'fn3270',x:300,y:290,rot:270},{id:'Q2',tpl:'fuji-bw50',x:100,y:100,rot:90}],
@@ -89,7 +129,7 @@ const SCENARIOS=[
   }},
 ];
 
-function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,expectGland){
+function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,expectGland,expectWall){
   const res=[];
   const fam=id=>famIds(id);
   const crosses=(w,pts)=>{
@@ -141,6 +181,25 @@ function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,exp
         if(!eq(ta[ta.length-1],c.pts[0]))msgs.push('A 端芯線沒有接到剝線點');if(!eq(tb[0],c.pts[c.pts.length-1]))msgs.push('B 端芯線沒有接到剝線點');}}
     res.push({no:w.no,ok:!msgs.length,msg:msgs.join('；')});
   }
+  // 出線口：經過指定的出線口、只在出線口穿過箱壁一次、穿過點在出線口上、沒有任何一段貼著箱壁邊線、沒有折返
+  for(const key in (expectWall||{})){
+    const g=S.glands.find(x=>x.id===expectWall[key]),P=glandPt(g),o=boxOrigin(),W=S.box.w,H=S.box.h,msgs=[];
+    let pts,gl;
+    if(key.startsWith('cab:')){const c=S.cables.find(x=>x.no===key.slice(4)),r=c&&CABROUTES.get(c.id);if(!r){res.push({no:key,ok:false,msg:'沒有外被路徑'});continue;}pts=r.pts;gl=r.gland;}
+    else{const w=S.wires.find(x=>x.no===key),r=ROUTES.get(w.id);pts=r.pts;gl=r.gland;}
+    if(gl!==g.id)msgs.push(`應經過 ${g.id}，實際 ${gl||'沒有'}`);
+    const inB=q=>q.x>o.x+.01&&q.x<o.x+W-.01&&q.y>o.y+.01&&q.y<o.y+H-.01;
+    const cross=[];for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i];if(inB(a)!==inB(b))cross.push(inB(a)?a:b);}
+    if(cross.length!==1)msgs.push(`穿過箱壁 ${cross.length} 次`);
+    for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],L=Math.abs(a.x-b.x)+Math.abs(a.y-b.y);if(L<1)continue;
+      const onH=Math.abs(a.y-b.y)<.01&&(Math.abs(a.y-o.y)<.5||Math.abs(a.y-o.y-H)<.5)&&Math.max(a.x,b.x)>o.x&&Math.min(a.x,b.x)<o.x+W;
+      const onV=Math.abs(a.x-b.x)<.01&&(Math.abs(a.x-o.x)<.5||Math.abs(a.x-o.x-W)<.5)&&Math.max(a.y,b.y)>o.y&&Math.min(a.y,b.y)<o.y+H;
+      if(onH||onV){msgs.push(`有一段貼著箱壁邊線（${Math.round(a.x)},${Math.round(a.y)} → ${Math.round(b.x)},${Math.round(b.y)}）`);break;}}
+    const wallPts=pts.filter(q=>(Math.abs(q.y-o.y)<.5||Math.abs(q.y-o.y-H)<.5||Math.abs(q.x-o.x)<.5||Math.abs(q.x-o.x-W)<.5));
+    if(wallPts.some(q=>Math.hypot(q.x-P.x,q.y-P.y)>8))msgs.push('穿過箱壁的位置不在出線口上');
+    if(backtrack(pts))msgs.push('同一條直線上來回折返');
+    res.push({no:'出線口 '+key,ok:!msgs.length,msg:msgs.join('；')});
+  }
   // 線圈二極體：K 接線圈 +、A 接 −，沒有接反警告
   for(const id in (expectCoil||{})){const [p,m]=expectCoil[id],ws=S.wires.filter(w=>w.auto==='coil'&&w.a.d===id),msgs=[];
     const k=ws.find(w=>w.a.t==='K'),a=ws.find(w=>w.a.t==='A');
@@ -172,7 +231,7 @@ function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,exp
     const out=await p.evaluate(([src,arg,chk])=>{
       const sc=new Function('arg','return ('+src+')(arg)')(arg);
       S=sc.state;resetUi();computeRoutes();
-      return new Function('expectClean','expectVia','expectCable','expectBack','expectCoil','expectGland','return ('+chk+')(expectClean,expectVia,expectCable,expectBack,expectCoil,expectGland)')(sc.expectClean,sc.expectVia,sc.expectCable,sc.expectBack,sc.expectCoil,sc.expectGland);
+      return new Function('expectClean','expectVia','expectCable','expectBack','expectCoil','expectGland','expectWall','return ('+chk+')(expectClean,expectVia,expectCable,expectBack,expectCoil,expectGland,expectWall)')(sc.expectClean,sc.expectVia,sc.expectCable,sc.expectBack,sc.expectCoil,sc.expectGland,sc.expectWall);
     },[fnSrc,arg,checkInPage.toString()]);
     const bad=out.filter(x=>!x.ok);total+=out.length;fail+=bad.length;
     console.log(`${bad.length?'✗':'✓'} ${name}：${out.length} 條線，${bad.length} 條失敗`);
