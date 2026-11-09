@@ -2,7 +2,7 @@
 /* ---------- 電纜操作：右側「電纜」分頁、電纜詳細資料與芯線表、接下一芯、剝線點拖曳 ---------- */
 let cabForm=false;
 // 芯線表：勾選的芯（一次改顏色）、正在選顏色的芯、電纜資料展開的分區
-let coreSel=new Set(),coreSelCab=null,colPop=null;const cabSecOpen=new Set();
+let coreSel=new Set(),coreSelCab=null,colPop=null,renumOpen=false;const cabSecOpen=new Set();
 const specOptions=cur=>`<option value="">未指定</option>`+cableSpecs(cur).map(v=>`<option value="${esc(v)}"${cur===v?' selected':''}>${esc(v)}</option>`).join('')+`<option value="__new">自訂規格…</option>`;
 const sideTags=(cw,k)=>[...new Set(cw.map(w=>tagOf(w[k].d)))].join('、')||'—';
 const coreOrder=c=>w=>{const i=c.cores.findIndex(k=>k.n===w.core);return i<0?999:i;};
@@ -47,6 +47,21 @@ function devOptions(cur){
   }).join('');
 }
 const termOptions=(d,cur)=>d?`<option value="">選接點</option>`+tplOf(d).terms.map(t=>`<option value="${esc(t.id)}"${cur===t.id?' selected':''}>${esc(termLabel(d,t.id))}${t.desc?'　'+esc(t.desc):''}</option>`).join(''):'<option value="">先選器具</option>';
+// 芯線換位：芯線本身（名稱、顏色）不動，兩芯的接線（兩端接點與線號）對調；目標是備用芯就直接搬過去
+function swapCores(c,n1,n2){
+  const ws=coresOf(c),w1=ws.find(w=>w.core===n1),w2=ws.find(w=>w.core===n2);
+  if(w1)w1.core=n2;if(w2)w2.core=n1;
+  [w1,w2].forEach(w=>{if(!w)return;const k=coreDef(c,w.core);if(k)paintCore(w,k);});
+  return !!(w1||w2);
+}
+// 線號拆成「前綴＋數字」：W062 → W、62、寬 3；0901 → ''、901、寬 4
+function noParts(v){const m=String(v).match(/^(.*?)(\d+)$/);return m?{pre:m[1],n:Number(m[2]),w:m[2].length}:null;}
+function renumCores(c,list,rule,arg){
+  const ws=list.map(k=>coresOf(c).find(w=>w.core===k.n)).filter(Boolean);
+  if(rule==='seq'){const p=noParts(arg);if(!p)return -1;ws.forEach((w,i)=>w.no=p.pre+String(p.n+i).padStart(p.w,'0'));}
+  else ws.forEach(w=>w.no=(arg||'')+w.core);
+  return ws.length;
+}
 function cableDetail(box,c){
   box.hidden=false;
   const cw=coresOf(c),by=new Map(cw.map(w=>[w.core,w])),L=cabLen(c),r=CABROUTES.get(c.id),ro=mode==='view';
@@ -66,12 +81,13 @@ function cableDetail(box,c){
       h+=`<tr class="sub"><td colspan="6"><div class="coreed"><div class="sub-h">芯線 ${esc(k.n)} 的兩端接點</div><div class="fields">
       <label for="ceAd">A 端器具<select id="ceAd">${devOptions(A&&A.d)}</select></label><label for="ceAt">A 端接點<select id="ceAt">${termOptions(dA,A&&A.t)}</select></label>
       <label for="ceBd">B 端器具${L.ext?'（現場）':''}<select id="ceBd">${devOptions(B&&B.d)}</select></label><label for="ceBt">B 端接點<select id="ceBt">${termOptions(dB,B&&B.t)}</select></label>
-      ${w?'':'<label for="ceNo" style="grid-column:1/-1">線號（空白＝自動）<input id="ceNo" maxlength="16" value="'+esc(coreEdit.no)+'"></label>'}</div>
+      ${w?'':'<label for="ceNo" style="grid-column:1/-1">線號（空白＝自動）<input id="ceNo" maxlength="16" value="'+esc(coreEdit.no)+'"></label>'}
+      ${w?`<label for="ceMove" style="grid-column:1/-1">改接到另一芯（有接線就互換，備用就搬過去）<select id="ceMove"><option value="">選擇…</option>${c.cores.filter(x=>x.n!==k.n).map(x=>`<option value="${esc(x.n)}">${esc(x.n)}　${by.get(x.n)?'（'+esc(by.get(x.n).no)+'，互換）':'（備用）'}</option>`).join('')}</select></label>`:''}</div>
       <div class="row" style="justify-content:flex-start"><button class="primary" id="ceOk">${w?'更新兩端':'接上這一芯'}</button>${w?'<button class="tool" id="ceSpare">改為備用</button>':''}<button class="tool danger" id="ceDel">刪除這一芯</button><button class="tool" id="ceClose">關閉</button></div></div></td></tr>`;}
     return h;}).join('');
   const orphan=cw.filter(w=>!coreDef(c,w.core));
   const nsel=c.cores.filter(k=>coreSel.has(k.n)).length,specCol=specCores(c.spec).length>0;
-  const batch=ro?'':nsel?`<div class="batch" id="cBatch"><div class="sub-h">已勾 ${nsel} 芯：點顏色一次套用 <button class="lnk" id="cSelNone">取消勾選</button></div>${colorChips('','cb')}<div class="fields" style="margin-top:6px"><label for="cLabAt" style="grid-column:1/-1">線號標示（套用到已接的芯線）<select id="cLabAt"><option value="">選擇…</option>${LAB_AT.map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}</select></label></div></div>`
+  const batch=ro?'':nsel?`<div class="batch" id="cBatch"><div class="sub-h">已勾 ${nsel} 芯：點顏色一次套用 <button class="lnk" id="cSelNone">取消勾選</button></div>${nsel===2?`<div class="row" style="justify-content:flex-start;margin:4px 0"><button class="tool" id="cSwap">這兩芯互換接線</button><span class="note">兩端接點和線號對調，芯線顏色不動</span></div>`:''}${colorChips('','cb')}<div class="fields" style="margin-top:6px"><label for="cLabAt" style="grid-column:1/-1">線號標示（套用到已接的芯線）<select id="cLabAt"><option value="">選擇…</option>${LAB_AT.map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}</select></label></div></div>`
     :(specCol?`<div class="row" style="justify-content:flex-start"><button class="lnk" id="cColReset">依規格重設芯線顏色</button><span class="note">勾選多芯可一次改顏色</span></div>`:'<p class="note">勾選多芯可一次改顏色</p>');
   const sec=(k,t,body)=>`<details class="csec" data-sec="${k}"${cabSecOpen.has(k)?' open':''}><summary>${t}</summary>${body}</details>`;
   const boRow=k=>{const p=r&&r[k];return p?`<button class="tool" data-bor="${k}"${p.auto||ro?' disabled':''}>${k.toUpperCase()} 端${p.auto?'自動':'已移動，改回自動'}</button>`:'';};
@@ -86,6 +102,12 @@ function cableDetail(box,c){
     <table class="rtab cores"><thead><tr><th><input type="checkbox" id="cSelAll" aria-label="全選"${nsel&&nsel===c.cores.length?' checked':''}${ro?' disabled':''}></th><th>芯</th><th>色</th><th>線號</th><th>兩端</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="6" class="note">沒有芯線，按「新增一芯」</td></tr>'}</tbody></table>
     ${orphan.length?`<p class="flag">芯線表裡沒有：${orphan.map(w=>esc(w.core)+'（'+esc(w.no)+'）').join('、')}，請改規格或新增一芯</p>`:''}
     ${cabPick===c.id&&curCore(c)?`<p class="note cab-now">正在接 ${esc(c.no)} 第 ${c.cores.findIndex(x=>x.n===curCore(c).n)+1} 芯（${esc(curCore(c).n)}）：${draft?'點 B 端接點':'點 A 端接點'}</p>`:''}
+    ${!ro&&cw.length?`<div class="row" style="justify-content:flex-start"><button class="lnk" id="cRenum">${renumOpen?'收起重排線號':'依芯線順序重排線號…'}</button></div>`:''}
+    ${renumOpen&&!ro?`<div class="batch" id="cRenumBox"><div class="fields">
+      <label for="rnRule" style="grid-column:1/-1">規則<select id="rnRule"><option value="seq">連續編號（照芯線順序往下編）</option><option value="pre">前綴＋芯線名稱</option></select></label>
+      <label for="rnArg" style="grid-column:1/-1"><span id="rnLab">第一芯的線號</span><input id="rnArg" maxlength="16" value="${esc((cw.slice().sort((a,b)=>coreOrder(c)(a)-coreOrder(c)(b))[0]||{}).no||'')}"></label>
+      <label for="rnScope" style="grid-column:1/-1">範圍<select id="rnScope"><option value="all">全部已接的芯</option>${nsel?`<option value="sel">勾選的 ${nsel} 芯</option>`:''}</select></label></div>
+      <p class="note" id="rnEx"></p><div class="row" style="justify-content:flex-start"><button class="primary" id="rnGo">套用</button></div></div>`:''}
     <div class="row" style="justify-content:flex-start"><button class="tool" id="cabPick">${cabPick===c.id?'停止接線':'在圖上接芯線'}</button><button class="tool" id="coreAdd">新增一芯</button></div>
     ${sec('sheath','外被與路徑',`<div id="cColor"><div class="sub-h">外被顏色　<button class="lnk" data-cdef="1"${c.color?'':' hidden'}>改回預設灰色</button></div>${colorChips(c.color||'',"cs",c.color?{color:c.color,hex:c.hex,cname:c.cname}:null)}</div>
     <label class="check"><input type="checkbox" id="cDirect"${c.direct?' checked':''}>外被不進線槽（直接拉線）</label>
@@ -126,6 +148,16 @@ function cableDetail(box,c){
   box.querySelectorAll('[data-csel]').forEach(cb=>cb.onchange=e=>{const n=cb.dataset.csel;if(e.target.checked)coreSel.add(n);else coreSel.delete(n);renderDetail();});
   if($('cSelAll'))$('cSelAll').onchange=e=>{coreSel=new Set(e.target.checked?c.cores.map(k=>k.n):[]);renderDetail();};
   if($('cLabAt'))$('cLabAt').onchange=e=>{const v=e.target.value;if(!v)return;const ws=c.cores.filter(k=>coreSel.has(k.n)).map(k=>by.get(k.n)).filter(Boolean);ws.forEach(w=>{delete w.lab;if(v==='start')delete w.labAt;else w.labAt=v;});done();toast(ws.length?`已把 ${ws.length} 條芯線的線號改標在${LAB_AT.find(x=>x[0]===v)[1]}`:'勾選的芯還沒接線');};
+  if($('cSwap'))$('cSwap').onclick=()=>{const [a,b]=c.cores.filter(k=>coreSel.has(k.n)).map(k=>k.n);if(!swapCores(c,a,b)){toast('這兩芯都還沒接線');return;}coreSel=new Set();done();toast(`芯線 ${a} 和 ${b} 的接線已互換`);};
+  if($('cRenum'))$('cRenum').onclick=()=>{renumOpen=!renumOpen;renderDetail();};
+  if($('cRenumBox')){
+    const list=()=>c.cores.filter(k=>by.get(k.n)&&($('rnScope').value!=='sel'||coreSel.has(k.n)));
+    const ex=()=>{const r=$('rnRule').value,a=$('rnArg').value.trim(),L=list();$('rnLab').textContent=r==='seq'?'第一芯的線號':'前綴（可空白）';
+      if(r==='seq'){const p=noParts(a);$('rnEx').textContent=p?'例：'+L.slice(0,3).map((k,i)=>k.n+' 芯 → '+p.pre+String(p.n+i).padStart(p.w,'0')).join('、')+(L.length>3?'…':''):'線號最後要是數字，例如 0901、S01';}
+      else $('rnEx').textContent='例：'+L.slice(0,3).map(k=>k.n+' 芯 → '+a+k.n).join('、')+(L.length>3?'…':'');};
+    $('rnRule').onchange=()=>{if($('rnRule').value==='pre')$('rnArg').value=c.no+'-';ex();};$('rnArg').oninput=ex;$('rnScope').onchange=ex;ex();
+    $('rnGo').onclick=()=>{const n=renumCores(c,list(),$('rnRule').value,$('rnArg').value.trim());if(n<0){toast('線號最後要是數字，例如 0901、S01');return;}renumOpen=false;done();toast(`已重排 ${n} 條芯線的線號`);};
+  }
   if($('cSelNone'))$('cSelNone').onclick=()=>{coreSel=new Set();renderDetail();};
   box.querySelectorAll('[data-colpick]').forEach(b=>b.onclick=()=>{colPop=colPop===b.dataset.colpick?null:b.dataset.colpick;coreEdit=null;renderDetail();});
   if($('cColReset'))$('cColReset').onclick=()=>{const sc=specCores(c.spec);c.cores.forEach((k,i)=>{const d=sc.find(x=>x.n===k.n)||sc[i];if(d){setCoreColor(k,d.c);const w=by.get(k.n);if(w)paintCore(w,k);}});done();toast('已依規格重設芯線顏色');};
@@ -148,6 +180,7 @@ function cableDetail(box,c){
     if(w){w.a={...A};w.b={...B};}
     attachCore(x,c,k.n);coreEdit=null;done();toast(`${c.no} 芯線 ${k.n} 已接上（${x.no}）`);
   };
+  if($('ceMove'))$('ceMove').onchange=e=>{const t=e.target.value;if(!t)return;swapCores(c,k.n,t);coreEdit=null;done();toast(by.get(t)?`芯線 ${k.n} 和 ${t} 的接線已互換`:`接線已從芯線 ${k.n} 搬到 ${t}`);};
   if($('ceSpare'))$('ceSpare').onclick=()=>{S.wires=S.wires.filter(x=>x!==w);coreEdit=null;done();};
   $('ceDel').onclick=()=>{if(w)S.wires=S.wires.filter(x=>x!==w);c.cores.splice(coreEdit.i,1);coreEdit=null;done();};
   $('ceClose').onclick=()=>{coreEdit=null;renderDetail();};
