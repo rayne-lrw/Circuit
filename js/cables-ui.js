@@ -8,7 +8,7 @@ function selectCable(id){selCab=id;sel=null;picked=null;multi=[];coreEdit=null;}
 function renderCables(){
   const cs=[...S.cables].sort((a,b)=>natCmp(a.no,b.no)),loose=S.wires.filter(w=>wireKind(w)==='ext'&&!isCable(w));
   $('listH').textContent=`電纜　${cs.length} 條`;
-  let h=`<div class="hrow" style="margin-bottom:6px"><button class="tool" id="cabNew"${mode==='view'?' disabled':''}>${cabForm?'取消新增':'新增電纜'}</button>${hq('cab')}</div>${hn('cab','箱內的隔離線和接到現場的外部電纜都在這裡。點電纜可以看芯線表：每一芯可以用下拉選單選兩端接點，也可以按「接下一芯」直接在圖上點。剝線點（白色小方塊）預設自動放在最近的線槽裡，拖曳可以移到別處（線槽裡任何位置都可以，包含靠線槽邊），移過的會變黃色。')}`;
+  let h=`<div class="hrow" style="margin-bottom:6px"><button class="tool" id="cabNew"${mode==='view'?' disabled':''}>${cabForm?'取消新增':'新增電纜'}</button>${hq('cab')}</div>${hn('cab','箱內的隔離線和接到現場的外部電纜都在這裡。點電纜可以看芯線表：每一芯可以用下拉選單選兩端接點，也可以按「在圖上接芯線」（或芯線表每一列的「圖上接」）直接在圖上點；接線時圖上會有工具列，可以跳過這一芯、回上一芯或完成。剝線點（白色小方塊）預設自動放在最近的線槽裡，拖曳可以移到別處（線槽裡任何位置都可以，包含靠線槽邊），移過的會變黃色。')}`;
   if(cabForm) h+=`<div class="fields cabform"><label for="nfNo">電纜編號<input id="nfNo" maxlength="12" value="${esc(nextCableNo())}"></label><label for="nfSpec" style="grid-column:1/-1">規格<select id="nfSpec">${specOptions('')}</select></label><label for="nfCustom" id="nfCustomL" style="grid-column:1/-1" hidden>自訂規格（例如 0.75mm²*7C 號碼、0.3mm²*2C 隔離 棕藍）<input id="nfCustom" maxlength="60"></label><div class="row" style="grid-column:1/-1;justify-content:flex-start"><button class="primary" id="nfOk">建立電纜</button></div></div>`;
   h+=cs.map(c=>{
     const cw=coresOf(c).sort((a,b)=>coreOrder(c)(a)-coreOrder(c)(b)),L=cabLen(c);
@@ -50,7 +50,7 @@ function cableDetail(box,c){
   const cw=coresOf(c),by=new Map(cw.map(w=>[w.core,w])),L=cabLen(c),r=CABROUTES.get(c.id),ro=mode==='view';
   if(coreEdit&&(coreEdit.cid!==c.id||!c.cores[coreEdit.i]))coreEdit=null;
   const rows=c.cores.map((k,i)=>{const w=by.get(k.n),co=coreColor(k);
-    return `<tr class="${coreEdit&&coreEdit.i===i?'on':''}" data-ci="${i}"><td><span class="sw" style="background:${swatch(co)}"></span>${esc(k.n)}</td><td>${w?esc(w.no):'<span class="note">備用</span>'}</td><td>${w?esc(epText(w.a)):''}</td><td>${w?esc(epText(w.b)):''}</td></tr>`;}).join('');
+    return `<tr class="${coreEdit&&coreEdit.i===i?'on':''}" data-ci="${i}"><td><span class="sw" style="background:${swatch(co)}"></span>${esc(k.n)}</td><td>${w?esc(w.no):'<span class="note">備用</span>'}</td><td>${w?esc(epText(w.a)):''}</td><td>${w?esc(epText(w.b)):''}</td><td>${w||ro?'':`<button class="lnk" data-pickcore="${esc(k.n)}"${cabPick===c.id&&cabPickCore===k.n?' aria-pressed="true"':''}>圖上接</button>`}</td></tr>`;}).join('');
   const orphan=cw.filter(w=>!coreDef(c,w.core));
   let ed='';
   if(coreEdit&&!ro){
@@ -76,10 +76,11 @@ function cableDetail(box,c){
     ${(c.wps||[]).length?'<div class="row" style="justify-content:flex-start"><button class="tool" id="cWpClr">清除中繼點，改回自動</button></div>':''}
     ${r?`<div class="hrow"><span class="note">剝線點 ${hq('bo')}</span></div>${hn('bo','剝線點是剝掉外被、芯線分開的位置，圖上的白色小方塊。預設放在離芯線最近的線槽裡；拖曳可以移動（接線或擺放模式都可以），移過的變黃色。')}<div class="row" style="justify-content:flex-start">${boRow('a')}${boRow('b')}</div>`:''}
     <div class="sub-h">芯線表（點一列可以編輯）</div>
-    <table class="rtab cores"><thead><tr><th>芯</th><th>線號</th><th>A 端</th><th>B 端</th></tr></thead><tbody>${rows||'<tr><td colspan="4" class="note">沒有芯線，按「新增一芯」</td></tr>'}</tbody></table>
+    <table class="rtab cores"><thead><tr><th>芯</th><th>線號</th><th>A 端</th><th>B 端</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="4" class="note">沒有芯線，按「新增一芯」</td></tr>'}</tbody></table>
     ${orphan.length?`<p class="flag">芯線表裡沒有：${orphan.map(w=>esc(w.core)+'（'+esc(w.no)+'）').join('、')}，請改規格或新增一芯</p>`:''}
     ${ed}
-    <div class="row" style="justify-content:flex-start"><button class="tool" id="cabPick">${cabPick===c.id?'結束接下一芯':'接下一芯（在圖上點）'}</button><button class="tool" id="coreAdd">新增一芯</button></div>
+    ${cabPick===c.id&&curCore(c)?`<p class="note cab-now">正在接 ${esc(c.no)} 第 ${c.cores.findIndex(x=>x.n===curCore(c).n)+1} 芯（${esc(curCore(c).n)}）：${draft?'點 B 端接點':'點 A 端接點'}</p>`:''}
+    <div class="row" style="justify-content:flex-start"><button class="tool" id="cabPick">${cabPick===c.id?'停止接線':'在圖上接芯線'}</button><button class="tool" id="coreAdd">新增一芯</button></div>
     <div class="row" style="justify-content:flex-start"><button class="tool" id="cabSplit">解散電纜（芯線保留成散線）</button><button class="tool danger" id="cabDel">刪除電纜和芯線</button></div>`;
   if(ro) return;
   const done=()=>{commit();recompute();};
@@ -105,11 +106,8 @@ function cableDetail(box,c){
     coreEdit=coreEdit&&coreEdit.i===i?null:{cid:c.id,i,a:w?{...w.a}:null,b:w?{...w.b}:null,no:w?w.no:''};renderDetail();
   });
   $('coreAdd').onclick=()=>{let n=c.cores.length+1;while(coreDef(c,String(n)))n++;c.cores.push({n:String(n),c:'black',g:specGauge(c.spec)});coreEdit={cid:c.id,i:c.cores.length-1,a:null,b:null,no:''};done();};
-  $('cabPick').onclick=()=>{
-    if(cabPick===c.id){cabPick=null;renderDetail();updateHint();return;}
-    if(!freeCore(c)){toast(`${c.no} 的芯線都接好了，可以先「新增一芯」`);return;}
-    if(mode!=='wire')setMode('wire');cabPick=c.id;selCab=c.id;renderDetail();updateHint();
-  };
+  $('cabPick').onclick=()=>{if(cabPick===c.id)stopPick();else startPick(c);};
+  box.querySelectorAll('[data-pickcore]').forEach(b=>b.onclick=e=>{e.stopPropagation();startPick(c,b.dataset.pickcore);});
   $('cabSplit').onclick=()=>{coresOf(c).forEach(detachCore);S.cables=S.cables.filter(x=>x!==c);selCab=null;cabPick=null;done();toast(`已解散電纜 ${c.no}，芯線留成散線`);};
   $('cabDel').onclick=()=>{const n=coresOf(c).length;S.wires=S.wires.filter(w=>w.cab!==c.id);S.cables=S.cables.filter(x=>x!==c);selCab=null;cabPick=null;done();toast(`已刪除電纜 ${c.no}${n?`和 ${n} 條芯線`:''}，可以按復原`);};
   if(!coreEdit) return;
@@ -139,22 +137,52 @@ function makeCoreWire(A,B,no){
   S.wires.push(w);return w;
 }
 // 接下一芯：在圖上點兩個接點，接成這條電纜的下一芯（不跳建線視窗）
+// 在圖上接芯線：目前要接的芯（沒指定就是第一個還沒接的）；可以跳過、回上一芯、完成
+const freeCores=c=>{const u=new Set(coresOf(c).map(w=>w.core));return c.cores.filter(k=>!u.has(k.n));};
+function curCore(c){const f=freeCores(c);return f.find(k=>k.n===cabPickCore)||f[0]||null;}
+function startPick(c,name){
+  const f=freeCores(c);if(!f.length){toast(`${c.no} 的芯線都接好了，可以先「新增一芯」`);return;}
+  if(mode!=='wire')setMode('wire');cabPick=c.id;cabPickCore=(name&&f.some(k=>k.n===name))?name:f[0].n;selCab=c.id;sel=null;
+  renderDetail();renderWires();updateHint();
+}
+function stopPick(msg){cabPick=null;cabPickCore=null;if(draft)cancelDraft();renderDetail();updateHint();if(msg)toast(msg);}
+// 依芯線表順序找下一個（或上一個）還沒接的芯
+function stepPick(dir){
+  const c=cabOf(cabPick);if(!c)return;const f=freeCores(c);if(!f.length){stopPick();return;}
+  const cur=curCore(c),order=c.cores.map(k=>k.n),i=order.indexOf(cur.n);
+  for(let s=1;s<=order.length;s++){const n=order[(i+dir*s+order.length*s)%order.length];if(f.some(k=>k.n===n)){cabPickCore=n;break;}}
+  if(draft)cancelDraft();renderDetail();updateHint();
+}
 function pickCore(){
   const c=cabPick&&cabOf(cabPick);if(!c){cabPick=null;return false;}
-  const k=freeCore(c);
-  if(!k){cabPick=null;toast(`${c.no} 的芯線都接好了`);return false;}
+  const k=curCore(c);
+  if(!k){stopPick(`${c.no} 的芯線都接好了`);return false;}
   const w=makeCoreWire(draft.a,draft.end,'');attachCore(w,c,k.n);
   draft=null;closePop();selCab=c.id;sel=null;
-  const nx=freeCore(c);if(!nx)cabPick=null;
+  // 自動換到芯線表裡下一個還沒接的芯
+  const f=freeCores(c),order=c.cores.map(x=>x.n),i=order.indexOf(k.n);let nx=null;
+  for(let s=1;s<=order.length&&f.length;s++){const n=order[(i+s)%order.length];if(f.some(x=>x.n===n)){nx=n;break;}}
+  if(nx)cabPickCore=nx;else{cabPick=null;cabPickCore=null;}
   commit();recompute();
-  toast(`${c.no} 芯線 ${k.n} 已接上（${w.no}）`+(nx?`，接著點芯線 ${nx.n} 的 A 端`:'，全部芯線都接好了'));
+  toast(`${c.no} 芯線 ${k.n} 已接上（${w.no}）`+(nx?`，接著接芯線 ${nx}`:'，全部芯線都接好了'));
   return true;
 }
 function cabHint(){
-  const c=cabPick&&cabOf(cabPick),k=c&&freeCore(c);if(!k) return null;
+  const c=cabPick&&cabOf(cabPick),k=c&&curCore(c);if(!k) return null;
   const col=coreColor(k).n;
-  return draft?`接下一芯：${c.no} 芯線 ${k.n}（${col}），點 B 端接點完成；Esc 取消這一芯。`:`接下一芯：${c.no} 芯線 ${k.n}（${col}），點 A 端接點開始；Esc 結束接下一芯。`;
+  return draft?`在圖上接芯線：${c.no} 芯線 ${k.n}（${col}），點 B 端接點完成；Esc 取消這一芯。`:`在圖上接芯線：${c.no} 芯線 ${k.n}（${col}），點 A 端接點開始；Esc 停止接線。`;
 }
+// 圖上的浮動工具列：目前在接哪一芯、上一芯、跳過、完成
+function renderCabBar(){
+  const bar=$('cabBar'),c=cabPick&&mode==='wire'&&cabOf(cabPick),k=c&&curCore(c);
+  if(!k){bar.hidden=true;return;}
+  const f=freeCores(c),co=coreColor(k),idx=c.cores.findIndex(x=>x.n===k.n)+1;
+  bar.innerHTML=`<span class="cb-t"><b>${esc(c.no)}</b>　第 ${idx} 芯 <span class="sw" style="background:${swatch(co)}"></span>${esc(k.n)}${k.n!==co.n?'（'+esc(co.n)+'）':''}　<span class="cb-s">${draft?'點 B 端接點':'點 A 端接點'}</span>　<span class="note">還有 ${f.length} 芯</span></span>
+    <button class="tool" data-cb="prev"${f.length<2?' disabled':''}>上一芯</button><button class="tool" data-cb="skip"${f.length<2?' disabled':''}>跳過這一芯</button><button class="primary" data-cb="done">完成</button>`;
+  bar.hidden=false;
+}
+$('cabBar').addEventListener('click',e=>{const b=e.target.closest('[data-cb]');if(!b)return;
+  if(b.dataset.cb==='done')stopPick('已停止在圖上接芯線');else stepPick(b.dataset.cb==='prev'?-1:1);});
 $('list').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
   if(b.id==='cabNew'){cabForm=!cabForm;renderList();if(cabForm)$('nfNo').focus();return;}

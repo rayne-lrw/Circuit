@@ -442,7 +442,7 @@ document.addEventListener('keydown',e=>{
     if(k==='c'&&mode==='place'&&picked){const o=pickedObj();if(o){clip=makeClip(picked.k,o);e.preventDefault();toast(`已複製 ${clipName(clip)}，按 Ctrl＋V 貼上`);}return;}
     if(k==='v'&&clip&&!draft){e.preventDefault();pasteHere();return;}
   }
-  if(e.key==='Escape'){if(draft)cancelDraft();else if(cabPick){cabPick=null;renderDetail();updateHint();toast('已結束接下一芯');}else{sel=null;picked=null;multi=[];selCab=null;coreEdit=null;renderList();renderWires();renderDetail();updateHint();}return;}
+  if(e.key==='Escape'){if(draft)cancelDraft();else if(cabPick){stopPick('已停止在圖上接芯線');}else{sel=null;picked=null;multi=[];selCab=null;coreEdit=null;renderList();renderWires();renderDetail();updateHint();}return;}
   if(draft&&draft.pop&&e.key==='Enter'){e.preventDefault();finishWire();return;}
   if(draft&&!draft.pop&&e.key==='Backspace'){e.preventDefault();if(draft.wps.length){draft.wps.pop();renderOverlay();updateHint();}else cancelDraft();return;}
   if(draft) return;
