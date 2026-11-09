@@ -172,8 +172,8 @@ def('hgkn43',null,F1,'三菱','HG-KN43BJK 400W',110,50,0,'M','dark',[...row(['U'
 def('field-power',null,F1,'','外部電源進線 3P',90,40,0,'PWR','mid',row(['R','S','T','E'],8,'top',90,'電源',12),{sheet:'field'});
 def('e2e',null,F2,'OMRON','E2E-X8B1D18 近接 PNP 3線',50,30,0,'SQ','steel',SENS3,{sheet:'field',note:'E2E NEXT：B1＝直流 3 線 PNP 常開，D18＝M18'});
 def('d4mc',null,F2,'OMRON','D4MC-5020 極限 1A1B',60,35,0,'LS','steel',row(['11','12','23','24'],8,'top',60,'',8),{sheet:'field'});
-def('pzg102',null,F2,'基恩斯','PZ-G102B 光電',50,30,0,'PH','steel',SENS3,{sheet:'field'});
-def('pzg101',null,F2,'基恩斯','PZ-G101P 光電 PNP',50,30,0,'PH','steel',SENS3,{sheet:'field'});
+def('pzg102',null,F2,'基恩斯','PZ-G102B 光電 NPN+PNP 4線',60,30,0,'PH','steel',[['棕',10,8,'top','+V 10–30VDC（1）'],['藍',23,8,'top','0V（3）'],['黑',36,8,'top','輸出 PNP（4）'],['白',49,8,'top','輸出 NPN（2）']],{sheet:'field',note:'基恩斯型錄：PZ-G 結尾 B＝NPN/PNP 雙輸出，4 芯電纜（1 棕 +V、2 白 NPN、3 藍 0V、4 黑 PNP）'});
+def('pzg101',null,F2,'基恩斯','PZ-G101P 光電 PNP 3線',50,30,0,'PH','steel',[['棕',10,8,'top','+V 10–30VDC（1）'],['藍',25,8,'top','0V（3）'],['黑',40,8,'top','輸出 PNP（4）']],{sheet:'field',note:'基恩斯型錄：PZ-G 結尾 P＝PNP 輸出，3 芯電纜（1 棕 +V、3 藍 0V、4 黑 OUT；2 號腳不使用）'});
 def('eesx676',null,F2,'OMRON','EE-SX676P-WR 光電素子 PNP',50,30,0,'PH','steel',SENS3,{sheet:'field'});
 def('eespx302',null,F2,'OMRON','EE-SPX302 光電素子 NPN',50,30,0,'PH','steel',SENS3,{sheet:'field'});
 def('qlnp',null,F2,'','QL-NP 訊號轉換 NPN→PNP',60,30,0,'CV','steel',row(['+','-','IN','OUT'],8,'top',60,'',8),{sheet:'field'});
