@@ -140,7 +140,16 @@ function routeLeg(A,B,J,noDuct){
     const v=T.side==='top'||T.side==='bottom',m=v?{x:Q.x,y:T.y}:{x:T.x,y:Q.y};return {direct:true,pts:A.stub?[A,m,B]:[A,m,B]};}
   if(A.sheet!==B.sheet) return {direct:true,pts:directPts(A,B)};
   // 指定不進線槽（例如動力線直接拉）：直接連到下一點，穿過其他器具時提示
-  if(noDuct){const d=directPts(A,B);return {direct:true,pts:d,warn:A.sheet==='plate'&&!clean(d,A,B,true)?'直接拉線穿過其他器具':null};}
+  if(noDuct){
+    let d=directPts(A,B);
+    if(A.sheet==='plate'&&!clean(d,A,B,true)){
+      const V={top:[0,1],bottom:[0,-1],left:[1,0],right:[-1,0]},alt=[];
+      if(A.gland&&A.side&&V[A.side]){const v=V[A.side],q={x:A.x+v[0]*6,y:A.y+v[1]*6};alt.push(v[1]?[A,q,{x:B.x,y:q.y},B]:[A,q,{x:q.x,y:B.y},B]);}
+      if(B.gland&&B.side&&V[B.side]){const v=V[B.side],q={x:B.x+v[0]*6,y:B.y+v[1]*6};alt.push(v[1]?[A,{x:A.x,y:q.y},q,B]:[A,{x:q.x,y:A.y},q,B]);}
+      if(!A.gland&&!B.gland)alt.push([A,{x:B.x,y:A.y},B],[A,{x:A.x,y:B.y},B]);
+      const ok=alt.find(p=>clean(p,A,B,true));if(ok)d=ok;
+    }
+    return {direct:true,pts:d,warn:A.sheet==='plate'&&!clean(d,A,B,true)?'直接拉線穿過其他器具':null};}
   if(!A.inDuct&&!B.inDuct&&!A.must&&!B.must){
     const d=directPts(A,B), ok=clean(d,A,B), m=Math.abs(A.x-B.x)+Math.abs(A.y-B.y);
     if(ok&&(!(A.dev&&B.dev)||m<=95)) return {direct:true,pts:d};
@@ -188,6 +197,11 @@ function realize(wid,anchors,legs,lane0){
           const inward=h?(G.side==='top'||G.side==='bottom'):(G.side==='left'||G.side==='right');
           if(inward&&!segHits(cur.x,cur.y,q1.x,q1.y)&&!segHits(q1.x,q1.y,q2.x,q2.y)){pts.push(q1,q2);cur=q2;}
           else{const v={top:[0,1],bottom:[0,-1],left:[1,0],right:[-1,0]}[G.side];const q={x:cur.x+v[0]*6,y:cur.y+v[1]*6};pts.push(q);cur=q;}
+        }
+        const W=anchors[i],hh=axis(d)==='h',offL=hh?(cur.x<d.x||cur.x>d.x+d.w):(cur.y<d.y||cur.y>d.y+d.h),offS=hh?(cur.y<d.y||cur.y>d.y+d.h):(cur.x<d.x||cur.x>d.x+d.w);
+        if(W&&W.wp&&!W.bo&&!W.gland&&offL&&offS){
+          const e=hh?(cur.x<d.x?d.x+2:d.x+d.w-2):(cur.y<d.y?d.y+2:d.y+d.h-2),q1=hh?{x:cur.x,y:c}:{x:c,y:cur.y},q2=hh?{x:e,y:c}:{x:c,y:e};
+          if(!segHits(cur.x,cur.y,q1.x,q1.y)&&!segHits(q1.x,q1.y,q2.x,q2.y)){pts.push(q1,q2);cur=q2;}
         }
         if(axis(d)==='h'&&(cur.x<d.x||cur.x>d.x+d.w)){const q={x:cur.x<d.x?d.x+2:d.x+d.w-2,y:cur.y};pts.push(q);cur=q;}
         else if(axis(d)==='v'&&(cur.y<d.y||cur.y>d.y+d.h)){const q={x:cur.x,y:cur.y<d.y?d.y+2:d.y+d.h-2};pts.push(q);cur=q;}
@@ -558,7 +572,9 @@ function wirePreview(w){
 function previewPts(a,wps,end,noDuct,gland){
   const J=junctions();
   const anchors=buildAnchors(endpoint(a,0),end,wps,{h:0,g:0,hn:1},gland||null);
-  const legs=[];for(let i=0;i<anchors.length-1;i++) legs.push(routeLeg(anchors[i],anchors[i+1],J,noDuct||wps.length>0));
+  // 和實際算路徑一樣：只有中繼點之間、出線口和緊接的中繼點之間照點直接連，其餘照樣走線槽（預覽才不會和放開後不一樣）
+  const man=(A,B)=>(A.wp&&B.wp&&!A.bo&&!B.bo&&B!==anchors[anchors.length-1])||(A.gland&&B.wp&&!B.bo&&B!==anchors[anchors.length-1])||(A.wp&&!A.bo&&B.gland);
+  const legs=[];for(let i=0;i<anchors.length-1;i++) legs.push(routeLeg(anchors[i],anchors[i+1],J,noDuct||man(anchors[i],anchors[i+1])));
   return simplify(realize('_',anchors,legs,(_,d)=>center(d)).pts);
 }
 

@@ -121,6 +121,15 @@ const SCENARIOS=[
     [['U','1'],['V','2']].forEach(([t,k])=>attachCore(makeCoreWire({d:'SVP',t:'CN1A'},{d:'MP',t},'',c2),c2,k));
     return {state:st,expectClean:[],expectPlug:{CP1:{a:null,b:null,cores:0},CP2:{a:null,b:'bo',cores:2}}};
   }},
+  {name:'出線口在器具正上方、中繼點在器具左邊（拉線預覽和放開後一樣）',build:()=>{
+    // 箱頂出線口剛好在大器具正上方，左邊沒有線槽；在器具左邊放一個中繼點，要往左下走進下方線槽的端頭，不穿過器具、不折回
+    const st=normalize({box:{w:700,h:600,d:300,back:20},plate:{w:620,h:500},door:{w:700,h:600},fields:[{id:'Z1',name:'現場',x:-40,y:-450,w:700,h:300}],
+      devices:[{id:'SV1',tag:'SV1',tpl:'j4700',x:118,y:17,sheet:'plate'},{id:'SV3',tag:'SV3',tpl:'je40',x:420,y:147,sheet:'plate'},{id:'M3',tag:'M3',tpl:'hgkn43',x:390,y:-335,sheet:'field',rot:180}],
+      ducts:[{id:'D1',x:115,y:335,w:375,h:45,dp:65},{id:'D3',x:490,y:33,w:33,h:432,dp:65}],glands:[{id:'G1',side:'top',x:125,y:0,spec:'M32 浪管接頭'}],wires:[]}).state;
+    S=st;st.glands.forEach(g=>g.y=boxOrigin().y);
+    st.wires.push({id:'lw',no:'LW',a:{d:'M3',t:'U'},b:{d:'SV3',t:'U'},wps:[{x:105,y:25}],gauge:.75,color:'black',gland:'G1'});
+    return {state:st,expectClean:['LW'],expectPrev:['LW']};
+  }},
   {name:'出線口進出（現場區在箱子上方）',build:()=>{
     const st=normalize(sampleState()).state;S=st;const o=boxOrigin();
     // 現場區搬到箱子上方（和你的專案一樣），區內器具一起搬
@@ -151,7 +160,7 @@ const SCENARIOS=[
   }},
 ];
 
-function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,expectGland,expectWall,expectPlug){
+function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,expectGland,expectWall,expectPlug,expectPrev){
   const res=[];
   const fam=id=>famIds(id);
   const crosses=(w,pts)=>{
@@ -186,6 +195,9 @@ function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,exp
     if(expectBack&&w.no in expectBack){const E=endpoint(w.a,0),O={top:'bottom',bottom:'top',left:'right',right:'left'}[E.side],d=dirOf(p[0],p[1]);
       if(expectBack[w.no]&&d!==O)msgs.push(`應直接往中繼點方向（${O}）出線，實際 ${d}`);if(!expectBack[w.no]&&d!==E.side)msgs.push(`中繼點不在器具正後方，應照原本方向 ${E.side} 出線，實際 ${d}`);}
     if(w.wps&&w.wps.length&&ISSUES.some(i=>i.id===w.id&&i.t.includes('折返')))msgs.push('中繼點造成折返');
+    // 拉線時的預覽要和放開後算出來的路徑一樣；而且不可以超過中繼點又折回來
+    if(expectPrev&&expectPrev.includes(w.no)){const q=previewPts(w.a,w.wps,endpoint(w.b,0),!!w.direct,w.gland),f=x=>x.map(v=>Math.round(v.x)+','+Math.round(v.y)).join(' ');if(f(q)!==f(p))msgs.push(`預覽 ${f(q)} 和實際 ${f(p)} 不一樣`);
+      for(let i=2;i<p.length;i++){const a=p[i-2],b=p[i-1],c=p[i];if((Math.abs(a.y-b.y)<.01&&Math.abs(b.y-c.y)<.01&&(b.x-a.x)*(c.x-b.x)<0)||(Math.abs(a.x-b.x)<.01&&Math.abs(b.x-c.x)<.01&&(b.y-a.y)*(c.y-b.y)<0))msgs.push(`在 ${Math.round(b.x)},${Math.round(b.y)} 折回`);}}
     // 箱外器具到箱內：要經過指定的出線口，且不可在出線口以外穿過箱壁
     if(expectGland&&expectGland[w.no]){if(r.gland!==expectGland[w.no])msgs.push(`應經過出線口 ${expectGland[w.no]}，實際 ${r.gland||'沒有'}`);
       const o=boxOrigin(),B={x:o.x,y:o.y,w:S.box.w,h:S.box.h},cross=p.filter((q,i)=>i&&(inR(q,B)!==inR(p[i-1],B))).length;if(cross!==1)msgs.push(`進出箱壁 ${cross} 次（應只有出線口 1 次）`);}
@@ -266,7 +278,7 @@ function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,exp
     const out=await p.evaluate(([src,arg,chk])=>{
       const sc=new Function('arg','return ('+src+')(arg)')(arg);
       S=sc.state;resetUi();computeRoutes();
-      return new Function('expectClean','expectVia','expectCable','expectBack','expectCoil','expectGland','expectWall','expectPlug','return ('+chk+')(expectClean,expectVia,expectCable,expectBack,expectCoil,expectGland,expectWall,expectPlug)')(sc.expectClean,sc.expectVia,sc.expectCable,sc.expectBack,sc.expectCoil,sc.expectGland,sc.expectWall,sc.expectPlug);
+      return new Function('expectClean','expectVia','expectCable','expectBack','expectCoil','expectGland','expectWall','expectPlug','expectPrev','return ('+chk+')(expectClean,expectVia,expectCable,expectBack,expectCoil,expectGland,expectWall,expectPlug,expectPrev)')(sc.expectClean,sc.expectVia,sc.expectCable,sc.expectBack,sc.expectCoil,sc.expectGland,sc.expectWall,sc.expectPlug,sc.expectPrev);
     },[fnSrc,arg,checkInPage.toString()]);
     const bad=out.filter(x=>!x.ok);total+=out.length;fail+=bad.length;
     console.log(`${bad.length?'✗':'✓'} ${name}：${out.length} 條線，${bad.length} 條失敗`);
