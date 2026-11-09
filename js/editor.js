@@ -96,6 +96,7 @@ function edBar(){
     <div class="grp"><span>接點命名</span><input id="ebPfx" value="${esc(ed.pfx)}" maxlength="6" placeholder="前綴" title="新接點的名稱前綴，例如 X、CN" style="width:4em"><input id="ebNext" type="number" min="0" value="${ed.next}" title="下一個接點的號碼" style="width:4em"></div>
     <div class="grp">${b('ebRow','一次放一排…',ed.row?true:null,0,'指定數量和間距，一次放一排接點')}</div>
     <div class="grp"><span>對齊</span>${b('ebAL','靠左',null,n<2)}${b('ebAC','左右置中',null,n<2)}${b('ebAR','靠右',null,n<2)}${b('ebAT','靠上',null,n<2)}${b('ebAM','上下置中',null,n<2)}${b('ebAB','靠下',null,n<2)}</div>
+    <div class="grp"><span>對齊器具</span>${b('ebFC','左右中線',null,!n,'選到的接點整組移到器具左右正中間，彼此間距不變')}${b('ebFM','上下中線',null,!n,'選到的接點整組移到器具上下正中間')}${b('ebFT','靠上緣',null,!n,'整組移到離器具上緣指定距離')}${b('ebFB','靠下緣',null,!n)}${b('ebFL','靠左緣',null,!n)}${b('ebFR','靠右緣',null,!n)}<span>距離</span><input id="ebIn" type="number" min="0" step="0.5" value="${ed.inset??6}" title="靠邊時離器具邊緣的距離 mm" style="width:3.8em"></div>
     <div class="grp"><span>等距</span>${b('ebDH','水平',null,n<3,'選到的接點左右平均分布（最左、最右不動）')}${b('ebDV','垂直',null,n<3,'選到的接點上下平均分布')}<span>或間距</span><input id="ebPitch" type="number" min="0.5" step="0.5" value="${ed.pitch||7.5}" title="接點間距 mm" style="width:4.2em">${b('ebPH','橫排',null,n<2,'從最左邊的接點開始，往右照間距排')}${b('ebPV','直排',null,n<2,'從最上面的接點開始，往下照間距排')}</div>
     <div class="grp"><span>格點</span><select id="ebGrid">${[[0,'不吸附'],[.5,'0.5 mm'],[1,'1 mm'],[2.5,'2.5 mm'],[5,'5 mm']].map(([v,t])=>`<option value="${v}"${ed.grid===v?' selected':''}>${t}</option>`).join('')}</select></div>
     <div class="grp">${b('ebUndo','復原',null,!ed.hist.length)}${b('ebRedo','重做',null,!ed.fut.length)}${b('ebDel','刪除接點',null,!n)}</div>`;
@@ -108,6 +109,12 @@ function edBar(){
     ts.forEach(t=>{if('LRC'.includes(k))t.x=+v.toFixed(2);else t.y=+v.toFixed(2);edReside(t);});edAll();};
   [['ebAL','L'],['ebAC','C'],['ebAR','R'],['ebAT','T'],['ebAM','M'],['ebAB','B']].forEach(([id,k])=>$(id).onclick=()=>al(k));
   const dist=(ax)=>{const ts=S_().sort((a,b)=>a[ax]-b[ax]);if(ts.length<3)return;edPush();const a=ts[0][ax],z=ts[ts.length-1][ax];ts.forEach((t,i)=>{t[ax]=+(a+(z-a)*i/(ts.length-1)).toFixed(2);edReside(t);});edAll();};
+  // 對齊器具：整組平移（間距不變），到器具中線或離某一邊固定距離
+  $('ebIn').onchange=e=>{ed.inset=Math.max(0,Number(e.target.value)||0);};
+  const fit=(k)=>{const ts=S_();if(!ts.length)return;const xs=ts.map(t=>t.x),ys=ts.map(t=>t.y),I=ed.inset??6,x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
+    const dx={C:ed.w/2-(x0+x1)/2,L:I-x0,R:ed.w-I-x1}[k]||0,dy={M:ed.h/2-(y0+y1)/2,T:I-y0,B:ed.h-I-y1}[k]||0;
+    edPush();ts.forEach(t=>{t.x=+(t.x+dx).toFixed(2);t.y=+(t.y+dy).toFixed(2);edReside(t);});edAll();};
+  [['ebFC','C'],['ebFM','M'],['ebFT','T'],['ebFB','B'],['ebFL','L'],['ebFR','R']].forEach(([id,k])=>$(id).onclick=()=>fit(k));
   $('ebDH').onclick=()=>dist('x');$('ebDV').onclick=()=>dist('y');
   $('ebPitch').onchange=e=>{ed.pitch=Math.max(.5,Number(e.target.value)||7.5);};
   const pitch=(ax)=>{const ts=S_().sort((a,b)=>a[ax]-b[ax]);if(ts.length<2)return;edPush();const p=ed.pitch||7.5,a=ts[0][ax];ts.forEach((t,i)=>{t[ax]=+(a+p*i).toFixed(2);edReside(t);});edAll();};
