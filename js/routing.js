@@ -194,6 +194,15 @@ function realize(wid,anchors,legs,lane0){
       if(open){open.i1=pts.length-1;runs.push(open);}
       open={d,i0:pts.length-1};last=d;
     }
+    // 從線槽端頭出去接到出線口：沿線道直走到出線口正下（或正旁）方再往箱壁出去；會撞到器具就先在離箱壁 6 mm 處橫移，不貼著箱壁邊線
+    if(!to.inDuct&&to.gland&&to.side&&((axis(last)==='h'&&(to.x<last.x||to.x>last.x+last.w))||(axis(last)==='v'&&(to.y<last.y||to.y>last.y+last.h)))){
+      const h=axis(last)==='h',q1=h?{x:to.x,y:cur.y}:{x:cur.x,y:to.y};
+      const inward=h?(to.side==='top'||to.side==='bottom'):(to.side==='left'||to.side==='right');
+      if(inward&&!segHits(cur.x,cur.y,q1.x,q1.y)&&!segHits(q1.x,q1.y,to.x,to.y)){pts.push(q1);cur=q1;}
+      else{const v={top:[0,1],bottom:[0,-1],left:[1,0],right:[-1,0]}[to.side],e=h?(to.x<last.x?last.x+2:last.x+last.w-2):(to.y<last.y?last.y+2:last.y+last.h-2);
+        const iw={x:to.x+v[0]*6,y:to.y+v[1]*6},q2=h?{x:e,y:cur.y}:{x:cur.x,y:e},q3=h?{x:e,y:iw.y}:{x:iw.x,y:e};pts.push(q2,q3,iw);cur=iw;}
+      if(open){open.i1=pts.length-1;runs.push(open);open=null;}pts.push({x:to.x,y:to.y});cur=to;last=null;return;
+    }
     // 從線槽端頭出來接到旁邊的接點：先在線槽裡對齊接點，再沿原方向出去
     if(!to.inDuct&&axis(last)==='h'&&(to.x<last.x||to.x>last.x+last.w)){const ex=to.x<last.x?last.x+2:last.x+last.w-2;pts.push({x:ex,y:cur.y});pts.push({x:ex,y:to.y});cur={x:ex,y:to.y};}
     else if(!to.inDuct&&axis(last)==='v'&&(to.y<last.y||to.y>last.y+last.h)){const ey=to.y<last.y?last.y+2:last.y+last.h-2;pts.push({x:cur.x,y:ey});pts.push({x:to.x,y:ey});cur={x:to.x,y:ey};}
