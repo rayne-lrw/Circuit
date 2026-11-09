@@ -415,8 +415,7 @@ function computeIssues(){
     const cw=coresOf(c),sp=specDef(c.spec).length,seen=new Map();
     if(sp&&c.cores.length>sp) out.push({t:`電纜 ${c.no} 規格是 ${sp} 芯，芯線表有 ${c.cores.length} 芯`,k:'cable',id:c.id});
     cw.forEach(w=>{if(seen.has(w.core))out.push({t:`電纜 ${c.no} 的芯線 ${w.core} 接了兩次（${seen.get(w.core).no}、${w.no}）`,k:'wire',id:w.id});else seen.set(w.core,w);});
-    const fd=new Set(cw.filter(w=>devOf(w.b.d).sheet==='field').map(w=>w.b.d));
-    if(fd.size>1) out.push({t:`電纜 ${c.no} 的芯線接到 ${fd.size} 個現場設備（${[...fd].map(tagOf).join('、')}），一條電纜通常只到一個設備`,k:'cable',id:c.id});
+    // 一條電纜的芯線可以分到好幾個現場設備（例如同一條電纜分出去接兩台），不警告
     if(cw.some(w=>wireKind(w)==='ext')&&cw.some(w=>wireKind(w)!=='ext')) out.push({t:`電纜 ${c.no} 有些芯線到現場、有些在箱內，請確認`,k:'cable',id:c.id});
   });
   S.devices.forEach(d=>{const n=d.count||(resolveTpl(d.tpl)||{}).cnt||0;(d.jumpers||[]).forEach(j=>{if(j.at+j.p-1>n)out.push({t:`${d.tag} 的 ${j.p}P 短路片超出片數（只有 ${n} 片）`,k:'dev',id:d.id});});});
