@@ -119,7 +119,7 @@ select{border:1px solid var(--line);background:var(--panel-2);border-radius:5px;
 .csw:disabled{cursor:default}
 .rtab.cores td.cends{font-size:11px;line-height:1.3;cursor:pointer;color:var(--muted)}
 .rtab.cores td.cends:hover{color:var(--fg);text-decoration:underline}
-.rtab.cores tr.sub>td{background:var(--panel-2);padding:6px}
+.rtab.cores tr.csub>td{background:var(--panel-2);padding:6px}
 .batch{border:1px solid var(--accent);border-radius:6px;padding:6px;margin-bottom:6px}
 details.csec{border-top:1px solid var(--line);padding-top:6px}
 details.csec>summary{cursor:pointer;font-size:13px;font-weight:600;padding:2px 0}
@@ -235,7 +235,7 @@ label.check input{margin:2px 0 0;flex:none}
 .dsym line,.dsym path{stroke:#1a1d1e;stroke-width:.6;fill:none;pointer-events:none}
 .dsym path{fill:#1a1d1e}
 .tag{font-family:var(--mono);font-weight:600;font-size:10px}
-.sub{font-family:var(--sans);font-size:4.4px}
+text.sub{font-family:var(--sans);font-size:4.4px}
 .term{fill:#c9a24a;stroke:#3a2e10;stroke-width:.4}
 .tl{font-family:var(--mono);font-size:3.2px;display:none;pointer-events:none}
 .z2 .tl{display:block}

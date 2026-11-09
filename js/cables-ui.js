@@ -78,9 +78,9 @@ function cableDetail(box,c){
       <td>${w?`<input class="cno" data-cno="${esc(k.n)}" maxlength="16" value="${esc(w.no)}" aria-label="線號"${ro?' disabled':''}>`:'<span class="note">備用</span>'}</td>
       <td class="cends" data-ced="${i}" title="點一下編輯兩端接點">${w?`${esc(epText(w.a))}<br>→ ${esc(epText(w.b))}`:'<span class="note">選接點…</span>'}</td>
       <td>${pickBtn(k,w)}</td></tr>`;
-    if(colPop===k.n&&!ro) h+=`<tr class="sub"><td colspan="6"><div data-cpop="${esc(k.n)}"><div class="sub-h">芯線 ${esc(k.n)} 的顏色</div>${colorChips(k.c,'cp',k.hex?{color:k.c,hex:k.hex,cname:k.cn}:null)}</div></td></tr>`;
+    if(colPop===k.n&&!ro) h+=`<tr class="csub"><td colspan="6"><div data-cpop="${esc(k.n)}"><div class="sub-h">芯線 ${esc(k.n)} 的顏色</div>${colorChips(k.c,'cp',k.hex?{color:k.c,hex:k.hex,cname:k.cn}:null)}</div></td></tr>`;
     if(on&&!ro){const A=coreEdit.a,B=coreEdit.b,dA=A&&devOf(A.d),dB=B&&devOf(B.d);
-      h+=`<tr class="sub"><td colspan="6"><div class="coreed"><div class="sub-h">芯線 ${esc(k.n)} 的兩端接點</div><div class="fields">
+      h+=`<tr class="csub"><td colspan="6"><div class="coreed"><div class="sub-h">芯線 ${esc(k.n)} 的兩端接點</div><div class="fields">
       <label for="ceAd">A 端器具<select id="ceAd">${devOptions(A&&A.d)}</select></label><label for="ceAt">A 端接點<select id="ceAt">${termOptions(dA,A&&A.t)}</select></label>
       <label for="ceBd">B 端器具${L.ext?'（現場）':''}<select id="ceBd">${devOptions(B&&B.d)}</select></label><label for="ceBt">B 端接點<select id="ceBt">${termOptions(dB,B&&B.t)}</select></label>
       ${w?'':'<label for="ceNo" style="grid-column:1/-1">線號（空白＝自動）<input id="ceNo" maxlength="16" value="'+esc(coreEdit.no)+'"></label>'}
