@@ -649,7 +649,8 @@ $('palette').addEventListener('click',e=>{
     const zone=zp||zoneAt(vc)||(pd&&pd.sheet==='field'&&zoneOf(pd))||S.fields[0];
     const id=base.pre+i,sheet=base.sheet==='door'&&!useDoor()?'plate':base.sheet||'plate',R=sheet==='field'?zone:sheet==='plate'?boxRect():sheetRect(sheet),d={id,tag:id,tpl:b.dataset.add,sheet,x:0,y:0};
     if(base.gen) d.count=base.cnt;
-    const t=resolveTpl(b.dataset.add,d.count),c=inR(vc,R)?vc:{x:R.x+R.w/2,y:R.y+R.h/2}; // 畫面中央在該區域內就放在畫面中央
+    const t=resolveTpl(b.dataset.add,d.count),BR=boxRect(),freeOut=!inR(vc,BR)&&!zoneAt(vc)&&!(useDoor()&&inR(vc,sheetRect('door')));
+    const c=base.outside?(freeOut?vc:{x:BR.x+BR.w/2,y:BR.y-t.h/2-20}):inR(vc,R)?vc:{x:R.x+R.w/2,y:R.y+R.h/2}; // 畫面中央在該區域內就放在畫面中央；箱外器具預設放在箱子上方
     d.x=Math.round((c.x-t.w/2)/5)*5;d.y=Math.round((c.y-t.h/2)/5)*5;
     S.devices.push(d);
     setMode('place');picked={k:'dev',id};

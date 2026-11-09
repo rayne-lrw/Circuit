@@ -372,3 +372,4 @@ body{margin:0}
 .spec-list .jrow{font-size:12px}
 .dlg .err{color:var(--warn);font-size:12.5px;margin:0}
 .danger-bg{background:var(--warn);border-color:var(--warn);color:var(--bg)}
+.deco.lamp circle,.deco.lamp line{fill:none;stroke:inherit;stroke-width:.7}
