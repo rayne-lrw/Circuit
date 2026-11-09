@@ -89,14 +89,14 @@ def('lc1d18',null,C2,'施耐德','LC1D18BL DC24V',45,77,95,'K','dark',deca(45,77
 def('lc1d38',null,C2,'施耐德','LC1D38BL DC24V',45,85,101,'K','dark',deca(45,85));
 def('lc1d258',null,C2,'施耐德','LC1D258BL DC24V 2NO+2NC',45,91,107,'K','dark',[...row(['1','R1','R3','3'],7,'top',45,'主接點',7),['A1',37,20,'top','線圈'],...row(['2','R2','R4','4'],84,'bottom',45,'主接點',7),['A2',37,71,'bottom','線圈']]);
 def('ladn40',null,C2,'施耐德','LADN40 輔助 4A',43.9,47,36.2,'KX','mid',[...pole(['53','63','73','83'],[5.9,16.4,27,37.6],9.6,'top','常開'),...pole(['54','64','74','84'],[5.9,16.4,27,37.6],37.4,'bottom','常開')],{note:'裝在接觸器正面：拖到電磁接觸器上會自動裝上，深度與接觸器相加',front:true});
-def('cu11',null,C2,'TECO','CU-11 AC220V',45,70,82,'K','light',[...pole(['L1','L2','L3','13'],[6.75,17.25,27.75,38.25],7,'top','主接點／輔助'),...pole(['T1','T2','T3','14'],[6.75,17.25,27.75,38.25],63,'bottom','主接點／輔助'),['A1',4,24,'top','線圈'],['A2',4,46,'bottom','線圈']],{note:'線圈接點位置未從照片確認'});
+def('cu11',null,C2,'TECO','CU-11 AC220V',45,70,82,'K','light',[...pole(['L1','L2','L3','13'],[6.75,17.25,27.75,38.25],14,'top','主接點／輔助'),...pole(['T1','T2','T3','14'],[6.75,17.25,27.75,38.25],63,'bottom','主接點／輔助'),['A1',13,5,'top','線圈'],['A2',31,5,'top','線圈']],{note:'線圈 A1、A2 在正面最上方（主接點上排的上面）'});
 def('sp16',null,C2,'士林','S-P16 AC220V',53,81,83.5,'K','light',[...pole(['L1','L2','L3'],[9,21,33],10,'top','主接點'),['A2',16,3,'top','線圈'],['A1',28,3,'top','線圈'],['13',46,8,'top','常開輔助'],['21',46,18,'top','常閉輔助'],...pole(['T1','T2','T3'],[9,21,33],71,'bottom','主接點'),['14',46,63,'bottom','常開輔助'],['22',46,73,'bottom','常閉輔助']]);
 def('my2n-24',null,C3,'OMRON','MY2N DC24V＋PYF08A 座',23,72,66,'KA','blue',SOCK8,{note:'台製座的接點編號以實物為準'});
 def('my2n-220',null,C3,'OMRON','MY2N AC220V＋PYF08A 座',23,72,66,'KA','blue',SOCK8,{note:'台製座的接點編號以實物為準'});
 def('pyf14a',null,C3,'OMRON','PYF14A 座（MY4 用）',31,72,66,'KA','blue',SOCK14);
-def('ly4n',null,C3,'OMRON','LY4N-J DC24V＋PTF14A 座',45.5,78.5,65,'KA','blue',sockMY(45.5,78.5,['4','3','2','1'],['8','7','6','5'],['12','11','10','9'],['14','13']),{note:'清單沒有這個座，尺寸與接點依 PTF14A'});
-def('ly2j',null,C3,'OMRON','LY2J＋PTF08A 座',28.5,78.5,65,'KA','blue',sockMY(28.5,78.5,['4','1'],['6','3'],['5','2'],['8','7']),{note:'清單沒有這個座，尺寸與接點依 PTF08A'});
-def('fotek',null,C3,'FOTEK','MY-6S-2P 計時 6s AC220V',23,72,80,'T','mid',SOCK8,{note:'接點依 MY 座推定'});
+def('ly4n',null,C3,'OMRON','LY4N-J DC24V＋PTF14A 座',45.5,78.5,65,'KA','blue',sockMY(45.5,78.5,['4','3','2','1'],['8','7','6','5'],['12','11','10','9'],['14','13']),{note:'座：PTF14A'});
+def('ly2j',null,C3,'OMRON','LY2J＋PTF08A 座',28.5,78.5,65,'KA','blue',sockMY(28.5,78.5,['4','1'],['6','3'],['5','2'],['8','7']),{note:'座：PTF08A'});
+def('fotek',null,C3,'FOTEK','MY-6S-2P 計時 6s AC220V',23,72,80,'T','mid',SOCK8,{note:'接點編號和 MY 座相同'});
 def('g6d',null,C3,'bore','G6D-OC16V 繼電器模組 16P',121.3,86,40,'RM','steel',[...row(['C+','C-','1','2','3','4','5','6','7','8'],8,'top',121.3,'輸出',6),...row(['9','10','11','12','13','14','15','16'],78,'bottom',121.3,'輸出',6)],{note:'尺寸依同型商品圖'});
 def('pnoz',null,C3,'PILZ','PNOZ X2.8P 安全繼電器',22.5,94,121,'SR','light',[...row(['A1','13','23','33'],6,'top',22.5,'電源／安全接點',3),...row(['S52','S34','41','42'],14,'top',22.5,'回授／輔助',4),...row(['S11','S12','S21','S22'],80,'bottom',22.5,'輸入',4),...row(['A2','14','24','34'],88,'bottom',22.5,'電源／安全接點',3)]);
 const FX5U_I=['L','N','FG','S/S','0V','24V',...['0','1','2','3','4','5','6','7','10','11','12','13','14','15','16','17'].map(x=>'X'+x)];
@@ -170,17 +170,15 @@ def('hgsr702',null,F1,'三菱','HG-SR702BJK 7kW',130,70,0,'M','dark',[...row(['U
 def('hgsr202',null,F1,'三菱','HG-SR202JK 2kW',110,60,0,'M','dark',[...row(['U','V','W','E'],8,'top',70,'動力',8),['ENC',96,8,'top','編碼器']],{sheet:'field'});
 def('hgkn43',null,F1,'三菱','HG-KN43BJK 400W',110,50,0,'M','dark',[...row(['U','V','W','E'],8,'top',56,'動力',6),['B1',66,8,'top','煞車'],['B2',78,8,'top','煞車'],['ENC',98,8,'top','編碼器']],{sheet:'field'});
 // 海泰機電 DM-S 一體化伺服馬達（雷射砲台用）：圓形機身，接點照使用者的接線圖排在上方：RS-485 A、B、VCC、GND，再加 CAN H、L（通訊二擇一）
-const DMS=(w,y,p)=>[['485A','485A','RS-485 A'],['485B','485B','RS-485 B'],['VCC','VCC','電源 +（V+）'],['GND','GND','電源 −（V−）'],['CANH','CAN H','CAN H'],['CANL','CAN L','CAN L']].map(([id,,desc],i)=>[id,w/2+(i-2.5)*p,y,'top',desc]);
-def('dms6015',null,F1,'海泰機電','DM-S-6015 一體化馬達（雷射砲台）',60,60,0,'M','dark',DMS(60,9,6.5),{sheet:'field',round:true,vlab:['485A','485B','VCC','GND','CANH','CANL'],tagAt:{x:30,y:40},note:'通訊用 RS-485 或 CAN；RS-485 多顆並聯時，最後一顆的 A、B 之間加 120Ω 終端電阻'});
-def('dms8015',null,F1,'海泰機電','DM-S-8015 一體化馬達（雷射砲台）',80,80,0,'M','dark',DMS(80,10,7),{sheet:'field',round:true,vlab:['485A','485B','VCC','GND','CANH','CANL'],tagAt:{x:40,y:55},note:'通訊用 RS-485 或 CAN；RS-485 多顆並聯時，最後一顆的 A、B 之間加 120Ω 終端電阻'});
+const DMS=(w,y,p)=>[['485A','485A','RS-485 A'],['485B','485B','RS-485 B'],['VCC','VCC','VCC'],['GND','GND','GND'],['CANH','CAN H','CAN H'],['CANL','CAN L','CAN L']].map(([id,,desc],i)=>[id,w/2+(i-2.5)*p,y,'top',desc]);
+def('dms6015',null,F1,'海泰機電','DM-S-6015 一體化馬達（雷射砲台）',60,60,0,'M','dark',DMS(60,9,6.5),{sheet:'field',round:true,vlab:['485A','485B','VCC','GND','CANH','CANL'],tagAt:{x:30,y:40},note:'RS-485 和 CAN 只能擇一；RS-485 多顆並聯時，最後一顆的 A、B 之間加 120Ω 終端電阻'});
+def('dms8015',null,F1,'海泰機電','DM-S-8015 一體化馬達（雷射砲台）',80,80,0,'M','dark',DMS(80,10,7),{sheet:'field',round:true,vlab:['485A','485B','VCC','GND','CANH','CANL'],tagAt:{x:40,y:55},note:'RS-485 和 CAN 只能擇一；RS-485 多顆並聯時，最後一顆的 A、B 之間加 120Ω 終端電阻'});
 def('field-power',null,F1,'','外部電源進線 3P',90,40,0,'PWR','mid',row(['R','S','T','E'],8,'top',90,'電源',12),{sheet:'field'});
 termDesc('field-power',{E:'接地'});
 def('e2e',null,F2,'OMRON','E2E-X8B1D18 近接 PNP 3線',50,30,0,'SQ','steel',SENS3,{sheet:'field',note:'E2E NEXT：B1＝直流 3 線 PNP 常開，D18＝M18'});
 def('d4mc',null,F2,'OMRON','D4MC-5020 極限 1C',50,35,0,'LS','steel',[['C',10,8,'top','COM 共點'],['A',25,8,'top','NO 常開（A 接點）'],['B',40,8,'top','NC 常閉（B 接點）']],{sheet:'field',note:'D4MC 是 1C 接點（單刀雙投）：C 共點、A 常開、B 常閉'});
 def('pzg102',null,F2,'基恩斯','PZ-G102B 光電 NPN+PNP 4線',60,30,0,'PH','steel',[['棕',10,8,'top','+V 10–30VDC（1）'],['藍',23,8,'top','0V（3）'],['黑',36,8,'top','輸出 PNP（4）'],['白',49,8,'top','輸出 NPN（2）']],{sheet:'field',note:'基恩斯型錄：PZ-G 結尾 B＝NPN/PNP 雙輸出，4 芯電纜（1 棕 +V、2 白 NPN、3 藍 0V、4 黑 PNP）'});
 def('pzg101',null,F2,'基恩斯','PZ-G101P 光電 PNP 3線',50,30,0,'PH','steel',[['棕',10,8,'top','+V 10–30VDC（1）'],['藍',25,8,'top','0V（3）'],['黑',40,8,'top','輸出 PNP（4）']],{sheet:'field',note:'基恩斯型錄：PZ-G 結尾 P＝PNP 輸出，3 芯電纜（1 棕 +V、3 藍 0V、4 黑 OUT；2 號腳不使用）'});
-def('eesx676',null,F2,'OMRON','EE-SX676P-WR 光電素子 PNP',50,30,0,'PH','steel',SENS3,{sheet:'field'});
-def('eespx302',null,F2,'OMRON','EE-SPX302 光電素子 NPN',50,30,0,'PH','steel',SENS3,{sheet:'field'});
 def('qlnp',null,F2,'','QL-NP 訊號轉換 NPN→PNP',60,30,0,'CV','steel',row(['+','-','IN','OUT'],8,'top',60,'',8),{sheet:'field'});
 // 光柵與量測光柵：接收器（RX）與投光器（TX）各一台，接點依配線圖用線色命名
 const GRATING=[['棕','+24V'],['藍','0V'],['黑','輸出 1（接 PLC 輸入）'],['白','輸出 2（接 PLC 輸入）'],['灰','同步（接另一台的灰線）'],['SHD','隔離網（接地）']];
