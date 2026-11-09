@@ -42,8 +42,11 @@ function cleanTpl(t){
   const ss=(v,n)=>String(v==null?'':v).slice(0,n),num=(v,d)=>{const x=Number(v);return Number.isFinite(x)?x:d;};
   if(!t||!Array.isArray(t.terms)) return null;
   const hex=v=>typeof v==='string'&&/^#[0-9a-fA-F]{6}$/.test(v)?v:'#54595b';
-  return {inv:[],cat:'自訂器具',b:ss(t.b,20),n:ss(t.n,40)||'自訂器具',w:Math.max(5,num(t.w,40)),h:Math.max(5,num(t.h,40)),d:Math.max(0,num(t.d,50)),pre:ss(t.pre,6).replace(/[^\w]/g,'')||'U',f:hex(t.f),i:casing(hex(t.f))==='#222725'?'#15181a':'#f1f2ee',sheet:['plate','door','field'].includes(t.sheet)?t.sheet:'plate',ok:!!t.ok,note:ss(t.note,60),gen:null,src:typeof t.src==='string'&&/^[\w-]{1,32}$/.test(t.src)?t.src:undefined,
-    terms:t.terms.filter(x=>x&&x.id!=null).slice(0,200).map(x=>({id:ss(x.id,12),x:num(x.x,0),y:num(x.y,0),side:['top','bottom','left','right'].includes(x.side)?x.side:'top',desc:ss(x.desc,20)}))};
+  const o={inv:[],cat:'自訂器具',b:ss(t.b,20),n:ss(t.n,40)||'自訂器具',w:Math.max(5,num(t.w,40)),h:Math.max(5,num(t.h,40)),d:Math.max(0,num(t.d,50)),pre:ss(t.pre,6).replace(/[^\w]/g,'')||'U',f:hex(t.f),i:casing(hex(t.f))==='#222725'?'#15181a':'#f1f2ee',sheet:['plate','door','field'].includes(t.sheet)?t.sheet:'plate',ok:!!t.ok,note:ss(t.note,120),gen:null,round:!!t.round,...(Number(t.rx)>0?{rx:Math.min(20,Number(t.rx))}:{}),outside:!!t.outside,src:typeof t.src==='string'&&/^[\w-]{1,32}$/.test(t.src)?t.src:undefined,
+    terms:t.terms.filter(x=>x&&x.id!=null).slice(0,200).map(x=>{const SD=['top','bottom','left','right'],r={id:ss(x.id,12),x:num(x.x,0),y:num(x.y,0),side:SD.includes(x.side)?x.side:'top',desc:ss(x.desc,20)};if(SD.includes(x.ls))r.ls=x.ls;if(Number.isFinite(Number(x.ox))&&x.ox!=null){r.ox=num(x.ox,0);r.oy=num(x.oy,0);}return r;})};
+  // 同電位組：接點要存在、至少兩個
+  const ids=new Set(o.terms.map(x=>x.id));o.links=Array.isArray(t.links)?t.links.filter(Array.isArray).map(g=>[...new Set(g.map(x=>ss(x,12)).filter(x=>ids.has(x)))]).filter(g=>g.length>1).slice(0,40):[];if(!o.links.length)o.links=null;
+  return o;
 }
 const cleanSpec=v=>{const s=String(v==null?'':v).slice(0,60);return /^E\d{5}$/.test(s)?'':s;};
 function normalize(o){

@@ -641,6 +641,14 @@ $('libQ').oninput=renderPalette;
  sc.addEventListener('scroll',()=>{tt.hidden=sc.scrollTop<300;},{passive:true});
  tt.onclick=()=>{const rm=matchMedia('(prefers-reduced-motion: reduce)').matches;sc.scrollTo({top:0,behavior:rm?'auto':'smooth'});};}
 $('palette').addEventListener('click',e=>{
+  // 自訂器具的編輯、複製、刪除
+  {const b=e.target.closest('[data-tpl-ed],[data-tpl-cp],[data-tpl-del]');if(b){
+    if(b.dataset.tplEd){openEditor(b.dataset.tplEd,null);return;}
+    if(b.dataset.tplCp){openEditor(b.dataset.tplCp,null,{copy:true});return;}
+    const id=b.dataset.tplDel,used=S.devices.filter(d=>d.tpl===id),builtin=!!TPL[id];
+    if(used.length&&!builtin){toast(`還有 ${used.length} 個器具在用（${used.slice(0,6).map(d=>d.tag).join('、')}${used.length>6?'…':''}），先刪掉或換掉才能刪除`);return;}
+    const t=S.tpls[id];delete S.tpls[id];commit();recompute();renderPalette();
+    toast(builtin?`「${t.n}」已換回原廠設定${used.length?`（${used.length} 個器具一起換回，接點不同的線會移除；可以按復原）`:''}`:`已刪除自訂器具「${t.n}」，可以按復原`);return;}}
   const b=e.target.closest('button');if(!b)return;
   if(mode==='view'&&b.matches('.lib')){toast('檢視模式不能新增，按「擺放」或「接線」切換');return;}
   if(b.dataset.add){

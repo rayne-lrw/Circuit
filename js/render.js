@@ -93,7 +93,7 @@ function renderBoard(){
     const t=tplOf(d);
     h+=`<g class="dev${d.on?' rider':''}" data-dev="${d.id}">`; // 裝在接觸器正面的附件畫成半透明，看得到底下的線圈與輔助接點
     if(t.round) h+=`<rect class="body" x="${d.x}" y="${d.y}" width="${t.w}" height="${t.h}" rx="${Math.min(t.w,t.h)/2}" fill="${t.f}"/>`;
-    else h+=`<rect class="body" x="${d.x}" y="${d.y}" width="${t.w}" height="${t.h}" rx="2.5" fill="${t.f}"/>`;
+    else h+=`<rect class="body" x="${d.x}" y="${d.y}" width="${t.w}" height="${t.h}" rx="${t.rx||2.5}" fill="${t.f}"/>`;
     // 器具上的示意圖形（例如伺服的內置回生電阻）；旋轉的器具不畫
     // 二極體符號：依 A、K 接點的位置畫（旋轉後也對），三角形尖端指向 K，尖端畫一條橫線
     if(t.sym==='diode'){const A=t.terms.find(p=>p.id==='A'),K=t.terms.find(p=>p.id==='K');if(A&&K){

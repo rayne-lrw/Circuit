@@ -11,7 +11,9 @@ function renderPalette(){
   all.forEach(([id,t])=>{if(match(t))(cats[t.cat]=cats[t.cat]||[]).push([id,t]);});
   const order=['自訂器具',C1,C2,C3,C4,C5,C6,C7,C8,C9,D1,F1,F2,F3];
   let h='';
-  order.forEach(c=>{if(cats[c]) h+=`<div class="brand"><h2>${c}</h2>${cats[c].map(([id,t])=>libButton(id,t)).join('')}</div>`;});
+  // 自訂器具：每一個旁邊有編輯、複製、刪除
+  const cus=([id,t])=>custom[id]&&mode!=='view'?`<div class="lib-c">${libButton(id,t)}<span class="lib-act"><button class="tool sm" data-tpl-ed="${id}" title="編輯這個器具（已放的會一起更新）">編輯</button><button class="tool sm" data-tpl-cp="${id}" title="複製成新器具">複製</button><button class="tool sm danger" data-tpl-del="${id}" title="${TPL[id]?'換回原廠':'刪除'}">${TPL[id]?'換回原廠':'刪除'}</button></span></div>`:libButton(id,t);
+  order.forEach(c=>{if(cats[c]) h+=`<div class="brand"><h2>${c}</h2>${cats[c].map(e=>cus(e)).join('')}</div>`;});
   const ductRows=DUCTINV.filter(([n,m])=>!q||(n+m).toLowerCase().includes(q)).map(([n,m,w,d])=>`<button class="lib" data-duct-add="h" data-dw="${w}" data-dd="${d}"><span class="nm">${n} 水平</span><small>寬 ${w}</small><span class="bd">${m}</span></button><button class="lib" data-duct-add="v" data-dw="${w}" data-dd="${d}"><span class="nm">${n} 垂直</span><small>寬 ${w}</small><span class="bd">${m}</span></button>`).join('');
   if(ductRows) h+=`<div class="brand"><h2>線槽</h2>${ductRows}</div>`;
   const glandRows=GLANDINV.filter(n=>!q||n.toLowerCase().includes(q)).map(n=>`<button class="lib" data-gland-add="${esc(n)}"><span class="nm">${esc(n)}</span><small>出線口</small></button>`).join('');
