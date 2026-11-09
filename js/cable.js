@@ -109,7 +109,9 @@ function autoBO(ends,sheet){
   if(!ds.length||sheet==='field'){
     const cnt={};ends.forEach(e=>{if(e.side)cnt[e.side]=(cnt[e.side]||0)+1;});
     const side=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a])[0]||'bottom',v={top:[0,-1],bottom:[0,1],left:[-1,0],right:[1,0]}[side];
-    return {x:cx+v[0]*14,y:cy+v[1]*14,sheet};
+    // 記下剝線點是靠哪台器具、在哪一側：外皮從另一側過來時要繞過器具，不能直接穿過去
+    const dc={};ends.forEach(e=>{if(e.dev)dc[e.dev]=(dc[e.dev]||0)+1;});const dev=Object.keys(dc).sort((a,b)=>dc[b]-dc[a])[0]||null;
+    return {x:cx+v[0]*14,y:cy+v[1]*14,sheet,side:cnt[side]?side:null,dev};
   }
   const dist=d=>{const dx=Math.max(d.x-cx,0,cx-d.x-d.w),dy=Math.max(d.y-cy,0,cy-d.y-d.h);return Math.hypot(dx,dy);};
   const d=ds.reduce((b,x)=>dist(x)<dist(b)?x:b),cl=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));

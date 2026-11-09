@@ -186,7 +186,7 @@ def('ga096',null,F2,'斯邁德','GA0-96H 量測光柵 接收器 RX',60,40,0,'LC'
 def('ga096-t',null,F2,'斯邁德','GA0-96H 量測光柵 投光器 TX',60,40,0,'LC','steel',row(MEASURE.map(x=>x[0]),8,'top',60,'',7).map((t,i)=>(t[4]=t[0]==='黑'?'未使用':MEASURE[i][1],t)),{sheet:'field'});
 def('tb10',null,F3,'ETAN','TB-PG-10P 接線盒',86,40,0,'JB','mid',nterm(10,8,40,'top',8),{sheet:'field',userLinks:true});
 def('tb15',null,F3,'ETAN','TB-PG-15P 接線盒',126,40,0,'JB','mid',nterm(15,8,40,'top',8),{sheet:'field',userLinks:true});
-def('ths62',null,F3,'天得','THS-62 吊車接線盒',60,60,0,'CB','light',row(['1','2','3','4','5','6'],8,'top',60,'',6),{sheet:'field',userLinks:true,});
+def('ths62',null,F3,'天得','THS-62 吊車接線盒',60,60,0,'CB','light',row(['1','2','3','4','5','6'],8,'top',60,'',6),{sheet:'field'});
 // 舊版範例用的器具，只為了能讀回舊暫存，不列在器具庫
 const LEG={legacy:true};
 def('sch_mc',null,C2,'施耐德','TeSys D 接觸器',45,85,100,'K','dark',mc(85),LEG);def('sch_tor',null,C2,'施耐德','LRD 積熱電驛',45,65,90,'F','mid',tor(65),LEG);def('sch_gv',null,C1,'施耐德','GV2 馬達保護',45,90,97,'Q','dark',nfb(45,90),LEG);

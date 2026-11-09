@@ -105,6 +105,9 @@ function aroundPts(A,B){
 function directPts(A,B){
   if(B.stub&&!A.stub||(B.stub&&A.stub&&A.dev!==B.dev)){const p=aroundPts(A,B);if(p)return p;}
   if(A.stub&&!B.stub){const p=aroundPts(B,A);if(p)return p.reverse();}
+  // 現場的自動剝線點：外皮從器具另一側過來時沿器具外圍繞過去（芯線那段是同一台器具，不套用）
+  if(B.boDev&&A.dev!==B.boDev&&!A.boDev){const p=aroundPts(A,{...B,dev:B.boDev,side:B.boSide});if(p)return p;}
+  if(A.boDev&&B.dev!==A.boDev&&!B.boDev){const p=aroundPts(B,{...A,dev:A.boDev,side:A.boSide});if(p)return p.reverse();}
   const av=A.side==='top'||A.side==='bottom', bv=B.side==='top'||B.side==='bottom';
   if(Math.abs(A.x-B.x)<.01||Math.abs(A.y-B.y)<.01) if(!(A.side&&A.side===B.side)) return [A,B];
   if(av&&bv){
@@ -432,7 +435,7 @@ function computeRoutes(){
   (S.cables||[]).forEach(c=>{
     const cw=coresOf(c);if(!cw.length) return;
     const ea=cw.map(w=>endpoint(w.a,off(w.a))),eb=cw.map(w=>endpoint(w.b,off(w.b)));
-    const side=(k,ends)=>{const o=c.bo&&c.bo[k];const p=o?{x:o.x,y:o.y,sheet:sheetAt(o)}:autoBO(ends,ends[0].sheet);return {x:p.x,y:p.y,sheet:p.sheet,inDuct:locate(p,p.sheet),wp:true,bo:true,auto:!o};};
+    const side=(k,ends)=>{const o=c.bo&&c.bo[k];const p=o?{x:o.x,y:o.y,sheet:sheetAt(o)}:autoBO(ends,ends[0].sheet);return {x:p.x,y:p.y,sheet:p.sheet,inDuct:locate(p,p.sheet),wp:true,bo:true,auto:!o,...(!o&&p.dev&&p.side?{boDev:p.dev,boSide:p.side}:{})};};
     const A=side('a',ea),B=side('b',eb);
     // 外皮可以加中繼點、可以不進線槽；電纜本來就能走線槽外，穿過其他器具不警告
     const cg=c.gland||(cw.map(w=>devOf(w.b.d)).find(d=>d&&d.gland)||{}).gland; // 電纜：指定的出線口，其次是現場設備的預設出線口

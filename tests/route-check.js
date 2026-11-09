@@ -99,6 +99,15 @@ const SCENARIOS=[
     });
     return {state:st,expectClean:Object.keys(exp).filter(k=>!k.startsWith('cab:')),expectWall:exp};
   }},
+  {name:'電纜外皮繞過現場器具（剝線點在器具另一側）',build:()=>{
+    const st=normalize(sampleState()).state;S=st;const o=boxOrigin();
+    // 現場區搬到箱子上方；吊掛按鈕盒只接上方的 COM，剝線點在盒子上面，外皮從下面過來
+    const z=st.fields[0],dy=(o.y-40-z.h)-z.y;st.devices.filter(d=>d.sheet==='field').forEach(d=>d.y+=dy);z.y+=dy;
+    st.devices.push({id:'CB1',tag:'CB1',tpl:'ths62',x:z.x+z.w-90,y:z.y+10,sheet:'field'});
+    const c1=newCable('CB01','');attachCore(makeCoreWire({d:'X1',t:'14A'},{d:'CB1',t:'COM'},'CB1a'),c1,'1');
+    const c2=newCable('CB02','');[['15A','COM'],['16A','上'],['17A','下']].forEach(([a,b],i)=>attachCore(makeCoreWire({d:'X1',t:a},{d:'CB1',t:b},'CB2'+i),c2,String(i+1)));
+    return {state:st,expectClean:[]};
+  }},
   {name:'出線口進出（現場區在箱子上方）',build:()=>{
     const st=normalize(sampleState()).state;S=st;const o=boxOrigin();
     // 現場區搬到箱子上方（和你的專案一樣），區內器具一起搬
@@ -217,6 +226,11 @@ function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,exp
     if(L.ext&&c.bo&&c.bo.a){const r=CABROUTES.get(c.id);if(Math.abs(r.a.x-c.bo.a.x)+Math.abs(r.a.y-c.bo.a.y)>.01)msgs.push('剝線點沒有照拖曳的位置');}
     res.push({no:'電纜 '+c.no,ok:!msgs.length,msg:msgs.join('；')});
   }
+  // 電纜外皮不可穿過現場端的器具（剝線點在器具某一側，外皮從另一側過來要繞過去）
+  (S.cables||[]).forEach(c=>{const R=CABROUTES.get(c.id);if(!R)return;
+    const devs=[...new Set(coresOf(c).map(w=>w.b.d))].map(devOf).filter(d=>d&&d.sheet==='field');
+    const bad=devs.filter(d=>{const T=tplOf(d);return R.pts.some((q,i)=>{if(!i)return false;const a=R.pts[i-1];for(let k=0;k<=20;k++){const x=a.x+(q.x-a.x)*k/20,y=a.y+(q.y-a.y)*k/20;if(x>d.x+1&&x<d.x+T.w-1&&y>d.y+1&&y<d.y+T.h-1)return true;}return false;});}).map(d=>d.tag);
+    res.push({no:'外皮 '+c.no,ok:!bad.length,msg:'外皮穿過 '+bad.join('、')});});
   return res;
 }
 
