@@ -7,8 +7,10 @@ function openPop(){
   if(draftIsExt()){
     const fd=devOf(draft.a.d).sheet==='field'?draft.a:draft.end;
     // 同一個現場設備已經有電纜、而且還有空的芯：預設編進那條電纜的下一芯
-    const c=S.cables.find(x=>freeCore(x)&&coresOf(x).some(w=>w.b.d===fd.d||w.a.d===fd.d));
-    draft.ext={cable:c?c.no:nextCable(),core:'',spec:c?c.spec:''};
+    // 兩端都在現場（例如同一個現場設備上的跳線）：不經過箱體，預設散線，不建議編進電纜
+    const both=devOf(draft.a.d).sheet==='field'&&devOf(draft.end.d).sheet==='field';
+    const c=!both&&S.cables.find(x=>freeCore(x)&&coresOf(x).some(w=>w.b.d===fd.d||w.a.d===fd.d));
+    draft.ext={cable:both?'':c?c.no:nextCable(),core:'',spec:c?c.spec:''};
   }
   if(draft.no==null){const h=inheritNo(draft.a,draft.end);draft.no=h.no||'W'+String(nextWireNo()).padStart(3,'0');draft.noHint=h.a&&h.b&&h.a!==h.b?`起點已有 ${h.a}、終點已有 ${h.b}，預設用起點的線號`:h.no?`沿用接點上已有的線號 ${h.no}（同電位）`:'';}
   const pop=$('pop'),st=$('stage').getBoundingClientRect();
@@ -25,7 +27,7 @@ function openPop(){
 function fillPop(){
   const ex=draftIsExt();
   $('pop').innerHTML=`<div class="ends">${esc(epText(draft.a))} → ${esc(epText(draft.end))}${draft.wps.length?`（${draft.wps.length} 中繼點）`:''}${ex?'　外線':''}</div>
-  ${ex?`<div class="fields"><label for="pCable">電纜編號（空白＝散線）<input id="pCable" maxlength="12" list="pCabL" value="${esc(draft.ext.cable)}"><datalist id="pCabL">${S.cables.map(c=>`<option value="${esc(c.no)}">`).join('')}</datalist></label><label for="pCore">芯線<input id="pCore" maxlength="10" value="${esc(draft.ext.core)}" placeholder="下一芯"></label>${S.cables.some(c=>c.no===draft.ext.cable.trim())?`<p class="note" style="grid-column:1/-1">編進已有的電纜 ${esc(draft.ext.cable)}，顏色與線徑照電纜芯線</p>`:`<label for="pSpec" style="grid-column:1/-1">新電纜規格<select id="pSpec">${cableOptions(draft.ext.spec)}</select></label>`}</div>`:''}
+  ${ex?`<div class="fields"><label for="pCable">電纜編號<input id="pCable" maxlength="12" list="pCabL" value="${esc(draft.ext.cable)}" placeholder="空白＝散線"><datalist id="pCabL">${S.cables.map(c=>`<option value="${esc(c.no)}">`).join('')}</datalist></label><label for="pCore">芯線<input id="pCore" maxlength="10" value="${esc(draft.ext.core)}" placeholder="下一芯"></label>${!draft.ext.cable.trim()?'<p class="note" style="grid-column:1/-1">散線，不編進電纜；要編進電纜就填電纜編號</p>':S.cables.some(c=>c.no===draft.ext.cable.trim())?`<p class="note" style="grid-column:1/-1">編進已有的電纜 ${esc(draft.ext.cable)}，顏色與線徑照電纜芯線</p>`:`<label for="pSpec" style="grid-column:1/-1">新電纜規格<select id="pSpec">${cableOptions(draft.ext.spec)}</select></label>`}</div>`:''}
   <div class="fields"><label for="pNo">線號<input id="pNo" maxlength="16" value="${esc(draft.no)}"></label><label for="pLab">線號標在<select id="pLab">${LAB_AT.map(([k,n])=>`<option value="${k}"${(last.labAt||'start')===k?' selected':''}>${n}</option>`).join('')}</select></label></div>${draft.noHint?`<p class="note">${esc(draft.noHint)}</p>`:''}
   <div><h3>線徑 mm²</h3>${gaugeChips(last.gauge,'pg','pn')}</div>
   <div><h3>顏色</h3>${colorChips(last.color,'pn')}</div>
