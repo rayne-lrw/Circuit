@@ -57,7 +57,7 @@ function attachCore(w,c,name){
   const af=devOf(w.a.d).sheet==='field',bf=devOf(w.b.d).sheet==='field';
   let flip=af&&!bf;
   if(!af&&!bf){
-    const others=coresOf(c).filter(x=>x!==w),A=new Set(others.map(x=>x.a.d)),B=new Set(others.map(x=>x.b.d));
+    const others=coresOf(c).filter(x=>x!==w),E=c.ends||{},A=new Set([...others.map(x=>x.a.d),...(E.a||[])]),B=new Set([...others.map(x=>x.b.d),...(E.b||[])]);
     flip=(B.has(w.a.d)||A.has(w.b.d))&&!(A.has(w.a.d)||B.has(w.b.d));
   }
   if(flip){const t=w.a;w.a=w.b;w.b=t;}
@@ -74,6 +74,8 @@ function detachCore(w){delete w.cab;delete w.core;delete w.ext;}
 // 存檔時外線表用的欄位跟著電纜同步
 function syncCables(){
   if(!Array.isArray(S.cables)) S.cables=[];
+  // 電纜兩端器具：刪掉的器具拿掉
+  S.cables.forEach(c=>{if(!c.ends)return;['a','b'].forEach(k=>{if(c.ends[k])c.ends[k]=c.ends[k].filter(id=>devOf(id));});});
   S.wires.forEach(w=>{
     if(!w.cab) return;
     const c=cabOf(w.cab);if(!c){detachCore(w);return;}

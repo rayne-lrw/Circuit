@@ -336,3 +336,16 @@ body.viewing .wire.on .wn{pointer-events:none}
   #left{order:3;max-height:420px}
 }
 body{margin:0}
+/* 電纜：兩端器具、芯線表標題列、更多選單 */
+.cends-set{border:1px solid var(--line);border-radius:6px;padding:6px;margin:6px 0}
+.cend-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:4px;font-size:12px}
+.cend-l{color:var(--muted);min-width:4.5em}
+.chip{display:inline-flex;align-items:center;gap:2px;border:1px solid var(--line);border-radius:10px;padding:1px 7px;background:var(--panel-2);font-family:var(--mono);font-size:12px}
+.chip .lnk{text-decoration:none;color:var(--muted);padding:0 0 0 3px}
+.cend-row select{border:1px solid var(--line);background:var(--panel-2);border-radius:5px;padding:1px 4px;font-size:12px;max-width:9em}
+.ctab-h{display:flex;align-items:center;gap:4px;margin-top:6px}
+.tool.sm{padding:3px 8px;font-size:12px}
+.cmore{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:6px;background:var(--panel);margin:4px 0 6px;padding:3px}
+.cmore .mi{text-align:left;border:0;background:none;padding:6px 8px;border-radius:4px;font-size:12.5px}
+.cmore .mi:hover{background:var(--panel-2)}
+.rtab.cores td.mono{font-family:var(--mono)}
