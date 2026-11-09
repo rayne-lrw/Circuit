@@ -36,7 +36,8 @@ h1{font-size:17px;font-weight:700;margin:0;letter-spacing:.02em;margin-right:6px
 #ver{font-family:var(--mono);font-size:10.5px;font-weight:400;color:var(--muted);letter-spacing:0}
 #stats{font-family:var(--mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 /* 畫面不夠寬時，統計文字摺成兩行，讓上方按鈕維持一行 */
-@media (max-width:1500px){#stats{max-width:118px;font-size:11px;line-height:1.25}}
+@media (max-width:1500px){#stats{max-width:118px;font-size:11px;line-height:1.25}#fsB .fs-t{display:none}#fsB{padding:6px 8px}}
+#fsB{display:inline-flex;align-items:center;gap:5px}#fsB[hidden]{display:none}
 main{display:grid;grid-template-columns:250px minmax(0,1fr) 320px;gap:10px;min-height:0}
 #left .strip{display:none;flex-direction:column;align-items:center;gap:8px;padding:8px 0;height:100%}
 #left .strip .tool{padding:6px 0;width:30px;display:flex;justify-content:center}

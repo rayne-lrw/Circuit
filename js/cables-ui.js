@@ -307,7 +307,7 @@ function pickCore(){
   if(!k){stopPick(`${c.no} 的芯線都接好了`);return false;}
   // 一端是接頭：從接頭接到點的那個接點（就算這次是從別的接點開始拉）
   const pg=plugOf(c,'a')||plugOf(c,'b');let A=draft.a,E=draft.end;if(pg&&!samePt(A,pg)&&!samePt(E,pg))A={d:pg.d,t:pg.t};
-  const w=makeCoreWire(A,E,'',c);attachCore(w,c,k.n);if(draft.gland)c.gland=draft.gland;
+  const w=makeCoreWire(A,E,'',c);w.wps=(draft.wps||[]).map(p=>({x:p.x,y:p.y}));attachCore(w,c,k.n);if(draft.gland)c.gland=draft.gland;
   draft=null;closePop();selCab=c.id;sel=null;
   // 自動換到芯線表裡下一個還沒接的芯
   const f=freeCores(c),order=c.cores.map(x=>x.n),i=order.indexOf(k.n);let nx=null;

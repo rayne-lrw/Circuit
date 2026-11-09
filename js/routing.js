@@ -220,6 +220,10 @@ function realize(wid,anchors,legs,lane0){
         const iw={x:to.x+v[0]*6,y:to.y+v[1]*6},q2=h?{x:e,y:cur.y}:{x:cur.x,y:e},q3=h?{x:e,y:iw.y}:{x:iw.x,y:e};pts.push(q2,q3,iw);cur=iw;}
       if(open){open.i1=pts.length-1;runs.push(open);open=null;}pts.push({x:to.x,y:to.y});cur=to;last=null;return;
     }
+    // 出線槽往斜對面的中繼點：沿線道直接出端頭走到中繼點正下（旁）方再轉過去，不先在端頭轉彎再橫移（沒撞到器具時）
+    {const hh=axis(last)==='h',offL=hh?(to.x<last.x||to.x>last.x+last.w):(to.y<last.y||to.y>last.y+last.h),offS=hh?(to.y<last.y||to.y>last.y+last.h):(to.x<last.x||to.x>last.x+last.w);
+     if(to.wp&&!to.bo&&!to.gland&&!to.inDuct&&offL&&offS){const q=hh?{x:to.x,y:cur.y}:{x:cur.x,y:to.y};
+       if(!segHits(cur.x,cur.y,q.x,q.y)&&!segHits(q.x,q.y,to.x,to.y)){pts.push(q);if(open){open.i1=pts.length-1;runs.push(open);open=null;}pts.push({x:to.x,y:to.y});cur=to;last=null;return;}}}
     // 從線槽端頭出來接到旁邊的接點：先在線槽裡對齊接點，再沿原方向出去
     if(!to.inDuct&&axis(last)==='h'&&(to.x<last.x||to.x>last.x+last.w)){const ex=to.x<last.x?last.x+2:last.x+last.w-2;pts.push({x:ex,y:cur.y});pts.push({x:ex,y:to.y});cur={x:ex,y:to.y};}
     else if(!to.inDuct&&axis(last)==='v'&&(to.y<last.y||to.y>last.y+last.h)){const ey=to.y<last.y?last.y+2:last.y+last.h-2;pts.push({x:cur.x,y:ey});pts.push({x:to.x,y:ey});cur={x:to.x,y:ey};}

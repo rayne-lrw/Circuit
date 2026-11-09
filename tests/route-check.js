@@ -121,13 +121,19 @@ const SCENARIOS=[
     [['U','1'],['V','2']].forEach(([t,k])=>attachCore(makeCoreWire({d:'SVP',t:'CN1A'},{d:'MP',t},'',c2),c2,k));
     return {state:st,expectClean:[],expectPlug:{CP1:{a:null,b:null,cores:0},CP2:{a:null,b:'bo',cores:2}}};
   }},
-  {name:'出線口在器具正上方、中繼點在器具左邊（拉線預覽和放開後一樣）',build:()=>{
+  {name:'出線口在器具正上方、中繼點在器具左邊（拉線預覽和放開後一樣）',build:arg=>{
     // 箱頂出線口剛好在大器具正上方，左邊沒有線槽；在器具左邊放一個中繼點，要往左下走進下方線槽的端頭，不穿過器具、不折回
     const st=normalize({box:{w:700,h:600,d:300,back:20},plate:{w:620,h:500},door:{w:700,h:600},fields:[{id:'Z1',name:'現場',x:-40,y:-450,w:700,h:300}],
       devices:[{id:'SV1',tag:'SV1',tpl:'j4700',x:118,y:17,sheet:'plate'},{id:'SV3',tag:'SV3',tpl:'je40',x:420,y:147,sheet:'plate'},{id:'M3',tag:'M3',tpl:'hgkn43',x:390,y:-335,sheet:'field',rot:180}],
       ducts:[{id:'D1',x:115,y:335,w:375,h:45,dp:65},{id:'D3',x:490,y:33,w:33,h:432,dp:65}],glands:[{id:'G1',side:'top',x:125,y:0,spec:'M32 浪管接頭'}],wires:[]}).state;
     S=st;st.glands.forEach(g=>g.y=boxOrigin().y);
     st.wires.push({id:'lw',no:'LW',a:{d:'M3',t:'U'},b:{d:'SV3',t:'U'},wps:[{x:105,y:25}],gauge:.75,color:'black',gland:'G1'});
+    if(arg==='cab'){
+      // 電纜：拉芯線時放的中繼點要改放到外皮上，外皮一樣往左走（只經過 D1）
+      st.wires=[];const c=newCable('CL','伺服動力線 JE 0.75mm²*4C');c.gland='G1';
+      const cw={id:'lc',no:'LC',a:{d:'M3',t:'V'},b:{d:'SV3',t:'V'},wps:[{x:105,y:25}],gauge:.75,color:'black'};st.wires.push(cw);attachCore(cw,c,'V');
+      return {state:st,expectClean:['LC'],expectVia:{'cab:CL':['D1']}};
+    }
     return {state:st,expectClean:['LW'],expectPrev:['LW']};
   }},
   {name:'出線口進出（現場區在箱子上方）',build:()=>{
@@ -259,6 +265,8 @@ function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,exp
     const cw=coresOf(c),nets=netsOf();if(cw.length!==e.cores)m.push(`芯線 ${cw.length} 條，應為 ${e.cores}`);
     if(new Set(cw.map(w=>nets.get(w.id))).size!==cw.length)m.push('接頭的不同腳位被當成同一電位');if(new Set(cw.map(w=>w.no)).size!==cw.length)m.push('接頭的不同腳位用了同一個線號');
     res.push({no:'接頭 '+no,ok:!m.length,msg:m.join('；')});});
+  // 電纜外皮經過的線槽（expectVia 的 cab:電纜編號）
+  Object.keys(expectVia||{}).filter(k=>k.startsWith('cab:')).forEach(k=>{const c=S.cables.find(x=>x.no===k.slice(4)),R=c&&CABROUTES.get(c.id),v=R?R.via.join('>'):'無',want=expectVia[k].join('>');res.push({no:k,ok:v===want,msg:`外皮經過的線槽應為 ${want}，實際 ${v}`});});
   // 電纜外皮不可穿過現場端的器具（剝線點在器具某一側，外皮從另一側過來要繞過去）
   (S.cables||[]).forEach(c=>{const R=CABROUTES.get(c.id);if(!R)return;
     const devs=[...new Set(coresOf(c).map(w=>w.b.d))].map(devOf).filter(d=>d&&d.sheet==='field');
@@ -285,6 +293,7 @@ function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,exp
     bad.forEach(x=>console.log(`    ${x.no}：${x.msg}`));
   };
   for(const sc of SCENARIOS) await run(sc.name,sc.build.toString());
+  { const sc=SCENARIOS.find(x=>x.name.startsWith('出線口在器具正上方'));await run('電纜：拉芯線時放的中繼點改放到外皮上',sc.build.toString(),'cab'); }
   for(const e of extra) await run(e.name,(j=>({state:normalize(JSON.parse(j)).state,expectClean:[]})).toString(),e.file);
   if(errs.length){console.log('頁面錯誤：',errs);fail++;}
   console.log(fail?`\n失敗 ${fail} 項（共 ${total} 條線）`:`\n全部通過（共 ${total} 條線）`);

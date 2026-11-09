@@ -53,6 +53,8 @@ function attachCore(w,c,name){
   if(!k) k=c.cores.find(x=>!used.has(x.n));
   if(!k){k={n:String(c.cores.length+1),c:w.color,g:w.gauge};c.cores.push(k);}
   w.cab=c.id;w.core=k.n;paintCore(w,k);
+  // 拉線時放的中繼點：芯線跟著電纜外皮走，所以中繼點改放到外皮上（外皮還沒有中繼點時）
+  if(w.wps&&w.wps.length&&!(c.wps&&c.wps.length))c.wps=w.wps.map(p=>({x:p.x,y:p.y}));
   w.wps=[];delete w.direct;delete w.gland;
   const af=devOf(w.a.d).sheet==='field',bf=devOf(w.b.d).sheet==='field';
   let flip=af&&!bf;

@@ -437,6 +437,12 @@ window.addEventListener('blur',()=>{spaceDown=false;svg.classList.remove('pannin
 function opPref(){try{return Object.assign({drag:'cad'},JSON.parse(localStorage.getItem('wiring-sim-ops')||'{}'));}catch(_){return {drag:'cad'};}}
 function setOpPref(k,v){const p=opPref();p[k]=v;try{localStorage.setItem('wiring-sim-ops',JSON.stringify(p));}catch(_){}updateHint();}
 function opDialog(open){$('opDlg').hidden=!open;if(open){const p=opPref();document.querySelectorAll('[name="opDrag"]').forEach(r=>r.checked=r.value===p.drag);$('opClose').focus();}else $('opB').focus();}
+// 全螢幕：不是每個人都知道 F11，給一個按鈕；瀏覽器不支援（例如 iPhone Safari）就不顯示
+{const de=document.documentElement,on=()=>document.fullscreenElement||document.webkitFullscreenElement;
+ if(document.fullscreenEnabled||document.webkitFullscreenEnabled){const b=$('fsB');b.hidden=false;
+  const upd=()=>{const t=on()?'結束全螢幕':'全螢幕';b.querySelector('.fs-t').textContent=t;b.setAttribute('aria-label',t);b.setAttribute('aria-pressed',on()?'true':'false');};
+  b.onclick=()=>{try{const r=on()?(document.exitFullscreen||document.webkitExitFullscreen).call(document):(de.requestFullscreen||de.webkitRequestFullscreen).call(de);if(r&&r.catch)r.catch(()=>toast('瀏覽器不允許全螢幕，可以按 F11'));}catch(e){toast('瀏覽器不允許全螢幕，可以按 F11');}};
+  document.addEventListener('fullscreenchange',upd);document.addEventListener('webkitfullscreenchange',upd);upd();}}
 $('opB').onclick=()=>opDialog(true);$('opClose').onclick=()=>opDialog(false);
 $('opDlg').addEventListener('click',e=>{if(e.target===$('opDlg'))opDialog(false);});
 document.querySelectorAll('[name="opDrag"]').forEach(r=>r.onchange=()=>{if(r.checked){setOpPref('drag',r.value);toast(r.value==='cad'?'改成 CAD 方式：左鍵拖曳空白處框選，中鍵拖曳平移':'改成舊方式：左鍵拖曳空白處平移，Shift＋拖曳框選');}});
