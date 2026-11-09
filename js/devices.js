@@ -165,7 +165,7 @@ def('py2201-g',null,D1,'','PY2201A-24G 金屬開關 綠光 Ø22',25,25,37,'SB','
 def('py2201-r',null,D1,'','PY2201A-24R 金屬開關 紅光 Ø22',25,25,37,'SB','red',PY2201_T(),{sheet:'door',round:true,note:'1NO/1NC 環形 LED；接點編號以實物為準'});
 def('gs2107',null,D1,'三菱','GS2107 人機 7"',206,155,50,'HMI','dark',row(['24V','0V','FG','LAN'],10,'bottom',206,'',30),{sheet:'door'});
 def('nextech',null,D1,'Nextech','AP 21.5" 圖控介面 DC12V',511.2,314.9,70,'HMI','dark',[['DC-IN',140.4,306.9,'bottom','12V DC 接頭'],['LAN1',475.5,306.9,'bottom','RJ45 GbE'],['LAN2',454.9,306.9,'bottom','RJ45 GbE'],['COM1',358.1,306.9,'bottom','RS232'],['COM2',265.6,306.9,'bottom','RS232'],['COM3',244.6,306.9,'bottom','RS232'],['COM4',222.6,306.9,'bottom','RS232']],{sheet:'door',note:'前框 531.2×334.9、背面本體 511.2×314.9；RK3588、Android 14；底部 I/O：RJ45×2、HDMI、USB 3.0×4、RS232×4、12V DC-IN、On/Off（C14 AC 輸入為選配）；I/O 位置依照片估計，面板內側看左右相反；深度圖上未標示'});
-def('lk3214',null,D1,'隆光','LK3214K 二連插座',49,89,30,'XS','light',row(['L','N','E'],8,'top',49,'',8),{sheet:'door'});
+def('lk3214',null,D1,'隆光','LK3214K 二連插座',49,89,30,'XS','light',[...row(['L','N','E'],8,'top',49,'',8),['插頭',40,50,'right','插座口：外部插頭插在這裡（示意）']],{sheet:'door',note:'中間「插頭」點用來標示外部插頭插進插座的連線'});
 def('hgsr702',null,F1,'三菱','HG-SR702BJK 7kW',130,70,0,'M','dark',[...row(['U','V','W','E'],8,'top',70,'動力',8),['B1',84,8,'top','煞車'],['B2',96,8,'top','煞車'],['ENC',118,8,'top','編碼器']],{sheet:'field'});
 def('hgsr202',null,F1,'三菱','HG-SR202JK 2kW',110,60,0,'M','dark',[...row(['U','V','W','E'],8,'top',70,'動力',8),['ENC',96,8,'top','編碼器']],{sheet:'field'});
 def('hgkn43',null,F1,'三菱','HG-KN43BJK 400W',110,50,0,'M','dark',[...row(['U','V','W','E'],8,'top',56,'動力',6),['B1',66,8,'top','煞車'],['B2',78,8,'top','煞車'],['ENC',98,8,'top','編碼器']],{sheet:'field'});
