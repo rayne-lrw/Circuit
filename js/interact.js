@@ -62,6 +62,8 @@ svg.addEventListener('pointerdown',e=>{
   // 拖曳線號：接線模式、選取中的線
   const lg=mode==='wire'&&e.button===0&&!draft&&e.target.closest&&e.target.closest('[data-lab]');
   if(lg&&lg.dataset.lab===sel){act={t:'lab',wid:sel,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId};svg.setPointerCapture(e.pointerId);return;}
+  // 中鍵、或按住空白鍵＋左鍵：一律平移畫面（不管點到什麼）
+  if(e.button===1||(e.button===0&&spaceDown)){if(e.button===1)e.preventDefault();act={t:'press',sx:e.clientX,sy:e.clientY,vx:view.x,vy:view.y,moved:false,btn:e.button,id:e.pointerId,target:e.target,pan:true};svg.setPointerCapture(e.pointerId);return;}
   // 拖曳剝線點（接線、擺放模式都可以）
   const bg=mode!=='view'&&e.button===0&&!draft&&e.target.closest&&e.target.closest('[data-bo]');
   if(bg){const [cid,k]=bg.dataset.bo.split('|');act={t:'bo',cid,k,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId};svg.setPointerCapture(e.pointerId);return;}
@@ -69,7 +71,9 @@ svg.addEventListener('pointerdown',e=>{
     const dg=e.target.closest('[data-dev]'),cg=e.target.closest('[data-duct]'),gg=e.target.closest('[data-gland]'),zg=!dg&&!cg&&!gg&&e.target.closest('.zone-h,.zoneg .field-t')&&e.target.closest('[data-zone]');
     // 多選：Shift＋點加入或移出、Shift＋拖曳空白處框選；拖曳選取中的任一個一起移動
     const hitK=gg?'gland':dg?'dev':cg?'duct':null,hitId=gg?gg.dataset.gland:dg?dg.dataset.dev:cg?cg.dataset.duct:null;
-    if(e.shiftKey){if(hitK){toggleSel({k:hitK,id:hitId});return;}if(!zg){startBox(e,p);return;}}
+    if(e.shiftKey){if(hitK){toggleSel({k:hitK,id:hitId});return;}if(!zg){startBox(e,p,true);return;}}
+    // CAD 方式：左鍵拖曳空白處直接框選（觸控裝置照舊用手指平移）
+    if(!hitK&&!zg&&opPref().drag==='cad'&&e.pointerType!=='touch'){startBox(e,p,false);return;}
     if(hitK&&multi.length>1&&inMulti(hitK,hitId)){startMultiDrag(e,p,e.ctrlKey||e.metaKey);return;}
     if(multi.length){multi=[];}
     // Ctrl（Mac 用 Cmd）＋拖曳：原物件留在原地，拖著走的是複本
@@ -112,7 +116,8 @@ svg.addEventListener('pointerdown',e=>{
     const c=cabOf(selCab),wp=c&&(c.wps||[]).find(q=>Math.hypot((q.x-p.x)*view.k,(q.y-p.y)*view.k)<=10);
     if(wp){snap=null;hoverW=null;$('tip').hidden=true;act={t:'wp',wp,cab:true,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId};renderOverlay();return;}
   }
-  act={t:'press',sx:e.clientX,sy:e.clientY,vx:view.x,vy:view.y,moved:false,btn:e.button,alt:e.altKey,id:e.pointerId,target:e.target};
+  // 左鍵拖曳空白處：舊方式或觸控才平移；CAD 方式在接線、檢視模式不做任何事（平移用中鍵）
+  act={t:'press',sx:e.clientX,sy:e.clientY,vx:view.x,vy:view.y,moved:false,btn:e.button,alt:e.altKey,id:e.pointerId,target:e.target,pan:e.pointerType==='touch'||opPref().drag==='old'};
 });
 // 拖曳時把重畫合併成每個畫面週期一次（滑鼠事件比畫面更新頻繁，每次都整張重畫在放大時會閃）
 let framePend=null,frameReq=0;
@@ -161,7 +166,7 @@ svg.addEventListener('pointermove',e=>{
     const el=$('wires').querySelector(`.wire[data-wid="${w.id}"]`);if(el)el.style.visibility='hidden';
     dragPrev={w,pts:wirePreview(w)};renderOverlay();
   }else{
-    view.x=act.vx+dx;view.y=act.vy+dy;view.manual=true;applyView();
+    if(act.pan){view.x=act.vx+dx;view.y=act.vy+dy;view.manual=true;applyView();}
   }
 });
 svg.addEventListener('pointerup',e=>{
@@ -423,12 +428,25 @@ function deleteSel(){
   }
   return false;
 }
+// 空白鍵按住時，左鍵拖曳平移（筆電觸控板沒有中鍵）
+let spaceDown=false;
+document.addEventListener('keydown',e=>{if(e.code==='Space'&&!/INPUT|SELECT|TEXTAREA|BUTTON/.test(e.target.tagName)){if(!spaceDown){spaceDown=true;svg.classList.add('panning');}e.preventDefault();}});
+document.addEventListener('keyup',e=>{if(e.code==='Space'){spaceDown=false;svg.classList.remove('panning');}});
+window.addEventListener('blur',()=>{spaceDown=false;svg.classList.remove('panning');});
+// 操作設定：存在這台電腦的瀏覽器，不跟著專案
+function opPref(){try{return Object.assign({drag:'cad'},JSON.parse(localStorage.getItem('wiring-sim-ops')||'{}'));}catch(_){return {drag:'cad'};}}
+function setOpPref(k,v){const p=opPref();p[k]=v;try{localStorage.setItem('wiring-sim-ops',JSON.stringify(p));}catch(_){}updateHint();}
+function opDialog(open){$('opDlg').hidden=!open;if(open){const p=opPref();document.querySelectorAll('[name="opDrag"]').forEach(r=>r.checked=r.value===p.drag);$('opClose').focus();}else $('opB').focus();}
+$('opB').onclick=()=>opDialog(true);$('opClose').onclick=()=>opDialog(false);
+$('opDlg').addEventListener('click',e=>{if(e.target===$('opDlg'))opDialog(false);});
+document.querySelectorAll('[name="opDrag"]').forEach(r=>r.onchange=()=>{if(r.checked){setOpPref('drag',r.value);toast(r.value==='cad'?'改成 CAD 方式：左鍵拖曳空白處框選，中鍵拖曳平移':'改成舊方式：左鍵拖曳空白處平移，Shift＋拖曳框選');}});
 document.addEventListener('keydown',e=>{
   if(!$('ed').hidden) return;
   const typing=/INPUT|SELECT|TEXTAREA/.test(e.target.tagName);
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?$('redo').click():$('undo').click();return;}
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();$('redo').click();return;}
   if(!$('setDlg').hidden){if(e.key==='Escape')setDialog(false);return;}
+  if(!$('opDlg').hidden){if(e.key==='Escape')opDialog(false);return;}
   if(mode==='view'&&!typing){
     const k=e.key.toLowerCase();
     if(e.key==='Escape'){sel=null;picked=null;selCab=null;renderList();renderWires();renderDetail();return;}

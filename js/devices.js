@@ -170,7 +170,7 @@ def('hgsr702',null,F1,'三菱','HG-SR702BJK 7kW',130,70,0,'M','dark',[...row(['U
 def('hgsr202',null,F1,'三菱','HG-SR202JK 2kW',110,60,0,'M','dark',[...row(['U','V','W','E'],8,'top',70,'動力',8),['ENC',96,8,'top','編碼器']],{sheet:'field'});
 def('hgkn43',null,F1,'三菱','HG-KN43BJK 400W',110,50,0,'M','dark',[...row(['U','V','W','E'],8,'top',56,'動力',6),['B1',66,8,'top','煞車'],['B2',78,8,'top','煞車'],['ENC',98,8,'top','編碼器']],{sheet:'field'});
 def('field-power',null,F1,'','外部電源進線 3P',90,40,0,'PWR','mid',row(['R','S','T','E'],8,'top',90,'電源',12),{sheet:'field'});
-def('e2e',null,F2,'OMRON','E2E-X8B1D18 近接 2線',50,30,0,'SQ','steel',[['棕',15,8,'top','+'],['藍',35,8,'top','-']],{sheet:'field'});
+def('e2e',null,F2,'OMRON','E2E-X8B1D18 近接 PNP 3線',50,30,0,'SQ','steel',SENS3,{sheet:'field',note:'E2E NEXT：B1＝直流 3 線 PNP 常開，D18＝M18'});
 def('d4mc',null,F2,'OMRON','D4MC-5020 極限 1A1B',60,35,0,'LS','steel',row(['11','12','23','24'],8,'top',60,'',8),{sheet:'field'});
 def('pzg102',null,F2,'基恩斯','PZ-G102B 光電',50,30,0,'PH','steel',SENS3,{sheet:'field'});
 def('pzg101',null,F2,'基恩斯','PZ-G101P 光電 PNP',50,30,0,'PH','steel',SENS3,{sheet:'field'});

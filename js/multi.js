@@ -25,13 +25,14 @@ function toggleSel(s){
 function selectAll(){setMulti([...S.devices.map(d=>({k:'dev',id:d.id})),...S.ducts.map(d=>({k:'duct',id:d.id})),...S.glands.map(g=>({k:'gland',id:g.id}))]);}
 const curSel=()=>multi.length?multi:picked&&picked.k!=='zone'?[picked]:[];
 
-/* 框選：Shift＋拖曳空白處 */
-function startBox(e,p){act={t:'box',x0:p.x,y0:p.y,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId,add:curSel().slice()};svg.setPointerCapture(e.pointerId);}
+/* 框選：拖曳空白處（CAD 方式）或 Shift＋拖曳。由左往右拉＝實線框，只選完全在框內的；由右往左拉＝虛線框，碰到就選 */
+function startBox(e,p,keep){act={t:'box',x0:p.x,y0:p.y,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId,add:keep?curSel().slice():[]};svg.setPointerCapture(e.pointerId);}
 function moveBox(p){boxSel={x0:act.x0,y0:act.y0,x1:p.x,y1:p.y};renderOverlay();}
 function endBox(a){
-  const b=boxSel;boxSel=null;if(!b){renderOverlay();return;}
-  const R={x:Math.min(b.x0,b.x1),y:Math.min(b.y0,b.y1),w:Math.abs(b.x1-b.x0),h:Math.abs(b.y1-b.y0)};
-  const hit=r=>r.x<R.x+R.w&&r.x+r.w>R.x&&r.y<R.y+R.h&&r.y+r.h>R.y;
+  const b=boxSel;boxSel=null;
+  if(!b){if(!a.add.length){picked=null;multi=[];sel=null;selCab=null;renderWires();renderDetail();updateHint();}renderOverlay();return;} // 點一下空白處：取消選取
+  const R={x:Math.min(b.x0,b.x1),y:Math.min(b.y0,b.y1),w:Math.abs(b.x1-b.x0),h:Math.abs(b.y1-b.y0)},cross=b.x1<b.x0;
+  const hit=r=>cross?(r.x<R.x+R.w&&r.x+r.w>R.x&&r.y<R.y+R.h&&r.y+r.h>R.y):(r.x>=R.x&&r.x+r.w<=R.x+R.w&&r.y>=R.y&&r.y+r.h<=R.y+R.h);
   const got=[...S.devices.map(d=>({k:'dev',id:d.id})),...S.ducts.map(d=>({k:'duct',id:d.id})),...S.glands.map(g=>({k:'gland',id:g.id}))].filter(s=>hit(selBox(s)));
   setMulti([...a.add,...got]);renderOverlay();
 }

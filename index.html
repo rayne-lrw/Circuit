@@ -8,7 +8,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23334'/%3E%3Cpath d='M3 4h5v8h5' fill='none' stroke='%23fc3' stroke-width='2'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/style.css?v=1794190208">
+<link rel="stylesheet" href="css/style.css?v=1794190880">
 </head>
 <body>
 <div id="app">
@@ -27,17 +27,19 @@
       <button class="tool" id="bundle" aria-pressed="false" title="線槽內的線收成一束，選取時再看單條">線束模式</button>
       <button class="tool" id="labels" aria-pressed="false">顯示線號</button>
     </div>
-    <div class="group">
-      <button class="tool" id="zo" aria-label="縮小">−</button>
-      <button class="tool" id="zi" aria-label="放大">+</button>
-      <button class="tool" id="fit">全部</button>
-      <button class="tool" id="vPlate">底板</button>
-      <button class="tool" id="vDoor">面板</button>
-      <button class="tool" id="vField">現場</button>
+    <div class="group vgrp" role="group" aria-labelledby="vgrpT">
+      <span class="glab" id="vgrpT" title="縮放畫面、跳到要看的區域">畫面</span>
+      <button class="tool" id="zo" aria-label="縮小" title="縮小（也可以用滑鼠滾輪）">−</button>
+      <button class="tool" id="zi" aria-label="放大" title="放大（也可以用滑鼠滾輪）">+</button>
+      <button class="tool" id="fit" title="縮放到看得到全部">全部</button>
+      <button class="tool" id="vPlate" title="跳到底板">底板</button>
+      <button class="tool" id="vDoor" title="跳到面板">面板</button>
+      <button class="tool" id="vField" title="跳到現場區">現場</button>
     </div>
     <span class="spacer"></span>
     <span id="stats"></span>
     <div class="group">
+      <button class="tool" id="opB" title="滑鼠操作方式等個人設定">操作設定</button>
       <div class="menuwrap"><button class="tool" id="fileB" aria-haspopup="menu" aria-expanded="false">檔案…</button>
         <div id="fileM" class="menu" role="menu" hidden>
           <button class="mi" role="menuitem" id="exportB"><span>匯出專案</span><small>存成 JSON 檔</small></button>
@@ -65,7 +67,7 @@
           <p class="note" id="setSum"></p>
         </div>
         <div>
-          <h2 class="h2ver"><span>器具庫 <button class="hq" data-help="lib" aria-expanded="false" aria-label="說明">?</button></span><span id="ver" title="目前版本；更新後這個號碼會改變">v1794190208</span></h2>
+          <h2 class="h2ver"><span>器具庫 <button class="hq" data-help="lib" aria-expanded="false" aria-label="說明">?</button></span><span id="ver" title="目前版本；更新後這個號碼會改變">v1794190880</span></h2>
           <p class="note hn" data-helpfor="lib" hidden>滑鼠停在器具上可看尺寸來源。接點只對到實物的區塊與順序，選取器具後可按「編輯器具」修正。</p>
           <input id="libQ" type="search" placeholder="搜尋型號、品名、廠牌" aria-label="搜尋器具">
           <div class="row" style="margin-top:6px;justify-content:flex-start"><button class="tool" id="newTpl">新增自訂器具</button></div>
@@ -147,6 +149,17 @@
     <div class="row"><button class="primary" id="setClose">完成</button></div>
   </div>
 </div>
+<div id="opDlg" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="opTitle">
+  <div class="card">
+    <h2 id="opTitle">操作設定</h2>
+    <p class="note">這些設定存在這台電腦的瀏覽器，不跟著專案檔。</p>
+    <div class="sub-h">滑鼠拖曳</div>
+    <label class="check"><input type="radio" name="opDrag" value="cad">CAD 方式（建議）：左鍵拖曳空白處框選；中鍵拖曳、或按住空白鍵＋左鍵拖曳平移畫面</label>
+    <label class="check"><input type="radio" name="opDrag" value="old">舊方式：左鍵拖曳空白處平移畫面；Shift＋左鍵拖曳框選</label>
+    <p class="note">框選方向和 CAD 一樣：由左往右拉是實線框，只選完全在框內的；由右往左拉是虛線框，碰到就選。滑鼠滾輪縮放；手機、平板用手指拖曳平移。</p>
+    <div class="row"><button class="primary" id="opClose">完成</button></div>
+  </div>
+</div>
 <div id="print" aria-hidden="true"></div>
 <div id="ed" hidden role="dialog" aria-label="器具編輯器">
   <div id="edCard">
@@ -175,20 +188,20 @@
   </div>
 </div>
 
-<script src="js/inventory.js?v=1794190208"></script>
-<script src="js/devices.js?v=1794190208"></script>
-<script src="js/cable.js?v=1794190208"></script>
-<script src="js/sample.js?v=1794190208"></script>
-<script src="js/state.js?v=1794190208"></script>
-<script src="js/routing.js?v=1794190208"></script>
-<script src="js/render.js?v=1794190208"></script>
-<script src="js/panels.js?v=1794190208"></script>
-<script src="js/popup.js?v=1794190208"></script>
-<script src="js/report.js?v=1794190208"></script>
-<script src="js/interact.js?v=1794190208"></script>
-<script src="js/cables-ui.js?v=1794190208"></script>
-<script src="js/multi.js?v=1794190208"></script>
-<script src="js/editor.js?v=1794190208"></script>
-<script src="js/main.js?v=1794190208"></script>
+<script src="js/inventory.js?v=1794190880"></script>
+<script src="js/devices.js?v=1794190880"></script>
+<script src="js/cable.js?v=1794190880"></script>
+<script src="js/sample.js?v=1794190880"></script>
+<script src="js/state.js?v=1794190880"></script>
+<script src="js/routing.js?v=1794190880"></script>
+<script src="js/render.js?v=1794190880"></script>
+<script src="js/panels.js?v=1794190880"></script>
+<script src="js/popup.js?v=1794190880"></script>
+<script src="js/report.js?v=1794190880"></script>
+<script src="js/interact.js?v=1794190880"></script>
+<script src="js/cables-ui.js?v=1794190880"></script>
+<script src="js/multi.js?v=1794190880"></script>
+<script src="js/editor.js?v=1794190880"></script>
+<script src="js/main.js?v=1794190880"></script>
 </body>
 </html>

@@ -20,7 +20,7 @@ button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 #app{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr);gap:10px;padding-block:10px;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-header{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px}
 h1{font-size:17px;font-weight:700;margin:0;letter-spacing:.02em;margin-right:6px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--panel)}
 .seg button{border:0;background:none;padding:6px 12px}
@@ -35,6 +35,8 @@ h1{font-size:17px;font-weight:700;margin:0;letter-spacing:.02em;margin-right:6px
 .h2ver{display:flex;justify-content:space-between;gap:8px}
 #ver{font-family:var(--mono);font-size:10.5px;font-weight:400;color:var(--muted);letter-spacing:0}
 #stats{font-family:var(--mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+/* 畫面不夠寬時，統計文字摺成兩行，讓上方按鈕維持一行 */
+@media (max-width:1500px){#stats{max-width:118px;font-size:11px;line-height:1.25}}
 main{display:grid;grid-template-columns:250px minmax(0,1fr) 320px;gap:10px;min-height:0}
 #left .strip{display:none;flex-direction:column;align-items:center;gap:8px;padding:8px 0;height:100%}
 #left .strip .tool{padding:6px 0;width:30px;display:flex;justify-content:center}
@@ -181,10 +183,10 @@ label.check input{margin:2px 0 0;flex:none}
 #toast{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:6;background:var(--fg);color:var(--bg);border-radius:6px;padding:6px 12px;font-size:13px;max-width:calc(100% - 20px)}
 #io{position:absolute;inset:10px;z-index:7;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px}
 #io textarea{flex:1;min-height:0;width:100%;font-family:var(--mono);font-size:12px;border:1px solid var(--line);background:var(--panel-2);border-radius:5px;padding:6px;resize:none}
-#setDlg{position:fixed;inset:0;z-index:20;background:rgba(10,14,12,.5);display:flex;align-items:center;justify-content:center;
+#setDlg,#opDlg{position:fixed;inset:0;z-index:20;background:rgba(10,14,12,.5);display:flex;align-items:center;justify-content:center;
   padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-#setDlg .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;width:min(440px,100%);max-height:100%;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
-#setDlg h2{font-size:16px;margin:0;color:var(--fg);letter-spacing:0}
+#setDlg .card,#opDlg .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;width:min(440px,100%);max-height:100%;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+#setDlg h2,#opDlg h2{font-size:16px;margin:0;color:var(--fg);letter-spacing:0}
 #setDlg .fields input,#setDlg .fields select{font-size:13px;padding:5px 7px}
 .setbtn{width:100%;text-align:left;flex:1;min-width:0}
 #setSum{margin-top:4px;font-family:var(--mono);font-size:11.5px;display:flex;flex-wrap:wrap;gap:0 10px}
@@ -281,7 +283,14 @@ body.viewing .wire.on .wn{pointer-events:none}
 .pill-bg{fill:#b0005a}
 .pill-t{fill:#fff;font-family:var(--mono);font-size:13px;font-weight:600}
 .end-ring{fill:none;stroke:#b0005a;stroke-width:2.5}
-.boxsel{fill:var(--accent);fill-opacity:.08;stroke:var(--accent);stroke-width:1px;vector-effect:non-scaling-stroke;stroke-dasharray:4 3}
+.boxsel.cross{stroke-dasharray:4 3;fill:#2a9d4b;stroke:#2a9d4b}
+#svg.panning{cursor:grab}
+/* 畫面縮放與跳轉按鈕：框成一組並加標題 */
+.vgrp{border:1px solid var(--line);border-radius:8px;padding:2px 4px 2px 6px;gap:4px}
+.vgrp .glab{font-size:12px;color:var(--muted);margin-right:2px;white-space:nowrap}
+#opDlg label.check{align-items:flex-start;gap:6px;font-size:13px}
+#opDlg label.check input{width:auto;flex:none;margin:3px 0 0}
+.boxsel{fill:#1763d6;fill-opacity:.08;stroke:#1763d6;stroke-width:1px;vector-effect:non-scaling-stroke}
 .aligns .tool{padding:4px 8px;font-size:12.5px}
 .flash-r{fill:none;stroke:var(--accent);stroke-width:4px;vector-effect:non-scaling-stroke;pointer-events:none;animation:flash 1.3s ease-out forwards}
 @keyframes flash{0%,40%{opacity:1}100%{opacity:0}}
