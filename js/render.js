@@ -80,13 +80,18 @@ function renderBoard(){
       const ax=d.x+A.x,ay=d.y+A.y,kx=d.x+K.x,ky=d.y+K.y,L=Math.hypot(kx-ax,ky-ay)||1,ux=(kx-ax)/L,uy=(ky-ay)/L,nx=-uy,ny=ux,s=Math.min(2.6,L/5),mx=(ax+kx)/2,my=(ay+ky)/2;
       const b1=[mx-ux*s+nx*s,my-uy*s+ny*s],b2=[mx-ux*s-nx*s,my-uy*s-ny*s],ap=[mx+ux*s,my+uy*s];
       h+=`<g class="dsym"><line x1="${ax}" y1="${ay}" x2="${mx-ux*s}" y2="${my-uy*s}"/><line x1="${ap[0]}" y1="${ap[1]}" x2="${kx}" y2="${ky}"/><path d="M${b1} L${b2} L${ap} Z"/><line x1="${ap[0]+nx*s}" y1="${ap[1]+ny*s}" x2="${ap[0]-nx*s}" y2="${ap[1]-ny*s}"/></g>`;}}
-    if(t.deco&&!d.rot) t.deco.forEach(g=>{if(g.k==='res'){const cx=d.x+g.x+g.w/2;h+=`<g class="deco"><line x1="${cx}" y1="${d.y+(g.a??g.y-4)}" x2="${cx}" y2="${d.y+g.y-.3}"/><line x1="${cx}" y1="${d.y+g.y+g.h+.3}" x2="${cx}" y2="${d.y+(g.b??g.y+g.h+4)}"/><rect x="${d.x+g.x}" y="${d.y+g.y}" width="${g.w}" height="${g.h}" rx=".6"/><text x="${cx+g.w/2+2}" y="${d.y+g.y+g.h/2}" dominant-baseline="central">${esc(g.label||'')}</text></g>`;}});
+    if(t.deco&&!d.rot) t.deco.forEach(g=>{
+      // 按鈕：圓圈加箭頭（例如吊掛式按鈕盒）
+      if(g.k==='btn'){const cx=d.x+g.x,cy=d.y+g.y,r=9,v={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}[g.dir],n=[-v[1],v[0]],s=4.2;
+        const tip=[cx+v[0]*s,cy+v[1]*s],b1=[cx-v[0]*s*.2+n[0]*s*.75,cy-v[1]*s*.2+n[1]*s*.75],b2=[cx-v[0]*s*.2-n[0]*s*.75,cy-v[1]*s*.2-n[1]*s*.75];
+        h+=`<g class="deco btn"><circle cx="${cx}" cy="${cy}" r="${r}"/><circle cx="${cx}" cy="${cy}" r="${r-2.2}"/><path d="M${tip} L${b1} L${b2} Z"/><line x1="${cx-v[0]*s*.2}" y1="${cy-v[1]*s*.2}" x2="${cx-v[0]*s}" y2="${cy-v[1]*s}"/></g>`;return;}
+      if(g.k==='res'){const cx=d.x+g.x+g.w/2;h+=`<g class="deco"><line x1="${cx}" y1="${d.y+(g.a??g.y-4)}" x2="${cx}" y2="${d.y+g.y-.3}"/><line x1="${cx}" y1="${d.y+g.y+g.h+.3}" x2="${cx}" y2="${d.y+(g.b??g.y+g.h+4)}"/><rect x="${d.x+g.x}" y="${d.y+g.y}" width="${g.w}" height="${g.h}" rx=".6"/><text x="${cx+g.w/2+2}" y="${d.y+g.y+g.h/2}" dominant-baseline="central">${esc(g.label||'')}</text></g>`;}});
     const bodyEnd=h.length; // 短路片插在外殼後面，編號與接點畫在它上面
     const cy=d.y+t.h/2,small=t.w<28||t.h<26,tagSize=small?Math.max(4.5,Math.min(t.w/3.6,8)):10;
     if(d.on) h+=`<text class="tag" style="font-size:5px" x="${d.x+t.w/2}" y="${d.y+5.5}" text-anchor="middle" fill="${t.i}">${esc(d.tag)}</text>`; // 附件編號放上緣，不和接觸器的編號疊在一起
     else if(t.noOv) h+=`<text class="sub" x="${d.x+t.w/2}" y="${cy+1.5}" text-anchor="middle" fill="${t.i}">${esc(d.tag)} 鋁軌 ${t.w} mm</text>`;
     else{
-      let L=tagPlace(d,t,tagSize,small);
+      let L=t.tagAt&&!d.rot?{x:t.tagAt.x,y:t.tagAt.y,fs:tagSize}:tagPlace(d,t,tagSize,small); // 範本指定編號位置（例如按鈕盒的名牌）
       // 二極體：編號放在符號旁邊比較空的那一側
       if(t.sym==='diode'){const A=t.terms.find(p=>p.id==='A'),K=t.terms.find(p=>p.id==='K');if(A&&K){
         if(Math.abs(A.y-K.y)<.01){const y=A.y>t.h/2?A.y/2:(A.y+t.h)/2;L={x:t.w/2,y,fs:Math.min(tagSize,Math.abs(A.y-y)*1.1),sub:false};}

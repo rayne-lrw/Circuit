@@ -224,6 +224,9 @@ label.check input{margin:2px 0 0;flex:none}
 .dev.rider rect.body{fill-opacity:.38;stroke-dasharray:2 1.2}
 .dev.rider .tag,.dev.rider .sub{fill-opacity:.75}
 .deco line,.deco rect{fill:none;stroke:#e8eef0;stroke-width:.6;pointer-events:none}
+.deco.btn circle{fill:none;stroke:#2b2f2e;stroke-width:.7}
+.deco.btn path{fill:#2b2f2e}
+.deco.btn line{stroke:#2b2f2e;stroke-width:1.4}
 .deco text{font-family:var(--sans);font-size:3.4px;fill:#e8eef0;pointer-events:none}
 .dsym line,.dsym path{stroke:#1a1d1e;stroke-width:.6;fill:none;pointer-events:none}
 .dsym path{fill:#1a1d1e}
