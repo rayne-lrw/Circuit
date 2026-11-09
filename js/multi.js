@@ -92,20 +92,22 @@ function rotateMulti(){
   ds.forEach(rotateDev);commit();recompute();
 }
 
-/* 對齊與等距：器具與線槽，以選取範圍的外框為準；正面附件與鋁軌上的器具跟著主體 */
+/* 對齊與等距：器具、線槽與出線口，以選取範圍的外框為準；正面附件與鋁軌上的器具跟著主體。
+   出線口以中心點計算，只沿著它所在的箱面移動（箱底、箱頂的出線口左右移，側面的上下移） */
 function alignTargets(){
-  const items=multi.filter(s=>s.k==='dev'||s.k==='duct').map(s=>({k:s.k,o:objOf(s)})).filter(it=>it.o);
+  const items=multi.filter(s=>s.k==='dev'||s.k==='duct'||s.k==='gland').map(s=>({k:s.k,o:objOf(s)})).filter(it=>it.o);
   const carriedSet=new Set();items.forEach(it=>{if(it.k==='dev')carried(it.o).forEach(d=>carriedSet.add(d));});
   return items.filter(it=>!carriedSet.has(it.o));
 }
 function moveItem(it,dx,dy){
   if(!dx&&!dy) return;
+  if(it.k==='gland'){const P=glandPt(it.o),g=it.o;if(P.ny)g.x=r1(g.x+dx);else g.y=r1(g.y+dy);return;} // 不吸 5 mm 格點，等距才會剛好相等
   const extra=it.k==='dev'?carried(it.o):[];
   it.o.x=r1(it.o.x+dx);it.o.y=r1(it.o.y+dy);extra.forEach(d=>{d.x=r1(d.x+dx);d.y=r1(d.y+dy);});
 }
 function alignSel(op){
-  const its=alignTargets();if(its.length<2){toast('至少要選兩個器具或線槽');return;}
-  const R=it=>rectOf(it.k,it.o);
+  const its=alignTargets();if(its.length<2){toast('至少要選兩個器具、線槽或出線口');return;}
+  const R=it=>{if(it.k==='gland'){const P=glandPt(it.o);return {x:P.x,y:P.y,w:0,h:0};}return rectOf(it.k,it.o);};
   const x0=Math.min(...its.map(i=>R(i).x)),x1=Math.max(...its.map(i=>R(i).x+R(i).w)),y0=Math.min(...its.map(i=>R(i).y)),y1=Math.max(...its.map(i=>R(i).y+R(i).h));
   const dist=(axis)=>{
     const P=axis==='x'?'x':'y',L=axis==='x'?'w':'h';
