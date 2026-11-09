@@ -80,6 +80,9 @@ function normalize(o){
     if(safe(c.gland))r.gland=c.gland;
     const wp=(Array.isArray(c.wps)?c.wps:[]).filter(q=>q&&Number.isFinite(q.x)&&Number.isFinite(q.y)).slice(0,50).map(q=>({x:q.x,y:q.y}));if(wp.length)r.wps=wp;
     if(c.direct===true)r.direct=true;
+    // 接頭端：器具與接點要存在
+    if(c.plug&&typeof c.plug==='object'){const pg={};['a','b'].forEach(k=>{const p=c.plug[k],d=p&&safe(p.d)&&devices.find(x=>x.id===p.d);if(d&&typeof p.t==='string'&&termsOf(d).includes(p.t))pg[k]={d:p.d,t:p.t};});if(pg.a||pg.b)r.plug=pg;}
+    if(c.ends&&typeof c.ends==='object'){const en={};['a','b'].forEach(k=>{const L=Array.isArray(c.ends[k])?c.ends[k].filter(id=>safe(id)&&devices.some(x=>x.id===id)):[];if(L.length)en[k]=L;});if(en.a||en.b)r.ends=en;}
     if(safe(c.color))r.color=c.color;
     if(typeof c.hex==='string'&&/^#[0-9a-fA-F]{6}$/.test(c.hex)){r.hex=c.hex;r.cname=txt(c.cname||'自訂',8);}
     return r;

@@ -148,13 +148,17 @@ function pasteMulti(c,dx,dy){
     w.a.d=idm[e.a.d];w.b.d=idm[e.b.d];w.wps=(w.wps||[]).map(p=>({x:p.x+dx,y:p.y+dy}));
     if(w.gland)w.gland=gm[w.gland]||w.gland;
     // 電纜芯線：複製成新的電纜（同一條電纜的芯線還是在同一條新電纜裡），剝線點改回自動
-    if(w.cab){const o=cabOf(w.cab);if(o){if(!cm[o.id]){const n=newCable('',o.spec);n.cores=snapCopy(o.cores);n.fieldLen=o.fieldLen;if(o.direct)n.direct=true;if(o.wps)n.wps=o.wps.map(q=>({x:q.x+dx,y:q.y+dy}));cm[o.id]=n.id;made.cables=(made.cables||[]).concat(n);}w.cab=cm[o.id];}else delete w.cab;delete w.ext;}
+    if(w.cab){const o=cabOf(w.cab);if(o){if(!cm[o.id]){const n=newCable('',o.spec);n.cores=snapCopy(o.cores);n.fieldLen=o.fieldLen;if(o.direct)n.direct=true;copyPlug(o,n,idm);if(o.wps)n.wps=o.wps.map(q=>({x:q.x+dx,y:q.y+dy}));cm[o.id]=n.id;made.cables=(made.cables||[]).concat(n);}w.cab=cm[o.id];}else delete w.cab;delete w.ext;}
     else if(w.ext&&w.ext.cable){if(!cm[e.ext.cable])cm[e.ext.cable]=nextCable();w.ext.cable=cm[e.ext.cable];}
     S.wires.push(w);made.wires.push(w);
   });
+  // 兩端都是接頭的電纜沒有芯線：兩端器具都有複製到，就一起複製
+  S.cables.filter(o=>bothPlug(o)&&!cm[o.id]&&idm[o.plug.a.d]&&idm[o.plug.b.d]&&!(made.cables||[]).includes(o)).forEach(o=>{const n=newCable('',o.spec);n.cores=snapCopy(o.cores);n.fieldLen=o.fieldLen;if(o.direct)n.direct=true;if(o.wps)n.wps=o.wps.map(q=>({x:q.x+dx,y:q.y+dy}));copyPlug(o,n,idm);if(o.color){n.color=o.color;if(o.hex){n.hex=o.hex;n.cname=o.cname;}}made.cables=(made.cables||[]).concat(n);});
   made.sel=[...c.top.map(id=>({k:'dev',id:idm[id]})),...made.ducts.map(d=>({k:'duct',id:d.id})),...made.glands.map(g=>({k:'gland',id:g.id}))];
   return made;
 }
+// 複製電纜的接頭端：換成複製出來的器具
+function copyPlug(o,n,idm){if(!o.plug)return;const p={};['a','b'].forEach(k=>{const q=o.plug[k];if(q&&idm[q.d])p[k]={d:idm[q.d],t:q.t};});if(p.a||p.b)n.plug=p;}
 function dropMulti(m){
   const dv=new Set(m.devs),du=new Set(m.ducts),gl=new Set(m.glands),wi=new Set(m.wires);
   S.devices=S.devices.filter(d=>!dv.has(d));S.ducts=S.ducts.filter(d=>!du.has(d));S.glands=S.glands.filter(g=>!gl.has(g));S.wires=S.wires.filter(w=>!wi.has(w));if(m.cables){const cs=new Set(m.cables);S.cables=S.cables.filter(c=>!cs.has(c));}

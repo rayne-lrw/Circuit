@@ -152,7 +152,7 @@ function wireInner(w,r){
 }
 /* 線號位置：w.lab 是拖曳過的位置（離起點的路徑比例 0～1）；w.labAt 是選單選的固定位置
    start 起點端（預設）、end 終點端、mid 中間、both 兩端都標 */
-const labPath=(w,r)=>r.tails?r.tails[0]:r.pts;
+const labPath=(w,r)=>r.tails?(r.tails[0].length>1?r.tails[0]:r.tails[1]):r.pts;
 const pathLen=p=>{let L=0;for(let i=1;i<p.length;i++)L+=Math.abs(p[i].x-p[i-1].x)+Math.abs(p[i].y-p[i-1].y);return L;};
 function pointAt(p,s){ // 沿折線走 s mm 的位置與該段方向
   for(let i=1;i<p.length;i++){const a=p[i-1],b=p[i],L=Math.abs(b.x-a.x)+Math.abs(b.y-a.y);
@@ -167,7 +167,7 @@ function labelSpots(w,r){
   if(w.lab!=null) return [pointAt(p,w.lab*L)];
   const at=w.labAt||'start',out=[];
   if(at==='start'||at==='both') out.push(pointAt(p,end));
-  if(at==='end'||at==='both'){const q=r.tails?r.tails[1]:p,ql=pathLen(q);out.push(pointAt(q,ql-Math.min(13,ql/2)));}
+  if(at==='end'||at==='both'){const q=r.tails?(r.tails[1].length>1?r.tails[1]:r.tails[0]):p,ql=pathLen(q);out.push(pointAt(q,ql-Math.min(13,ql/2)));}
   if(at==='mid') out.push(pointAt(p,L/2));
   return out.filter(Boolean);
 }
@@ -185,18 +185,18 @@ function renderWires(){
   (S.cables||[]).forEach(c=>{
     const r=CABROUTES.get(c.id);if(!r) return;
     const cc=cabColor(c); // 使用者指定的外皮顏色；沒指定用預設黑色
-    const d=pathD(r.pts),sw=cabStroke(c),ext=coresOf(c).some(w=>wireKind(w)==='ext');
+    const d=pathD(r.pts),sw=cabStroke(c),ext=cabExt(c);
     let m=null,ml=-1;for(let i=1;i<r.pts.length;i++){const a=r.pts[i-1],b=r.pts[i],L=Math.abs(a.x-b.x)+Math.abs(a.y-b.y);if(L>ml){ml=L;m={a,b};}}
     h+=`<g class="cab${selCab===c.id?' on':''}" data-cab="${c.id}"><path class="cab-o" d="${d}" stroke-width="${sw+1.2}"${cc?` style="stroke:${cc.k}"`:''}/><path class="cab-v${ext?' ext':''}" d="${d}" stroke-width="${sw}"${cc?` style="stroke:${cc.c}"`:''}/><path class="hit" d="${d}"/>`;
     if(m&&ml>20){const v=Math.abs(m.a.x-m.b.x)<.01,tx=(m.a.x+m.b.x)/2,ty=(m.a.y+m.b.y)/2;h+=`<text class="cab-t" x="${tx}" y="${ty}" style="fill:${cc?cc.k:'#f5f5ee'}" text-anchor="middle" dominant-baseline="central"${v?` transform="rotate(-90 ${tx} ${ty})"`:''}>${esc(c.no)}</text>`;}
     // 剝線點放在最上層，才不會被芯線擋住拖不到
-    ['a','b'].forEach(k=>{const p=r[k];boH+=`<rect class="bo${p.auto?'':' set'}" data-bo="${c.id}|${k}" data-on="${selCab===c.id?1:0}" x="${p.x-2.2}" y="${p.y-2.2}" width="4.4" height="4.4" rx=".8"><title>${esc(c.no)} ${k==='a'?'A':'B'} 端剝線點${p.auto?'（自動）':''}，可拖曳</title></rect>`;});
+    ['a','b'].forEach(k=>{const p=r[k];if(!p)return;boH+=`<rect class="bo${p.auto?'':' set'}" data-bo="${c.id}|${k}" data-on="${selCab===c.id?1:0}" x="${p.x-2.2}" y="${p.y-2.2}" width="4.4" height="4.4" rx=".8"><title>${esc(c.no)} ${k==='a'?'A':'B'} 端剝線點${p.auto?'（自動）':''}，可拖曳</title></rect>`;});
     h+='</g>';
   });
   for(const w of S.wires){
     const r=ROUTES.get(w.id); if(!r) continue;
     // 電纜芯線只畫剝線點到接點那兩段
-    const segs=r.tails||[r.pts],vis=r.tails?{...r}:r;
+    const segs=r.tails?r.tails.filter(p=>p.length>1):[r.pts],vis=r.tails?{...r}:r;
     h+=`<g class="wire${r.cab?' core':''}" data-wid="${w.id}">${segs.map(p=>wireInner(w,{...vis,pts:p})).join('')}${segs.map(p=>`<path class="hit" d="${pathD(p)}"/>`).join('')}`;
     labelSpots(w,r).forEach(p=>{h+=`<text class="wn" data-lab="${w.id}" x="${p.x}" y="${p.y}" text-anchor="middle" dominant-baseline="central"${p.v?` transform="rotate(-90 ${p.x} ${p.y})"`:''}>${esc(w.no)}</text>`;});
     h+='</g>';
@@ -272,7 +272,7 @@ function applyWireClasses(){
 function renderOverlay(){
   const k=view.k,inv=`scale(${1/k})`;let h='';
   const focus=listHover||hoverW||sel;
-  if(hoverW&&hoverW!==sel&&hoverW!==listHover){const r=ROUTES.get(hoverW);if(r)(r.tails||[r.pts]).forEach(p=>h+=`<path class="hov" d="${pathD(p)}"/>`);}
+  if(hoverW&&hoverW!==sel&&hoverW!==listHover){const r=ROUTES.get(hoverW);if(r)(r.tails?r.tails.filter(p=>p.length>1):[r.pts]).forEach(p=>h+=`<path class="hov" d="${pathD(p)}"/>`);}
   if(focus){
     const w=S.wires.find(x=>x.id===focus),r=ROUTES.get(focus);
     if(w&&r){

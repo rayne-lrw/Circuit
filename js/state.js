@@ -187,24 +187,28 @@ function sameNode(e){
   const g=slotGroup(d,+m[1]);
   return x=>{if(x.d!==e.d)return false;const k=SLOT_RE.exec(x.t);return !!k&&slotGroup(d,+k[1])===g;};
 }
+// 電纜接頭端：每一芯是接頭裡不同的腳位，雖然畫在同一個接點，電位各自獨立
+const pinEnd=(w,k)=>!!(w.cab&&samePt(w[k],plugOf(cabOf(w.cab),k)));
+const endKey=(w,k)=>pinEnd(w,k)?nodeKey(w[k])+'|pin:'+w.cab+':'+w.core:nodeKey(w[k]);
+const atNode=(f,x)=>(f(x.a)&&!pinEnd(x,'a'))||(f(x.b)&&!pinEnd(x,'b'));
 function parallelOf(w){
   const fa=sameNode(w.a),fb=sameNode(w.b),others=S.wires.filter(x=>x!==w);
-  return {a:others.filter(x=>fa(x.a)||fa(x.b)),b:others.filter(x=>fb(x.a)||fb(x.b))};
+  return {a:pinEnd(w,'a')?[]:others.filter(x=>atNode(fa,x)),b:pinEnd(w,'b')?[]:others.filter(x=>atNode(fb,x))};
 }
 /* 電位：導線把兩端的接點連起來；端子台同一片的上下各點算同一點。回傳 線 id → 電位編號 */
 function nodeKey(e){const d=devOf(e.d);if(busOf(d))return e.d+'|*';const li=linkOf(d,e.t);if(li>=0)return e.d+'|~'+li;const m=d&&hasSlots(tplOf(d))&&SLOT_RE.exec(e.t);return e.d+'|'+(m?'#'+slotGroup(d,+m[1]):e.t);}
 function netsOf(){
   const P=new Map(),f=k=>{while(P.get(k)!==k){P.set(k,P.get(P.get(k)));k=P.get(k);}return k;};
   const add=k=>{if(!P.has(k))P.set(k,k);};
-  S.wires.forEach(w=>{const a=nodeKey(w.a),b=nodeKey(w.b);add(a);add(b);P.set(f(a),f(b));});
-  const m=new Map();S.wires.forEach(w=>m.set(w.id,f(nodeKey(w.a))));return m;
+  S.wires.forEach(w=>{const a=endKey(w,'a'),b=endKey(w,'b');add(a);add(b);P.set(f(a),f(b));});
+  const m=new Map();S.wires.forEach(w=>m.set(w.id,f(endKey(w,'a'))));return m;
 }
 // 線號可以重複（共點、同電位用同一個號碼）；重複時用「線號＋兩端」指出是哪一條
 const sameNo=w=>S.wires.filter(x=>x!==w&&x.no===w.no);
 const wireRef=w=>sameNo(w).length?`${w.no}（${epText(w.a)} → ${epText(w.b)}）`:w.no;
 // 新線預設線號：起點或終點的接點已經有線，就沿用（同電位）；否則取下一個沒人用的號碼
 function inheritNo(a,b){
-  const fa=sameNode(a),fb=sameNode(b),on=f=>S.wires.find(x=>f(x.a)||f(x.b));
+  const fa=sameNode(a),fb=sameNode(b),on=f=>S.wires.find(x=>atNode(f,x));
   const wa=on(fa),wb=on(fb);
   return {no:(wa||wb||{}).no||null,a:wa&&wa.no,b:wb&&wb.no};
 }

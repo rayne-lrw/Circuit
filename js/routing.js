@@ -368,7 +368,7 @@ function computeIssues(){
   S.wires.forEach(w=>{if(!w.wps.length||w.cab)return;const r=ROUTES.get(w.id);if(r&&backtrack(r.pts))out.push({t:`${wireRef(w)} 在中繼點前後沿原路折返，建議移動中繼點`,k:'wire',id:w.id});});
   // 二極體接在線圈上：K 要接 +、A 接 −；AC 線圈不能接二極體
   {const P=new Map(),f=k=>{while(P.has(k)&&P.get(k)!==k)k=P.get(k);return k;},u=(a,b)=>{const x=f(a),y=f(b);if(x!==y)P.set(x,y);};
-   S.wires.forEach(w=>u(nodeKey(w.a),nodeKey(w.b)));
+   S.wires.forEach(w=>u(endKey(w,'a'),endKey(w,'b')));
    const coils=S.devices.map(h=>({h,c:coilOf(h)})).filter(x=>x.c);
    S.devices.filter(d=>tplOf(d).sym==='diode').forEach(d=>{
      const a=f(nodeKey({d:d.id,t:'A'})),k=f(nodeKey({d:d.id,t:'K'}));
@@ -433,17 +433,18 @@ function computeRoutes(){
   // 電纜：外皮從 A 端剝線點走到 B 端剝線點，每一芯從接點走到剝線點
   const cabJobs=[];
   (S.cables||[]).forEach(c=>{
-    const cw=coresOf(c);if(!cw.length) return;
+    const cw=coresOf(c),P=c.plug||{};if(!cw.length&&!(P.a&&P.b)) return;
     const ea=cw.map(w=>endpoint(w.a,off(w.a))),eb=cw.map(w=>endpoint(w.b,off(w.b)));
-    const side=(k,ends)=>{const o=c.bo&&c.bo[k];const p=o?{x:o.x,y:o.y,sheet:sheetAt(o)}:autoBO(ends,ends[0].sheet);return {x:p.x,y:p.y,sheet:p.sheet,inDuct:locate(p,p.sheet),wp:true,bo:true,auto:!o,...(!o&&p.dev&&p.side?{boDev:p.dev,boSide:p.side}:{})};};
+    // 接頭那一端：外皮直接走到接頭（接點），不剝線
+    const side=(k,ends)=>{if(P[k])return endpoint(P[k],0);const o=c.bo&&c.bo[k];const p=o?{x:o.x,y:o.y,sheet:sheetAt(o)}:autoBO(ends,ends[0].sheet);return {x:p.x,y:p.y,sheet:p.sheet,inDuct:locate(p,p.sheet),wp:true,bo:true,auto:!o,...(!o&&p.dev&&p.side?{boDev:p.dev,boSide:p.side}:{})};};
     const A=side('a',ea),B=side('b',eb);
     // 外皮可以加中繼點、可以不進線槽；電纜本來就能走線槽外，穿過其他器具不警告
-    const cg=c.gland||(cw.map(w=>devOf(w.b.d)).find(d=>d&&d.gland)||{}).gland; // 電纜：指定的出線口，其次是現場設備的預設出線口
+    const cg=c.gland||([...cw.map(w=>devOf(w.b.d)),P.b&&devOf(P.b.d)].find(d=>d&&d.gland)||{}).gland; // 電纜：指定的出線口，其次是現場設備的預設出線口
     const sa=buildAnchors(A,B,c.wps||[],ctr,cg),sh=job('S:'+c.id,0,sa,legsOf(sa,!!c.direct),false,cabOD(c));sh.cab=true;items.push(sh);
     const tails=cw.map((w,i)=>{
-      const ta=buildAnchors(ea[i],{...A},[],ctr,null),tb=buildAnchors({...B},eb[i],[],ctr,null);
-      const ja=job(w.id+'#a',w.gauge,ta,legsOf(ta,false),false),jb=job(w.id+'#b',w.gauge,tb,legsOf(tb,false),false);
-      items.push(ja,jb);return {w,ja,jb};
+      const ta=P.a?null:buildAnchors(ea[i],{...A},[],ctr,null),tb=P.b?null:buildAnchors({...B},eb[i],[],ctr,null);
+      const ja=ta&&job(w.id+'#a',w.gauge,ta,legsOf(ta,false),false),jb=tb&&job(w.id+'#b',w.gauge,tb,legsOf(tb,false),false);
+      if(ja)items.push(ja);if(jb)items.push(jb);return {w,ja,jb};
     });
     cabJobs.push({c,A,B,sh,tails});
   });
@@ -537,9 +538,10 @@ function computeRoutes(){
   }
   cabJobs.forEach(({c,A,B,sh,tails})=>{
     const S0=FIN.get(sh.id);
-    CABROUTES.set(c.id,{...S0,a:{x:A.x,y:A.y,auto:A.auto},b:{x:B.x,y:B.y,auto:B.auto}});
+    CABROUTES.set(c.id,{...S0,a:A.bo?{x:A.x,y:A.y,auto:A.auto}:null,b:B.bo?{x:B.x,y:B.y,auto:B.auto}:null});
+    const none={pts:[],len:0,via:[],warn:null}; // 接頭那一端沒有芯線段
     tails.forEach(({w,ja,jb})=>{
-      const ra=FIN.get(ja.id),rb=FIN.get(jb.id),parts=[ra,S0,rb],via=[];
+      const ra=ja?FIN.get(ja.id):none,rb=jb?FIN.get(jb.id):none,parts=[ra,S0,rb],via=[];
       parts.forEach(p=>p.via.forEach(id=>{if(via[via.length-1]!==id)via.push(id);}));
       const warn=(parts.find(p=>p.warn)||{}).warn||null;
       ROUTES.set(w.id,{pts:simplify([...ra.pts,...S0.pts,...rb.pts]),len:ra.len+S0.len+rb.len,via,warn,gland:S0.gland,cab:c.id,parts:[ra.pts,S0.pts,rb.pts],tails:[ra.pts,rb.pts]});

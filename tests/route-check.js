@@ -108,6 +108,19 @@ const SCENARIOS=[
     const c2=newCable('CB02','');[['15A','COM'],['16A','上'],['17A','下']].forEach(([a,b],i)=>attachCore(makeCoreWire({d:'X1',t:a},{d:'CB1',t:b},'CB2'+i),c2,String(i+1)));
     return {state:st,expectClean:[]};
   }},
+  {name:'接頭電纜（兩端接頭、一端接頭）',build:()=>{
+    const st=normalize(sampleState()).state;S=st;const f=st.devices.find(d=>d.sheet==='field');
+    // 伺服放在底板上空的地方（不壓到其他器具和線槽）
+    const T=resolveTpl('je40'),busy=[...st.devices.filter(d=>d.sheet==='plate').map(d=>rectOf('dev',d)),...st.ducts.filter(d=>d.sheet==='plate')];
+    let at=null;for(let y=10;y+T.h<st.plate.h&&!at;y+=10)for(let x=10;x+T.w<st.plate.w&&!at;x+=10){const r={x:x-8,y:y-8,w:T.w+16,h:T.h+16};if(!busy.some(b=>overlap(r,b)))at={x,y};}
+    st.devices.push({id:'SVP',tag:'SVP',tpl:'je40',x:at.x,y:at.y,sheet:'plate'},{id:'MP',tag:'MP',tpl:'hgkn43',x:f.x+260,y:f.y,sheet:'field'});
+    // 兩端都是接頭：沒有芯線，外皮從 CN2 走到 ENC
+    const c1=newCable('CP1','伺服編碼線 6C');c1.plug={a:{d:'SVP',t:'CN2'},b:{d:'MP',t:'ENC'}};
+    // 一端接頭：CN1A 接頭到馬達 U、V（每一芯是接頭裡不同腳位）
+    const c2=newCable('CP2','0.75mm²*4C');c2.plug={a:{d:'SVP',t:'CN1A'}};
+    [['U','1'],['V','2']].forEach(([t,k])=>attachCore(makeCoreWire({d:'SVP',t:'CN1A'},{d:'MP',t},'',c2),c2,k));
+    return {state:st,expectClean:[],expectPlug:{CP1:{a:null,b:null,cores:0},CP2:{a:null,b:'bo',cores:2}}};
+  }},
   {name:'出線口進出（現場區在箱子上方）',build:()=>{
     const st=normalize(sampleState()).state;S=st;const o=boxOrigin();
     // 現場區搬到箱子上方（和你的專案一樣），區內器具一起搬
@@ -138,7 +151,7 @@ const SCENARIOS=[
   }},
 ];
 
-function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,expectGland,expectWall){
+function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,expectGland,expectWall,expectPlug){
   const res=[];
   const fam=id=>famIds(id);
   const crosses=(w,pts)=>{
@@ -187,7 +200,8 @@ function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,exp
     if(r.cab){const c=CABROUTES.get(r.cab);if(!c)msgs.push('電纜沒有外被路徑');
       // 芯線兩段要接在剝線點上
       else{const [ta,tb]=r.tails,eq=(p,q)=>Math.abs(p.x-q.x)+Math.abs(p.y-q.y)<.6;
-        if(!eq(ta[ta.length-1],c.pts[0]))msgs.push('A 端芯線沒有接到剝線點');if(!eq(tb[0],c.pts[c.pts.length-1]))msgs.push('B 端芯線沒有接到剝線點');}}
+        // 接頭那一端沒有芯線段：外皮直接到接頭
+        if(ta.length&&!eq(ta[ta.length-1],c.pts[0]))msgs.push('A 端芯線沒有接到剝線點');if(tb.length&&!eq(tb[0],c.pts[c.pts.length-1]))msgs.push('B 端芯線沒有接到剝線點');}}
     res.push({no:w.no,ok:!msgs.length,msg:msgs.join('；')});
   }
   // 出線口：經過指定的出線口、只在出線口穿過箱壁一次、穿過點在出線口上、沒有任何一段貼著箱壁邊線、沒有折返
@@ -226,6 +240,13 @@ function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,exp
     if(L.ext&&c.bo&&c.bo.a){const r=CABROUTES.get(c.id);if(Math.abs(r.a.x-c.bo.a.x)+Math.abs(r.a.y-c.bo.a.y)>.01)msgs.push('剝線點沒有照拖曳的位置');}
     res.push({no:'電纜 '+c.no,ok:!msgs.length,msg:msgs.join('；')});
   }
+  // 接頭電纜：接頭那端沒有剝線點，外皮端點就在接頭；一端接頭的芯線各自是不同電位、不同線號
+  if(expectPlug)Object.entries(expectPlug).forEach(([no,e])=>{const c=S.cables.find(x=>x.no===no),R=c&&CABROUTES.get(c.id),m=[];
+    if(!R){res.push({no:'接頭 '+no,ok:false,msg:'沒有外皮路徑'});return;}
+    ['a','b'].forEach(k=>{if(!!R[k]!==(e[k]==='bo'))m.push(`${k.toUpperCase()} 端${e[k]==='bo'?'應有':'不應有'}剝線點`);const p=plugOf(c,k);if(p){const E=endpoint(p,0),q=k==='a'?R.pts[0]:R.pts[R.pts.length-1];if(Math.hypot(E.x-q.x,E.y-q.y)>.5)m.push(`外皮 ${k.toUpperCase()} 端沒有接到接頭`);}});
+    const cw=coresOf(c),nets=netsOf();if(cw.length!==e.cores)m.push(`芯線 ${cw.length} 條，應為 ${e.cores}`);
+    if(new Set(cw.map(w=>nets.get(w.id))).size!==cw.length)m.push('接頭的不同腳位被當成同一電位');if(new Set(cw.map(w=>w.no)).size!==cw.length)m.push('接頭的不同腳位用了同一個線號');
+    res.push({no:'接頭 '+no,ok:!m.length,msg:m.join('；')});});
   // 電纜外皮不可穿過現場端的器具（剝線點在器具某一側，外皮從另一側過來要繞過去）
   (S.cables||[]).forEach(c=>{const R=CABROUTES.get(c.id);if(!R)return;
     const devs=[...new Set(coresOf(c).map(w=>w.b.d))].map(devOf).filter(d=>d&&d.sheet==='field');
@@ -245,7 +266,7 @@ function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,exp
     const out=await p.evaluate(([src,arg,chk])=>{
       const sc=new Function('arg','return ('+src+')(arg)')(arg);
       S=sc.state;resetUi();computeRoutes();
-      return new Function('expectClean','expectVia','expectCable','expectBack','expectCoil','expectGland','expectWall','return ('+chk+')(expectClean,expectVia,expectCable,expectBack,expectCoil,expectGland,expectWall)')(sc.expectClean,sc.expectVia,sc.expectCable,sc.expectBack,sc.expectCoil,sc.expectGland,sc.expectWall);
+      return new Function('expectClean','expectVia','expectCable','expectBack','expectCoil','expectGland','expectWall','expectPlug','return ('+chk+')(expectClean,expectVia,expectCable,expectBack,expectCoil,expectGland,expectWall,expectPlug)')(sc.expectClean,sc.expectVia,sc.expectCable,sc.expectBack,sc.expectCoil,sc.expectGland,sc.expectWall,sc.expectPlug);
     },[fnSrc,arg,checkInPage.toString()]);
     const bad=out.filter(x=>!x.ok);total+=out.length;fail+=bad.length;
     console.log(`${bad.length?'✗':'✓'} ${name}：${out.length} 條線，${bad.length} 條失敗`);

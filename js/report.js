@@ -84,7 +84,7 @@ function bomRows(){
 // 電纜長度（mm）：外皮（外部電纜只算箱內段）＋兩端剝線後最長那一芯＋現場長度＋預留
 const ptsLen=p=>{let L=0;for(let i=1;i<p.length;i++)L+=Math.abs(p[i].x-p[i-1].x)+Math.abs(p[i].y-p[i-1].y);return L;};
 function cabLen(c){
-  const r=CABROUTES.get(c.id),cw=coresOf(c),ext=cw.some(w=>wireKind(w)==='ext'),L=p=>ext?inBoxLen(p):ptsLen(p);
+  const r=CABROUTES.get(c.id),cw=coresOf(c),ext=cabExt(c),L=p=>ext?inBoxLen(p):ptsLen(p);
   const sheath=r?L(r.pts):0;let tail=0;
   cw.forEach(w=>{const x=ROUTES.get(w.id);if(x&&x.tails)tail=Math.max(tail,L(x.tails[0])+L(x.tails[1]));});
   const box=sheath+tail,field=Math.max(0,Number(c.fieldLen)||0),sp=r?spare():0;
@@ -92,7 +92,7 @@ function cabLen(c){
 }
 function cableGroups(){
   return [...S.cables].sort((a,b)=>natCmp(a.no,b.no)).map(c=>{const L=cabLen(c),cw=coresOf(c);
-    return {no:c.no,spec:c.spec,cores:cw.length,all:c.cores.length,len:L.total,box:L.box,field:L.field,ext:L.ext,c};});
+    return {no:c.no,spec:c.spec,cores:bothPlug(c)?c.cores.length:cw.length,all:c.cores.length,len:L.total,box:L.box,field:L.field,ext:L.ext,c};});
 }
 /* 線長統計：散線（不含電纜芯線）依線徑、顏色；全部依種類；電纜另列 */
 function lenStats(){
@@ -138,8 +138,9 @@ function extTable(){
   const rows=[];
   [...S.cables].sort((a,b)=>natCmp(a.no,b.no)).forEach(c=>{
     const by=new Map(coresOf(c).map(w=>[w.core,w])),L=cabLen(c),g=CABROUTES.get(c.id)?.gland||'';
-    c.cores.forEach(k=>{const w=by.get(k.n),f=w&&devOf(w.b.d);
-      rows.push([c.no,specName(c.spec),k.n,coreColor(k).n,w?w.no:'備用',w?epText(w.a):'',w?epText(w.b):'',g,f&&f.sheet==='field'?zoneOf(f)?.name||'':'',m1(L.total)]);});
+    const pa=plugOf(c,'a'),pb=plugOf(c,'b'),pl=pa&&pb; // 兩端都是接頭：每一芯都是接頭到接頭，沒有線號
+    c.cores.forEach(k=>{const w=by.get(k.n),f=w?devOf(w.b.d):pl&&devOf(pb.d);
+      rows.push([c.no,specName(c.spec),k.n,coreColor(k).n,w?w.no:pl?'（接頭）':'備用',w?epText(w.a):pl?epText(pa)+'（接頭）':'',w?epText(w.b):pl?epText(pb)+'（接頭）':'',g,f&&f.sheet==='field'?zoneOf(f)?.name||'':'',m1(L.total)]);});
     coresOf(c).filter(w=>!coreDef(c,w.core)).forEach(w=>rows.push([c.no,specName(c.spec),w.core,colorOf(w).n,w.no,epText(w.a),epText(w.b),g,'',m1(L.total)]));
   });
   S.wires.filter(w=>wireKind(w)==='ext'&&!isCable(w)).sort((a,b)=>natCmp(a.no,b.no)).forEach(w=>rows.push(['（散線）','','',colorOf(w).n,w.no,epText(w.a),epText(w.b),ROUTES.get(w.id)?.gland||'',zoneOf(devOf(w.b.d))?.name||zoneOf(devOf(w.a.d))?.name||'',m1(wireLen(w))]));

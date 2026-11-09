@@ -61,8 +61,28 @@ function attachCore(w,c,name){
     flip=(B.has(w.a.d)||A.has(w.b.d))&&!(A.has(w.a.d)||B.has(w.b.d));
   }
   if(flip){const t=w.a;w.a=w.b;w.b=t;}
+  plugFix(w,c);
   return k;
 }
+/* 接頭：電纜某一端是接頭（c.plug.a / c.plug.b＝{d,t}，例如伺服編碼線插在 CN2），那一端不剝線，外皮直接進接頭；
+   芯線的那一端一律是接頭那個接點。兩端都是接頭時不用接芯線 */
+const samePt=(e,p)=>!!(p&&e&&e.d===p.d&&e.t===p.t);
+const plugOf=(c,k)=>c&&c.plug&&c.plug[k]||null;
+const bothPlug=c=>!!(plugOf(c,'a')&&plugOf(c,'b'));
+function plugFix(w,c){
+  const A=plugOf(c,'a'),B=plugOf(c,'b');
+  if((A&&samePt(w.b,A)&&!samePt(w.a,A))||(B&&samePt(w.a,B)&&!samePt(w.b,B))){const t=w.a;w.a=w.b;w.b=t;}
+  if(A&&!samePt(w.a,A))w.a={d:A.d,t:A.t};
+  if(B&&!samePt(w.b,B))w.b={d:B.d,t:B.t};
+}
+// 電纜兩端對調（芯線兩端、剝線點、接頭、兩端器具一起換）
+function swapCableSides(c){
+  coresOf(c).forEach(w=>{const t=w.a;w.a=w.b;w.b=t;});
+  const sw=o=>{if(!o)return o;const r={};if(o.b)r.a=o.b;if(o.a)r.b=o.a;return r;};
+  c.bo=sw(c.bo)||{};if(c.plug)c.plug=sw(c.plug);if(c.ends)c.ends=sw(c.ends);
+}
+// 外部電纜：有芯線到現場，或接頭裝在現場／箱外的器具
+const cabExt=c=>coresOf(c).some(w=>wireKind(w)==='ext')||['a','b'].some(k=>{const p=plugOf(c,k),d=p&&devOf(p.d);return !!(d&&(d.sheet==='field'||(typeof outBox==='function'&&outBox({dev:d.id,sheet:d.sheet}))));});
 // 芯線顏色可能是臨時新增的顏色：色碼存在芯線定義上，重新整理後也不會變
 function paintCore(w,k){w.gauge=k.g;applyColor(w,k.c);if(k.hex){w.hex=k.hex;w.cname=k.cn||'自訂';}}
 function setCoreColor(k,key){k.c=key;const t=tempColors[key];if(t){k.hex=t.c;k.cn=t.n;}else{delete k.hex;delete k.cn;}}
@@ -74,6 +94,8 @@ function detachCore(w){delete w.cab;delete w.core;delete w.ext;}
 // 存檔時外線表用的欄位跟著電纜同步
 function syncCables(){
   if(!Array.isArray(S.cables)) S.cables=[];
+  // 接頭：器具或接點不見了就改回散線
+  S.cables.forEach(c=>{if(!c.plug)return;['a','b'].forEach(k=>{const p=c.plug[k],d=p&&devOf(p.d);if(p&&!(d&&termOf(d,p.t)))delete c.plug[k];});if(!c.plug.a&&!c.plug.b)delete c.plug;});
   // 電纜兩端器具：刪掉的器具拿掉
   S.cables.forEach(c=>{if(!c.ends)return;['a','b'].forEach(k=>{if(c.ends[k])c.ends[k]=c.ends[k].filter(id=>devOf(id));});});
   S.wires.forEach(w=>{
@@ -81,6 +103,7 @@ function syncCables(){
     const c=cabOf(w.cab);if(!c){detachCore(w);return;}
     // 外部電纜的現場端一律放在 b 端（舊檔的外線可能是從現場畫進箱內）
     const A=devOf(w.a.d),B=devOf(w.b.d);if(A&&B&&A.sheet==='field'&&B.sheet!=='field'){const t=w.a;w.a=w.b;w.b=t;}
+    if(c.plug)plugFix(w,c);
     if(wireKind(w)==='ext') w.ext={cable:c.no,core:w.core,spec:c.spec};else delete w.ext;
   });
 }
