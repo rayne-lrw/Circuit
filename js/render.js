@@ -13,14 +13,34 @@ function pathD(pts){
   }
   const e=pts[pts.length-1];return d+`L${e.x} ${e.y}`;
 }
+/* 接點文字直寫：接點在上緣或下緣排成一橫排、文字寬到會和隔壁的字疊在一起時，整個字轉 90 度（任何旋轉角度都一樣）；
+   範本指定 vlab 的接點一律直寫。回傳 接點 id → 字級。端子台的端子號另外縮字，不在這裡處理 */
+const labW=(lb,f)=>[...String(lb)].reduce((s,c)=>s+(c.charCodeAt(0)>255?1:.61),0)*f;
+const LABV=new Map();
+function labVert(d,t){
+  const key=d.tpl+'|'+(d.count||'')+'|'+(d.rot||0)+'|'+(d.labels?d.labels.join('\u0001'):''),hit=LABV.get(key);if(hit)return hit;
+  const out=new Map(),row=p=>(p.ls||p.side)==='top'||(p.ls||p.side)==='bottom';
+  const lab=p=>{const lb=termLabel(d,p.id);return lb!==p.id&&SLOT_RE.exec(p.id)?null:lb;};
+  t.terms.forEach(p=>{
+    if(!(p.side==='top'||p.side==='bottom')||!row(p))return;const lb=lab(p);if(lb==null)return;
+    const nb=t.terms.filter(q=>q!==p&&q.side===p.side&&Math.abs(q.y-p.y)<1.5&&lab(q)!=null),g=nb.length?Math.min(...nb.map(q=>Math.abs(q.x-p.x))):99;
+    const forced=t.vlab&&t.vlab.includes(p.id),clash=!t.gen&&t.cat!==C7&&nb.some(q=>(labW(lb,3.2)+labW(lab(q),3.2))/2>Math.abs(q.x-p.x)-.6);
+    if(forced||clash)out.set(p.id,forced&&!clash&&!d.rot?2.4:Math.max(1.8,Math.min(3.2,g*.75)));
+  });
+  // 同一排只要有字會疊，整排都直寫，不會一排裡有直有橫
+  t.terms.forEach(p=>{if(out.has(p.id)||!(p.side==='top'||p.side==='bottom')||!row(p)||lab(p)==null)return;
+    const same=t.terms.filter(q=>q!==p&&q.side===p.side&&Math.abs(q.y-p.y)<1.5&&out.has(q.id));
+    if(same.length&&!t.gen&&t.cat!==C7)out.set(p.id,Math.min(...same.map(q=>out.get(q.id))));});
+  if(LABV.size>500)LABV.clear();LABV.set(key,out);return out;
+}
 // 器具編號放中間會壓到接點（含接點旁的文字）時，改放到接點之間最寬的直向空白帶；空白帶太窄就直書
 function tagPlace(d,t,fs,small){
   const n=[...String(d.tag)].reduce((s,c)=>s+(c.charCodeAt(0)>255?1:.62),0),cx=t.w/2,cy=t.h/2,pad=1.2;
   if(small) return {x:cx,y:cy,fs}; // 小器具維持原樣
   // 每個接點佔的範圍：圓點加上旁邊的接點文字（旋轉後接點方向跟著轉，文字位置也跟著算）
+  const LV=labVert(d,t);
   const boxes=t.terms.map(p=>{
-    const lb=String(termLabel(d,p.id)),lw=[...lb].reduce((s,c)=>s+(c.charCodeAt(0)>255?3.2:1.95),0),b=[p.x-2.5,p.x+2.5,p.y-2.5,p.y+2.5];
-    const vl=t.vlab&&!d.rot&&t.vlab.includes(p.id);
+    const lb=String(termLabel(d,p.id)),vl=LV.has(p.id),lw=vl?labW(lb,LV.get(p.id)):[...lb].reduce((s,c)=>s+(c.charCodeAt(0)>255?3.2:1.95),0),b=[p.x-2.5,p.x+2.5,p.y-2.5,p.y+2.5];
     const L=vl?(p.side==='bottom'?[p.x-1.5,p.x+1.5,p.y-2.6-lw,p.y]:[p.x-1.5,p.x+1.5,p.y,p.y+2.6+lw])
       :(p.ls||p.side)==='top'?[p.x-lw/2,p.x+lw/2,p.y+3,p.y+7]:(p.ls||p.side)==='bottom'?[p.x-lw/2,p.x+lw/2,p.y-6.5,p.y-2]
       :(p.ls||p.side)==='left'?[p.x+5-lw/2,p.x+5+lw/2,p.y-1.5,p.y+2.5]:[p.x-5-lw/2,p.x-5+lw/2,p.y-1.5,p.y+2.5];
@@ -102,13 +122,14 @@ function renderBoard(){
       if(!small&&!L.rot&&L.sub!==false&&!t.sym) h+=`<text class="sub" x="${d.x+L.x}" y="${d.y+L.y+Math.max(5.5,L.fs*.8)}" text-anchor="middle" fill="${t.i}"${L.fs<10?` style="font-size:${Math.max(3,L.fs*.44).toFixed(2)}px"`:''}>${esc(t.b)}</text>`;
     }
     const tr=Math.min(t.terms.length>30?1.3:t.terms.length>14?1.7:2.3,minGap(t)*.36); // 接點很密（例如 D-sub）時縮小圓點
+    const LV=labVert(d,t);
     for(const p of t.terms){
       const x=d.x+p.x,y=d.y+p.y;
       h+=`<circle class="term" cx="${x}" cy="${y}" r="${tr}"/>`;
       if(t.sym) continue; // 二極體：方向看符號，不另外標 A、K 文字（滑鼠靠近接點會顯示）
       const lb=termLabel(d,p.id),sm=lb!==p.id&&SLOT_RE.exec(p.id);
       // 極距很密的端子（例如 FX5U 左側 5 極端子）：標籤照手冊直寫
-      if(t.vlab&&!d.rot&&t.vlab.includes(p.id)&&(p.side==='top'||p.side==='bottom')){const up=p.side==='bottom',ty=y+(up?-2.6:2.6);h+=`<text class="tl" x="${x}" y="${ty}" text-anchor="${up?'start':'end'}" dominant-baseline="central" transform="rotate(-90 ${x} ${ty})" fill="${t.i}" style="font-size:2.4px">${esc(lb)}</text>`;continue;}
+      if(LV.has(p.id)){const up=p.side==='bottom',ty=y+(up?-2.6:2.6);h+=`<text class="tl" x="${x}" y="${ty}" text-anchor="${up?'start':'end'}" dominant-baseline="central" transform="rotate(-90 ${x} ${ty})" fill="${t.i}" style="font-size:${LV.get(p.id).toFixed(2)}px">${esc(lb)}</text>`;continue;}
       const ls=p.ls||p.side; // 接點文字位置（可以和出線方向不同）
       if(!(sm&&(sm[2]==='B'||sm[2]==='D'))) h+=`<text class="tl" x="${x+(ls==='left'?5:ls==='right'?-5:0)}" y="${y+(ls==='top'?5.8:ls==='bottom'?-3.6:1)}" text-anchor="middle" fill="${t.i}"${sm?` style="font-size:${Math.min(3.2,7.2/Math.max(2,[...lb].length)).toFixed(2)}px"`:''}>${esc(lb)}</text>`; // 同一片上下兩點只標一次；端子號依長度縮小字體，避免和隔壁重疊
     }
