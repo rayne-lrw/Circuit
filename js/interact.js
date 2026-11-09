@@ -30,7 +30,7 @@ function showTip(id,sx,sy){
   let x=sx+14,y=sy+14;if(x+tw>st.width-6)x=sx-tw-14;if(y+th>st.height-6)y=sy-th-14;
   tip.style.left=Math.max(6,x)+'px';tip.style.top=Math.max(6,y)+'px';
 }
-// 滑鼠在電纜外被上：最上層畫高亮，提示框顯示電纜資料
+// 滑鼠在電纜外皮上：最上層畫高亮，提示框顯示電纜資料
 function cabHover(e,p,blocked){
   const g=!blocked&&e.target.closest&&e.target.closest('[data-cab]'),hc=g?g.dataset.cab:null;
   if(hc!==hoverCab){hoverCab=hc;renderOverlay();}
@@ -161,7 +161,7 @@ svg.addEventListener('pointermove',e=>{
   }else if(act.t==='wp'){
     // 拖曳中只在最上層畫這條線的預覽，原本那條先藏起來；整張重畫在放開時才做（放大時整張重畫會閃）
     const p=toWorld(e);act.wp.x=Math.round(p.x/5)*5;act.wp.y=Math.round(p.y/5)*5;
-    if(act.cab){frame(()=>{computeRoutes();renderWires();renderOverlay();});return;} // 電纜：外被與芯線一起重算
+    if(act.cab){frame(()=>{computeRoutes();renderWires();renderOverlay();});return;} // 電纜：外皮與芯線一起重算
     const w=S.wires.find(x=>x.id===sel);if(!w)return;
     const el=$('wires').querySelector(`.wire[data-wid="${w.id}"]`);if(el)el.style.visibility='hidden';
     dragPrev={w,pts:wirePreview(w)};renderOverlay();
@@ -211,7 +211,7 @@ function clickWire(e,a){
     renderOverlay();updateHint();return;
   }
   const dbl=noteTap(e);
-  // 已選取電纜、點在外被附近：維持選取電纜（外被常和其他導線疊在同一個線槽，不要被上面的導線搶走）
+  // 已選取電纜、點在外皮附近：維持選取電纜（外皮常和其他導線疊在同一個線槽，不要被上面的導線搶走）
   const cr=selCab&&!sel&&CABROUTES.get(selCab);
   if(cr&&polyPos(cr.pts,p).d*view.k<=8){if(dbl)tryDoubleCab(p);return;}
   if(dbl&&sel&&tryDouble(p)) return;
@@ -240,7 +240,7 @@ function noteTap(e){
   lastTap=dbl?null:{t:now,x:e.clientX,y:e.clientY};
   return dbl;
 }
-// 電纜外被：雙擊外被加中繼點，雙擊白點刪除
+// 電纜外皮：雙擊外皮加中繼點，雙擊白點刪除
 function tryDoubleCab(p){
   const c=cabOf(selCab),r=c&&CABROUTES.get(c.id);if(!c||!r) return false;
   c.wps=c.wps||[];

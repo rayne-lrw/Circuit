@@ -144,11 +144,11 @@ function cableDetail(box,c){
       <p class="note" id="rnEx"></p><div class="row" style="justify-content:flex-start"><button class="primary" id="rnGo">套用</button><button class="tool" id="rnX">取消</button></div></div>`:''}
     ${seq}
     ${ro?'':`<div class="row" style="justify-content:flex-start"><button class="tool" id="cabPick">${cabPick===c.id?'停止接線':'在圖上接芯線'}</button>${free.length?`<button class="tool" id="cSeqB"${seqForm?' aria-pressed="true"':''}>依序接…</button>`:''}${ed?'<button class="tool" id="coreAdd2">新增一芯</button>':''}</div>`}
-    ${sec('sheath','外被與路徑',`<div id="cColor"><div class="sub-h">外被顏色　<button class="lnk" data-cdef="1"${c.color?'':' hidden'}>改回預設灰色</button></div>${colorChips(c.color||'',"cs",c.color?{color:c.color,hex:c.hex,cname:c.cname}:null)}</div>
-    <label class="check"><input type="checkbox" id="cDirect"${c.direct?' checked':''}>外被不進線槽（直接拉線）</label>
-    <div class="hrow"><span class="note">外被路徑：中繼點 ${(c.wps||[]).length} 個 ${hq('cwp')}</span></div>${hn('cwp','選取電纜後，雙擊外被可以加中繼點，拖曳白點調整，雙擊白點刪除。中繼點之間直接連，剝線點到中繼點照樣走線槽。電纜本來就能走線槽外，穿過其他器具不警告。')}
+    ${sec('sheath','外皮與路徑',`<div id="cColor"><div class="sub-h">外皮顏色　<button class="lnk" data-cdef="1"${c.color?'':' hidden'}>改回預設黑色</button></div>${colorChips(c.color||'',"cs",c.color?{color:c.color,hex:c.hex,cname:c.cname}:null)}</div>
+    <label class="check"><input type="checkbox" id="cDirect"${c.direct?' checked':''}>外皮不進線槽（直接拉線）</label>
+    <div class="hrow"><span class="note">外皮路徑：中繼點 ${(c.wps||[]).length} 個 ${hq('cwp')}</span></div>${hn('cwp','選取電纜後，雙擊外皮可以加中繼點，拖曳白點調整，雙擊白點刪除。中繼點之間直接連，剝線點到中繼點照樣走線槽。電纜本來就能走線槽外，穿過其他器具不警告。')}
     ${(c.wps||[]).length?'<div class="row" style="justify-content:flex-start"><button class="tool" id="cWpClr">清除中繼點，改回自動</button></div>':''}
-    ${r?`<div class="hrow"><span class="note">剝線點 ${hq('bo')}</span></div>${hn('bo','剝線點是剝掉外被、芯線分開的位置，圖上的白色小方塊。預設放在離芯線最近的線槽裡；拖曳可以移動（接線或擺放模式都可以），移過的變黃色。')}<div class="row" style="justify-content:flex-start">${boRow('a')}${boRow('b')}</div>`:''}`)}
+    ${r?`<div class="hrow"><span class="note">剝線點 ${hq('bo')}</span></div>${hn('bo','剝線點是剝掉外皮、芯線分開的位置，圖上的白色小方塊。預設放在離芯線最近的線槽裡；拖曳可以移動（接線或擺放模式都可以），移過的變黃色。')}<div class="row" style="justify-content:flex-start">${boRow('a')}${boRow('b')}</div>`:''}`)}
     ${sec('info','電纜資訊',`<dl><dt>種類</dt><dd>${cw.length?(L.ext?'外部電纜（到現場）':'箱內電纜'):'還沒有接芯線'}</dd><dt>芯線</dt><dd>已接 ${cw.length} / ${c.cores.length} 芯</dd>${r?`<dt>經過</dt><dd>${r.via.length?esc(r.via.join(' → ')):'直接'}${r.gland?' → '+esc(r.gland):''}</dd>`:''}
       <dt>長度</dt><dd>${L.ext?'箱內':'圖面'} ${m1(L.box)} m${L.ext?`＋現場 ${L.field?m1(L.field)+' m':'未填'}`:L.field?`＋另加 ${m1(L.field)} m`:''}${L.spare?`＋預留 ${m1(L.spare)} m`:''}＝<b>${m1(L.total)} m</b></dd></dl>`)}
 `;
@@ -303,7 +303,7 @@ $('list').addEventListener('click',e=>{
 // 芯線顏色：芯線表編輯中按顏色
 $('detail').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b||sel||picked||!selCab)return;
-  // 外被顏色
+  // 外皮顏色
   if(b.closest('#cColor')){const c=cabOf(selCab);if(!c)return;const key=b.dataset.cdef?null:b.dataset.newc==='cs'?addTemp('cs'):b.dataset.pc;if(key===undefined)return;setCabColor(c,key);commit();recompute();return;}
   const c=cabOf(selCab);if(!c)return;
   const paint=(list,key)=>{list.forEach(k=>{setCoreColor(k,key);const w=coresOf(c).find(x=>x.core===k.n);if(w)paintCore(w,k);});commit();recompute();};

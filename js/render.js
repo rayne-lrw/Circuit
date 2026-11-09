@@ -142,7 +142,7 @@ function renderBoard(){
 }
 function wireInner(w,r){
   const col=colorOf(w),sw=gw(w.gauge),d=pathD(r.pts),kind=wireKind(w);
-  // 散線的外線畫虛線表示在箱外；電纜芯線已經有外被表示，不畫虛線
+  // 散線的外線畫虛線表示在箱外；電纜芯線已經有外皮表示，不畫虛線
   const dash=kind==='ext'&&!w.cab?' stroke-dasharray="7 3" style="stroke-linecap:butt"':'';
   let s=`<path class="vis" d="${d}" stroke="${col.k}" stroke-width="${sw+.9}"/>`;
   s+=`<path class="vis" d="${d}" stroke="${col.c}" stroke-width="${sw}"${dash}/>`;
@@ -181,14 +181,14 @@ function labFrac(w,r,m){
 }
 function renderWires(){
   let h='',boH='';const cableLabel=new Map();
-  // 電纜外被畫在芯線下面；剝線點畫成小方塊，可以拖曳
+  // 電纜外皮畫在芯線下面；剝線點畫成小方塊，可以拖曳
   (S.cables||[]).forEach(c=>{
     const r=CABROUTES.get(c.id);if(!r) return;
-    const cc=cabColor(c); // 使用者指定的外被顏色；沒指定用預設灰色
+    const cc=cabColor(c); // 使用者指定的外皮顏色；沒指定用預設黑色
     const d=pathD(r.pts),sw=cabStroke(c),ext=coresOf(c).some(w=>wireKind(w)==='ext');
     let m=null,ml=-1;for(let i=1;i<r.pts.length;i++){const a=r.pts[i-1],b=r.pts[i],L=Math.abs(a.x-b.x)+Math.abs(a.y-b.y);if(L>ml){ml=L;m={a,b};}}
     h+=`<g class="cab${selCab===c.id?' on':''}" data-cab="${c.id}"><path class="cab-o" d="${d}" stroke-width="${sw+1.2}"${cc?` style="stroke:${cc.k}"`:''}/><path class="cab-v${ext?' ext':''}" d="${d}" stroke-width="${sw}"${cc?` style="stroke:${cc.c}"`:''}/><path class="hit" d="${d}"/>`;
-    if(m&&ml>20){const v=Math.abs(m.a.x-m.b.x)<.01,tx=(m.a.x+m.b.x)/2,ty=(m.a.y+m.b.y)/2;h+=`<text class="cab-t" x="${tx}" y="${ty}" text-anchor="middle" dominant-baseline="central"${v?` transform="rotate(-90 ${tx} ${ty})"`:''}>${esc(c.no)}</text>`;}
+    if(m&&ml>20){const v=Math.abs(m.a.x-m.b.x)<.01,tx=(m.a.x+m.b.x)/2,ty=(m.a.y+m.b.y)/2;h+=`<text class="cab-t" x="${tx}" y="${ty}" style="fill:${cc?cc.k:'#f5f5ee'}" text-anchor="middle" dominant-baseline="central"${v?` transform="rotate(-90 ${tx} ${ty})"`:''}>${esc(c.no)}</text>`;}
     // 剝線點放在最上層，才不會被芯線擋住拖不到
     ['a','b'].forEach(k=>{const p=r[k];boH+=`<rect class="bo${p.auto?'':' set'}" data-bo="${c.id}|${k}" data-on="${selCab===c.id?1:0}" x="${p.x-2.2}" y="${p.y-2.2}" width="4.4" height="4.4" rx=".8"><title>${esc(c.no)} ${k==='a'?'A':'B'} 端剝線點${p.auto?'（自動）':''}，可拖曳</title></rect>`;});
     h+='</g>';
@@ -299,7 +299,7 @@ function renderOverlay(){
   }
   if(snap&&mode==='wire'&&!(draft&&draft.pop)){
     const n=countAt(snap.d,snap.t);
-    const t=`${snap.tag}·${termLabel(devOf(snap.d),snap.t)}`+(snap.desc?` ${snap.desc}`:'')+(n?` 已接 ${n}`:'');
+    const t=`${snap.tag}·${termLabel(devOf(snap.d),snap.t)}`+(snap.desc?` ${snap.desc}`:'')+(n?` 已接：${[...new Set(S.wires.filter(w=>(w.a.d===snap.d&&w.a.t===snap.t)||(w.b.d===snap.d&&w.b.t===snap.t)).map(w=>w.no))].join('、')||n}`:'');
     const tw=[...t].reduce((s,c)=>s+(c.charCodeAt(0)>255?14:8),0)+16;
     const flip=snap.x*k+view.x+tw+30>$('svg').clientWidth;
     const dx=(cursor.x-snap.x)*k,dy=(cursor.y-snap.y)*k;

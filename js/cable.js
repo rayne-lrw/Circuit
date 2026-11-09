@@ -1,8 +1,8 @@
 "use strict";
 /* ---------- 電纜：一條電纜有好幾芯，每一芯就是一條導線（w.cab 指到電纜，w.core 是芯線名稱） ----------
    芯線的 a 端是電纜的 A 端，b 端是 B 端；外部電纜的 B 端在現場。
-   剝線點：剝掉外被、芯線分開走的位置。兩端各一個，預設自動放在最近的線槽裡，可以拖曳（存在 c.bo.a / c.bo.b）。
-   電纜外被從 A 端剝線點走到 B 端剝線點（外部電纜經過出線口），芯線只畫剝線點到接點那一段。 */
+   剝線點：剝掉外皮、芯線分開走的位置。兩端各一個，預設自動放在最近的線槽裡，可以拖曳（存在 c.bo.a / c.bo.b）。
+   電纜外皮從 A 端剝線點走到 B 端剝線點（外部電纜經過出線口），芯線只畫剝線點到接點那一段。 */
 const AWG={24:.2,22:.3,20:.5,18:.75,16:1.25,14:2};
 const CORE_RE=/黃綠|棕|藍|黑|紅|白|灰|綠/g, CORE_KEY={棕:'brown',藍:'blue',黑:'black',紅:'red',白:'white',灰:'gray',綠:'green',黃綠:'ground'};
 // 電料清單裡的電纜；另外加上這次開啟頁面時臨時新增的規格，和專案裡已經用到的規格
@@ -41,7 +41,7 @@ function newCable(no,spec){
   S.cables.push(c);return c;
 }
 const freeCore=c=>{const u=new Set(coresOf(c).map(w=>w.core));return c.cores.find(k=>!u.has(k.n));};
-// 外徑估算：芯線束起來再加外被，用來算線槽占用率與畫面粗細
+// 外徑估算：芯線束起來再加外皮，用來算線槽占用率與畫面粗細
 const cabOD=c=>{const n=Math.max(1,c.cores.length),g=(c.cores[0]&&c.cores[0].g)||.75;return Math.max(4,1.2*Math.sqrt(n)*odOf(g)+1.5);};
 const cabStroke=c=>{const n=Math.max(1,c.cores.length),g=(c.cores[0]&&c.cores[0].g)||.75;return Math.min(5,.9*Math.sqrt(n)*gw(g)+.8);};
 // 把一條線編進電纜：用那一芯的顏色與線徑；現場端放在 b 端；已經有芯線時，靠同一側器具的那端當 a 端
@@ -67,7 +67,7 @@ function attachCore(w,c,name){
 function paintCore(w,k){w.gauge=k.g;applyColor(w,k.c);if(k.hex){w.hex=k.hex;w.cname=k.cn||'自訂';}}
 function setCoreColor(k,key){k.c=key;const t=tempColors[key];if(t){k.hex=t.c;k.cn=t.n;}else{delete k.hex;delete k.cn;}}
 const coreColor=k=>k.hex?{n:k.cn||'自訂',c:k.hex,k:casing(k.hex)}:(COLORS[k.c]||COLORS.black);
-// 外被顏色：c.color 是顏色鍵，臨時顏色的色碼存在 c.hex，重新整理後也不會變
+// 外皮顏色：c.color 是顏色鍵，臨時顏色的色碼存在 c.hex，重新整理後也不會變
 const cabColor=c=>c.hex?{n:c.cname||'自訂',c:c.hex,k:casing(c.hex)}:c.color?keyColor(c.color):null;
 function setCabColor(c,key){if(!key){delete c.color;delete c.hex;delete c.cname;return;}c.color=key;const t=tempColors[key];if(t){c.hex=t.c;c.cname=t.n;}else{delete c.hex;delete c.cname;}}
 function detachCore(w){delete w.cab;delete w.core;delete w.ext;}

@@ -257,9 +257,8 @@ text.sub{font-family:var(--sans);font-size:4.4px}
 #svg:not(.place) .wire.on .wn{pointer-events:all;cursor:grab} /* 選取中的線可以拖曳線號 */
 body.viewing .wire.on .wn{pointer-events:none}
 .cab path{fill:none;stroke-linejoin:round;stroke-linecap:round}
-.cab .cab-o{stroke:#2b2f2e;pointer-events:none}
-.cab .cab-v{stroke:#9aa29f;pointer-events:none}
-.cab .cab-v.ext{stroke:#b9b29a}
+.cab .cab-o{stroke:#f5f5ee;pointer-events:none}
+.cab .cab-v{stroke:#17181a;pointer-events:none}
 .cab .hit{stroke:transparent;stroke-width:12px;vector-effect:non-scaling-stroke;pointer-events:stroke;cursor:pointer}
 .cab.on .cab-o{stroke:var(--accent)}
 #wires.focus .cab:not(.on){--co:.35}

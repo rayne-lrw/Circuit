@@ -81,7 +81,7 @@ function bomRows(){
   });
   return out;
 }
-// 電纜長度（mm）：外被（外部電纜只算箱內段）＋兩端剝線後最長那一芯＋現場長度＋預留
+// 電纜長度（mm）：外皮（外部電纜只算箱內段）＋兩端剝線後最長那一芯＋現場長度＋預留
 const ptsLen=p=>{let L=0;for(let i=1;i<p.length;i++)L+=Math.abs(p[i].x-p[i-1].x)+Math.abs(p[i].y-p[i-1].y);return L;};
 function cabLen(c){
   const r=CABROUTES.get(c.id),cw=coresOf(c),ext=cw.some(w=>wireKind(w)==='ext'),L=p=>ext?inBoxLen(p):ptsLen(p);
@@ -123,7 +123,7 @@ function lenSections(){
     {h:'依線徑（散線，不含電纜芯線）',head:['線徑','條數','長度 m'],rows:one(s.gauge),num:[1,2]},
     {h:'依顏色（散線，不含電纜芯線）',head:['顏色','條數','長度 m'],rows:one(s.color),num:[1,2]},
     {h:'依種類（全部導線）',head:['種類','條數','長度 m'],rows:one(s.kind),num:[1,2]},
-    {h:'依電纜（外被＋最長芯＋現場長度＋預留）',head:['電纜','規格','已接芯數','箱內 m','現場 m','合計 m'],rows:s.cables.map(c=>[c.no,specName(c.spec),`${c.cores}/${c.all}`,m1(c.box),c.ext?(c.field?m1(c.field):'未填'):'—',m1(c.len)]),num:[3,4,5]}
+    {h:'依電纜（外皮＋最長芯＋現場長度＋預留）',head:['電纜','規格','已接芯數','箱內 m','現場 m','合計 m'],rows:s.cables.map(c=>[c.no,specName(c.spec),`${c.cores}/${c.all}`,m1(c.box),c.ext?(c.field?m1(c.field):'未填'):'—',m1(c.len)]),num:[3,4,5]}
   ].filter(x=>x.rows.length&&!(x.rows.length===1&&x.rows[0][0]==='合計'));
 }
 function wireTable(){
