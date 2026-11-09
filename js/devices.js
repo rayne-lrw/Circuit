@@ -159,8 +159,10 @@ def('yw1b',null,D1,'IDEC','YW1B-V4E02R 緊急停止 2NC',40,40,46,'ES','red',[..
 def('yw1l-r',null,D1,'IDEC','YW1L 照光按鈕 1NC 紅',30,41.4,46,'PB','red',PB(['1','2']),{sheet:'door',round:true});
 def('yw1l-g',null,D1,'IDEC','YW1L 照光按鈕 1NO 綠',30,41.4,46,'PB','blue',PB(['3','4']),{sheet:'door',round:true});
 def('yw1s',null,D1,'IDEC','YW1S-2E10 選擇開關 1NO',30,41.4,45.8,'SS','dark',row(['3','4'],35,'bottom',30,'接點',8),{sheet:'door',round:true,note:'面板前方突出 24 mm；面板厚 0.8～6 mm'});
-def('py2201-g',null,D1,'','PY2201A-24G 金屬開關 綠光 Ø22',25,25,37,'SB','blue',[...row(['1','2','+'],7,'top',25,'NC／指示燈',4),...row(['3','4','-'],18,'bottom',25,'NO／指示燈',4)],{sheet:'door',round:true,note:'1NO/1NC 環形 LED；接點編號以實物為準'});
-def('py2201-r',null,D1,'','PY2201A-24R 金屬開關 紅光 Ø22',25,25,37,'SB','red',[...row(['1','2','+'],7,'top',25,'NC／指示燈',4),...row(['3','4','-'],18,'bottom',25,'NO／指示燈',4)],{sheet:'door',round:true,note:'1NO/1NC 環形 LED；接點編號以實物為準'});
+// 金屬開關：1、2 是 NC（常閉），3、4 是 NO（常開），+、- 是指示燈
+const PY2201_T=()=>[...row(['1','2','+'],7,'top',25,'',4),...row(['3','4','-'],18,'bottom',25,'',4)].map(t=>(t[4]={'1':'NC 常閉','2':'NC 常閉','3':'NO 常開','4':'NO 常開','+':'指示燈 +','-':'指示燈 −'}[t[0]],t));
+def('py2201-g',null,D1,'','PY2201A-24G 金屬開關 綠光 Ø22',25,25,37,'SB','blue',PY2201_T(),{sheet:'door',round:true,note:'1NO/1NC 環形 LED；接點編號以實物為準'});
+def('py2201-r',null,D1,'','PY2201A-24R 金屬開關 紅光 Ø22',25,25,37,'SB','red',PY2201_T(),{sheet:'door',round:true,note:'1NO/1NC 環形 LED；接點編號以實物為準'});
 def('gs2107',null,D1,'三菱','GS2107 人機 7"',206,155,50,'HMI','dark',row(['24V','0V','FG','LAN'],10,'bottom',206,'',30),{sheet:'door'});
 def('nextech',null,D1,'Nextech','AP 21.5" 圖控介面 DC12V',511.2,314.9,70,'HMI','dark',[['DC-IN',140.4,306.9,'bottom','12V DC 接頭'],['LAN1',475.5,306.9,'bottom','RJ45 GbE'],['LAN2',454.9,306.9,'bottom','RJ45 GbE'],['COM1',358.1,306.9,'bottom','RS232'],['COM2',265.6,306.9,'bottom','RS232'],['COM3',244.6,306.9,'bottom','RS232'],['COM4',222.6,306.9,'bottom','RS232']],{sheet:'door',note:'前框 531.2×334.9、背面本體 511.2×314.9；RK3588、Android 14；底部 I/O：RJ45×2、HDMI、USB 3.0×4、RS232×4、12V DC-IN、On/Off（C14 AC 輸入為選配）；I/O 位置依照片估計，面板內側看左右相反；深度圖上未標示'});
 def('lk3214',null,D1,'隆光','LK3214K 二連插座',49,89,30,'XS','light',row(['L','N','E'],8,'top',49,'',8),{sheet:'door'});
@@ -225,3 +227,7 @@ function laneExit(id,ids,lane,x0,step,allDown){
 // 伺服驅動器：全部往下出線
 laneExit('j4200',['L1','L2','L3','N-','P3','P4','P+','C','D','L11','L21','U','V','W','PE'],'left',11,.7,true);
 laneExit('je40',['L1','L2','L3','P+','C','U','V','W','E','PE'],'left',33,1,true);
+// 各接點各自的說明（原本一排共用「A／B」合併說明，容易誤導）
+function termDesc(id,map){const T=TPL[id];if(!T||!T.t)return;T.t.forEach(t=>{if(map[t[0]]!=null)t[4]=map[t[0]];});}
+termDesc('cu11',{L1:'主接點',L2:'主接點',L3:'主接點',T1:'主接點',T2:'主接點',T3:'主接點','13':'輔助接點 NO','14':'輔助接點 NO'});
+termDesc('pnoz',{A1:'電源 +24V',A2:'電源 0V','13':'安全接點 NO','14':'安全接點 NO','23':'安全接點 NO','24':'安全接點 NO','33':'安全接點 NO','34':'安全接點 NO','41':'輔助接點 NC','42':'輔助接點 NC',S52:'重置迴路',S34:'重置迴路'});
