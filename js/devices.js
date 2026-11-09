@@ -169,6 +169,10 @@ def('lk3214',null,D1,'隆光','LK3214K 二連插座',49,89,30,'XS','light',row([
 def('hgsr702',null,F1,'三菱','HG-SR702BJK 7kW',130,70,0,'M','dark',[...row(['U','V','W','E'],8,'top',70,'動力',8),['B1',84,8,'top','煞車'],['B2',96,8,'top','煞車'],['ENC',118,8,'top','編碼器']],{sheet:'field'});
 def('hgsr202',null,F1,'三菱','HG-SR202JK 2kW',110,60,0,'M','dark',[...row(['U','V','W','E'],8,'top',70,'動力',8),['ENC',96,8,'top','編碼器']],{sheet:'field'});
 def('hgkn43',null,F1,'三菱','HG-KN43BJK 400W',110,50,0,'M','dark',[...row(['U','V','W','E'],8,'top',56,'動力',6),['B1',66,8,'top','煞車'],['B2',78,8,'top','煞車'],['ENC',98,8,'top','編碼器']],{sheet:'field'});
+// 海泰機電 DM-S 一體化伺服馬達（雷射砲台用）：圓形機身，接點照使用者的接線圖排在上方：RS-485 A、B、VCC、GND，再加 CAN H、L（通訊二擇一）
+const DMS=(w,y,p)=>[['485A','485A','RS-485 A'],['485B','485B','RS-485 B'],['VCC','VCC','電源 +（V+）'],['GND','GND','電源 −（V−）'],['CANH','CAN H','CAN H'],['CANL','CAN L','CAN L']].map(([id,,desc],i)=>[id,w/2+(i-2.5)*p,y,'top',desc]);
+def('dms6015',null,F1,'海泰機電','DM-S-6015 一體化馬達（雷射砲台）',60,60,0,'M','dark',DMS(60,9,6.5),{sheet:'field',round:true,vlab:['485A','485B','VCC','GND','CANH','CANL'],tagAt:{x:30,y:40},note:'RS-485 和 CAN 二擇一；RS-485 是匯流排，多顆並聯時最後一顆的 A、B 之間加 120Ω 終端電阻'});
+def('dms8015',null,F1,'海泰機電','DM-S-8015 一體化馬達（雷射砲台）',80,80,0,'M','dark',DMS(80,10,7),{sheet:'field',round:true,vlab:['485A','485B','VCC','GND','CANH','CANL'],tagAt:{x:40,y:55},note:'RS-485 和 CAN 二擇一；RS-485 是匯流排，多顆並聯時最後一顆的 A、B 之間加 120Ω 終端電阻'});
 def('field-power',null,F1,'','外部電源進線 3P',90,40,0,'PWR','mid',row(['R','S','T','E'],8,'top',90,'電源',12),{sheet:'field'});
 def('e2e',null,F2,'OMRON','E2E-X8B1D18 近接 PNP 3線',50,30,0,'SQ','steel',SENS3,{sheet:'field',note:'E2E NEXT：B1＝直流 3 線 PNP 常開，D18＝M18'});
 def('d4mc',null,F2,'OMRON','D4MC-5020 極限 1C',50,35,0,'LS','steel',[['C',10,8,'top','COM 共點'],['A',25,8,'top','NO 常開（A 接點）'],['B',40,8,'top','NC 常閉（B 接點）']],{sheet:'field',note:'D4MC 是 1C 接點（單刀雙投）：C 共點、A 常開、B 常閉'});
