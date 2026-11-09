@@ -145,12 +145,14 @@ function renderDetailInner(){
       ['w','h'].forEach(f=>{$('z'+f).onchange=e=>{const v=Number(e.target.value);if(!(v>=50))return;z[f]=Math.round(v);commit();recompute();};});
     }else if(picked.k==='gland'){
       const g=S.glands.find(x=>x.id===picked.id),n=[...ROUTES.values()].filter(r=>r.gland===g.id).length;
-      box.innerHTML=`<div class="big">出線口 ${esc(g.id)} ${hq('gland')}</div>${hn('gland','拖曳出線口會吸到最近的箱面（箱底、箱頂、左右兩側）。外線會自動選離現場設備最近的出線口，也可以在外線的資料裡指定。')}<dl><dt>規格</dt><dd>${esc(g.spec)}</dd><dt>外線</dt><dd>${n} 芯</dd><dt>位置</dt><dd>${GSIDE[g.side||'bottom']}</dd></dl>
-      <div class="fields"><label for="gSide">裝在<select id="gSide">${Object.entries(GSIDE).map(([k,n])=>`<option value="${k}"${(g.side||'bottom')===k?' selected':''}>${n}</option>`).join('')}</select></label>
+      box.innerHTML=`<div class="big">出線口 ${esc(g.id)} ${hq('gland')}</div>${hn('gland','拖曳出線口會吸到最近的箱面（箱底、箱頂、左右兩側）。外線會自動選離現場設備最近的出線口，也可以在外線的資料裡指定。')}<dl><dt>外線</dt><dd>${n} 芯</dd><dt>位置</dt><dd>${GSIDE[g.side||'bottom']}</dd></dl>
+      <div class="fields"><label for="gSpec" style="grid-column:1/-1">規格（改尺寸不用刪掉重建，接好的線和電纜都保留）<select id="gSpec">${[...new Set([...GLANDINV,g.spec])].map(n=>`<option value="${esc(n)}"${g.spec===n?' selected':''}>${esc(n)}</option>`).join('')}</select></label>
+      <label for="gSide">裝在<select id="gSide">${Object.entries(GSIDE).map(([k,n])=>`<option value="${k}"${(g.side||'bottom')===k?' selected':''}>${n}</option>`).join('')}</select></label>
       <label for="gPos">${g.side==='left'||g.side==='right'?'距箱頂':'距箱體左緣'} mm<input id="gPos" type="number" step="5" value="${r1((g.side==='left'||g.side==='right')?g.y-boxOrigin().y:g.x-boxOrigin().x)}"></label></div>
 ${moveHtml(!(g.side==='left'||g.side==='right'))}<div class="row"><button class="tool danger" id="delPicked">刪除出線口</button></div>`;
       const bo=boxOrigin(),vert=()=>g.side==='left'||g.side==='right';
       $('gSide').onchange=e=>{const P=glandPt(g),c={x:bo.x+S.box.w/2,y:bo.y+S.box.h/2},s=e.target.value;glandTo(g,{x:s==='left'?bo.x:s==='right'?bo.x+S.box.w:(P.ny?P.x:c.x),y:s==='top'?bo.y:s==='bottom'?bo.y+S.box.h:(P.nx?P.y:c.y)});commit();recompute();};
+      $('gSpec').onchange=e=>{g.spec=e.target.value;commit();recompute();toast(`出線口 ${g.id} 改成 ${g.spec}`);};
       $('gPos').onchange=e=>{const v=Number(e.target.value);if(e.target.value===''||!isFinite(v))return;const P=glandPt(g);glandTo(g,vert()?{x:P.x,y:bo.y+v}:{x:bo.x+v,y:P.y});commit();recompute();};
     }else{
       const d=S.ducts.find(x=>x.id===picked.id);
