@@ -136,12 +136,14 @@ const SCENARIOS=[
     }
     return {state:st,expectClean:['LW'],expectPrev:['LW']};
   }},
-  {name:'兩台小器具接點面對面、靠很近（不繞到對方背面）',build:()=>{
+  {name:'兩台小器具接點靠很近（面對面或互相垂直，不繞路）',build:()=>{
     const T=(side,x)=>({n:'測'+side,b:'',w:30,h:30,d:20,pre:'T',f:'#54595b',sheet:'field',terms:[{id:'P',x,y:15,side,desc:''},{id:'Q',x,y:22,side,desc:''}]});
-    const st=normalize({box:{w:600,h:500,d:300,back:20},plate:{w:500,h:400},door:{w:600,h:500},fields:[{id:'Z1',name:'現場',x:0,y:-400,w:600,h:300}],tpls:{cl:T('right',26.5),cr:T('left',4)},
-      devices:[{id:'A',tag:'A',tpl:'cl',x:100,y:-300,sheet:'field'},{id:'B',tag:'B',tpl:'cr',x:140,y:-300,sheet:'field'},{id:'C',tag:'C',tpl:'cl',x:100,y:-200,sheet:'field'},{id:'D',tag:'D',tpl:'cr',x:140,y:-205,sheet:'field'}],ducts:[],glands:[],wires:[]}).state;S=st;
-    st.wires.push({id:'f1',no:'F1',a:{d:'A',t:'P'},b:{d:'B',t:'P'},wps:[],gauge:.75,color:'black'},{id:'f2',no:'F2',a:{d:'C',t:'P'},b:{d:'D',t:'P'},wps:[],gauge:.75,color:'black'});
-    return {state:st,expectClean:['F1','F2'],expectPrev:['F1','F2'],expectShort:['F1','F2']};
+    const st=normalize({box:{w:600,h:500,d:300,back:20},plate:{w:500,h:400},door:{w:600,h:500},fields:[{id:'Z1',name:'現場',x:0,y:-400,w:600,h:300}],tpls:{cl:T('right',26.5),cr:T('left',4),ct:{n:'測上',b:'',w:30,h:30,d:20,pre:'T',f:'#54595b',sheet:'field',terms:[{id:'P',x:15,y:4,side:'top',desc:''}]}},
+      devices:[{id:'A',tag:'A',tpl:'cl',x:100,y:-300,sheet:'field'},{id:'B',tag:'B',tpl:'cr',x:140,y:-300,sheet:'field'},{id:'C',tag:'C',tpl:'cl',x:100,y:-200,sheet:'field'},{id:'D',tag:'D',tpl:'cr',x:140,y:-205,sheet:'field'},
+        // 方向互相垂直：E 的接點朝上，剛好落在 F 往左出線點和 F 左緣之間（差 1 mm）
+        {id:'E',tag:'E',tpl:'ct',x:180,y:-140,sheet:'field'},{id:'F',tag:'F',tpl:'cr',x:200,y:-185,sheet:'field'}],ducts:[],glands:[],wires:[]}).state;S=st;
+    st.wires.push({id:'f1',no:'F1',a:{d:'A',t:'P'},b:{d:'B',t:'P'},wps:[],gauge:.75,color:'black'},{id:'f2',no:'F2',a:{d:'C',t:'P'},b:{d:'D',t:'P'},wps:[],gauge:.75,color:'black'},{id:'f3',no:'F3',a:{d:'E',t:'P'},b:{d:'F',t:'P'},wps:[],gauge:.75,color:'black'});
+    return {state:st,expectClean:['F1','F2','F3'],expectPrev:['F1','F2','F3'],expectShort:['F1','F2','F3']};
   }},
   {name:'出線口進出（現場區在箱子上方）',build:()=>{
     const st=normalize(sampleState()).state;S=st;const o=boxOrigin();

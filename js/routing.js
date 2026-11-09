@@ -338,6 +338,12 @@ function buildAnchors(ea,eb,wps,ctr,glandId){
     if(va&&vb&&va[0]===-vb[0]&&va[1]===-vb[1]){
       const gap=(eb.x-ea.x)*va[0]+(eb.y-ea.y)*va[1],over=(qb.x-qa.x)*va[0]+(qb.y-qa.y)*va[1];
       if(gap>0&&over<0){const m=va[0]?{x:(ea.x+eb.x)/2}:{y:(ea.y+eb.y)/2};qa={...qa,...m};qb={...qb,...m};}
+    }else if(va&&vb&&va[0]!==-vb[0]){
+      // 兩個接點方向互相垂直、一邊的出線點拉得比另一邊的出線點還遠（還沒越過器具邊緣）：縮回到和另一邊齊平，直接轉一個彎過去
+      const pull=(Q,e,P)=>{const v=V[e.side],d=devOf(e.dev);if(!d)return Q;const r=rectOf('dev',d),back=-((P.x-Q.x)*v[0]+(P.y-Q.y)*v[1]),
+        gap={left:r.x-Q.x,right:Q.x-(r.x+r.w),top:r.y-Q.y,bottom:Q.y-(r.y+r.h)}[e.side];
+        return back>.01&&back<gap?{...Q,...(v[0]?{x:P.x}:{y:P.y})}:Q;};
+      qb=pull(qb,eb,qa);qa=pull(qa,ea,qb);
     }
   }
   if(fam&&!wps.length){out.push(eb);out.local=true;return out;}
