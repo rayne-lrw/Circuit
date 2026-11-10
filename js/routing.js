@@ -442,6 +442,7 @@ function computeIssues(){
   // 器具可以放在底板、面板、現場區以外（例如裝在箱體外側板金），所以不檢查器具是否在範圍內
   S.ducts.forEach(d=>{
     // 箱外線槽（走線架、浪管）不在底板上：只檢查有沒有壓到箱體
+    if(d.virtual)return;
     if(d.sheet==='field'){if(overlap(rectOf('duct',d),BX)) out.push({t:`箱外線槽 ${d.id} 壓到箱體，請移到箱子外面`,k:'duct',id:d.id});return;}
     if(outside(rectOf('duct',d),d.sheet==='door'?D0:P0)) out.push({t:`線槽 ${d.id} 超出${d.sheet==='door'?doorShort():'底板'}`,k:'duct',id:d.id});});
   S.devices.forEach((a,i)=>{
@@ -465,7 +466,7 @@ function computeIssues(){
     plateDevs.forEach(p=>{const pd=effDepth(p);if(overlap(pr,rectOf('dev',p))&&pd+t.d>room) out.push({t:`關門時 ${d.tag} 會撞到 ${p.tag}（${t.d}＋${pd}＞${room} mm）`,k:'dev',id:d.id});});
   });
   S.ducts.forEach(d=>{
-    const u=DUCTUSE.get(d.id);if(!u) return;
+    const u=DUCTUSE.get(d.id);if(!u||d.virtual) return;
     if(u.pct>S.fillLimit) out.push({t:`線槽 ${d.id} 占用 ${u.pct}%，超過上限 ${S.fillLimit}%`,k:'duct',id:d.id});
     // 線道多到畫面上靠得很近只是顯示問題，不列在檢查清單（選取線槽時在右側說明）
   });
@@ -534,7 +535,46 @@ const plugWire=w=>[w.a,w.b].some(e=>e.t==='插頭');
 const key=(e)=>e.d+'|'+e.t;
 // hint：上一輪發現自動剝線點有折返時，外皮實際過來的點（電纜 id|a 或 b → 點），這一輪剝線點改往那裡靠
 let BOHINT={}; // 上次發現剝線點折返後調整用的目標，下次直接沿用（不用每次都多算一輪）
-function computeRoutes(hint){hint=hint&&hint.retry?hint:BOHINT;const sigs={};
+/* ---------- 現場區走線方式（z.route）----------
+   auto：自動幹線，程式在現場區靠箱子那一側放一條看不見的箱外線槽，外線沿它排好再進出線口（不存檔、不算材料）
+   duct：照使用者放的箱外線槽（沒放就直接拉，舊檔都是這個）
+   direct：直接拉，這一區的箱外線槽不拿來走線 */
+let TRUNKS=[];
+const zoneRoute=z=>z&&z.route||'duct';
+function zoneNear(r){const c={x:r.x+r.w/2,y:r.y+r.h/2};let best=null,bd=Infinity;
+  (S.fields||[]).forEach(z=>{const dx=Math.max(z.x-c.x,0,c.x-z.x-z.w),dy=Math.max(z.y-c.y,0,c.y-z.y-z.h),q=dx*dx+dy*dy;if(q<bd){bd=q;best=z;}});return best;}
+function zoneTrunks(){
+  const out=[],BX={...boxOrigin(),w:S.box.w,h:S.box.h};
+  for(const z of S.fields||[]){if(zoneRoute(z)!=='auto')continue;
+    // 現場區在箱子的哪一側：幹線放在現場區面向箱子的那一邊
+    const side=z.y+z.h<=BX.y?'top':z.y>=BX.y+BX.h?'bottom':z.x+z.w<=BX.x?'left':z.x>=BX.x+BX.w?'right':null;if(!side)continue;
+    const devs=S.devices.filter(d=>d.sheet==='field'&&zoneOf(d)===z).map(d=>rectOf('dev',d));if(!devs.length)continue;
+    const ids=new Set(S.devices.filter(d=>d.sheet==='field'&&zoneOf(d)===z).map(d=>d.id));
+    const n=S.wires.filter(w=>ids.has(w.a.d)||ids.has(w.b.d)).length,T=Math.min(60,Math.max(24,Math.round(n*1.2)+12));
+    const hz=side==='top'||side==='bottom',gl=S.glands.filter(g=>(g.side||'bottom')===side).map(glandPt);
+    // 長度涵蓋所有器具的外框和出線口，兩頭多留 30 mm（剝線點、出線點常在器具外框外一點點）
+    const lo0=Math.min(...devs.map(r=>hz?r.x:r.y),...gl.map(g=>hz?g.x:g.y)),hi0=Math.max(...devs.map(r=>hz?r.x+r.w:r.y+r.h),...gl.map(g=>hz?g.x:g.y));
+    const zl=hz?z.x+6:z.y+6,zh=hz?z.x+z.w-6:z.y+z.h-6;
+    let lo=Math.max(zl,lo0-30),hi=Math.min(zh,hi0+30);if(hi-lo<40)continue;
+    // 先放在現場區裡、器具和邊框之間；放不下就放到現場區和箱子中間的空隙；都放不下就不放
+    const near=side==='top'?Math.max(...devs.map(r=>r.y+r.h)):side==='bottom'?Math.min(...devs.map(r=>r.y)):side==='left'?Math.max(...devs.map(r=>r.x+r.w)):Math.min(...devs.map(r=>r.x));
+    const edge=side==='top'?z.y+z.h:side==='bottom'?z.y:side==='left'?z.x+z.w:z.x,wall=side==='top'?BX.y:side==='bottom'?BX.y+BX.h:side==='left'?BX.x:BX.x+BX.w;
+    const out1=side==='top'||side==='left'; // 幹線往正方向是靠近箱子
+    let p=null;
+    if(out1){if(edge-8-T>=near+8)p=edge-8-T;else if(wall-edge>=T+16)p=edge+(wall-edge-T)/2;}
+    else{if(edge+8+T<=near-8)p=edge+8;else if(edge-wall>=T+16)p=wall+(edge-wall-T)/2;}
+    if(p==null)continue;p=Math.round(p);
+    out.push(hz?{id:'~'+z.id,x:Math.round(lo),y:p,w:Math.round(hi-lo),h:T,dp:65,sheet:'field',virtual:true,zone:z.id}:{id:'~'+z.id,x:p,y:Math.round(lo),w:T,h:Math.round(hi-lo),dp:65,sheet:'field',virtual:true,zone:z.id});}
+  return out;
+}
+// 算路徑時暫時把自動幹線加進線槽清單，「直接拉」的現場區拿掉那一區的箱外線槽；算完還原
+function withTrunks(fn){
+  if(S.ducts._v)return fn();
+  const real=S.ducts,v=zoneTrunks(),ds=[...real.filter(d=>!(d.sheet==='field'&&zoneRoute(zoneNear(d))==='direct')),...v];ds._v=1;
+  S.ducts=ds;try{return fn();}finally{S.ducts=real;}
+}
+function computeRoutes(hint){withTrunks(()=>{TRUNKS=S.ducts.filter(d=>d.virtual);computeRoutes0(hint);});}
+function computeRoutes0(hint){hint=hint&&hint.retry?hint:BOHINT;const sigs={};
   ROUTES.clear();DUCTUSE.clear();ROUTES_MANUAL.clear();CABROUTES.clear();fixBatteries();syncCoilWires();syncCables();bundleSel=sel;
   const J=junctions();
   const use=new Map();
@@ -722,12 +762,14 @@ function computeRoutes(hint){hint=hint&&hint.retry?hint:BOHINT;const sigs={};
   ISSUES=computeIssues();
 }
 // 拖曳中繼點時的預覽：只算這一條線（線槽中心線），放開後再整張重算線道
-function wirePreview(w){
+function wirePreview(w){return withTrunks(()=>wirePreview0(w));}
+function wirePreview0(w){
   const J=junctions(),A=buildAnchors(endpoint(w.a,0),endpoint(w.b,0),w.wps,{h:0,g:0,hn:1},w.gland),legs=[];
   for(let i=0;i<A.length-1;i++){const a=A[i],b=A[i+1];legs.push(routeLeg(a,b,J,!!w.direct||(a.wp&&b.wp&&!a.bo&&!b.bo)||(a.gland&&b.wp)||(a.wp&&b.gland)));}
   return simplify(realize('_',A,legs,(_,d)=>center(d)).pts);
 }
-function previewPts(a,wps,end,noDuct,gland){
+function previewPts(a,wps,end,noDuct,gland){return withTrunks(()=>previewPts0(a,wps,end,noDuct,gland));}
+function previewPts0(a,wps,end,noDuct,gland){
   const J=junctions();
   const anchors=buildAnchors(endpoint(a,0),end,wps,{h:0,g:0,hn:1},gland||null);
   // 和實際算路徑一樣：只有中繼點之間、出線口和緊接的中繼點之間照點直接連，其餘照樣走線槽（預覽才不會和放開後不一樣）

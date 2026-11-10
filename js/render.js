@@ -228,7 +228,9 @@ function renderWires(){
       if(!cableLabel.has(k)){const d=devOf(fd);cableLabel.set(k,{x:d.x+tplOf(d).w/2,y:d.y+tplOf(d).h+11,t:`${w.ext.cable} → ${d.tag}`});}
     }
   }
-  $('wires').innerHTML=h+`<g class="bos">${boH}</g>`;
+  // 自動幹線：淡淡的虛線帶，畫在所有線下面
+  const tk=TRUNKS.map(d=>`<rect class="trunk" x="${d.x}" y="${d.y}" width="${d.w}" height="${d.h}" rx="3"><title>自動幹線（${esc((S.fields.find(z=>z.id===d.zone)||{}).name||'')}）：外線沿這裡排好再進出線口。選取現場區可以改走線方式</title></rect>`).join('');
+  $('wires').innerHTML=tk+h+`<g class="bos">${boH}</g>`;
   $('wires').dataset.k=''; // 重畫過，樣式要重新套
   let t='';
   cableLabel.forEach(c=>t+=`<text class="ct" x="${c.x}" y="${c.y}" text-anchor="middle">${esc(c.t)}</text>`);

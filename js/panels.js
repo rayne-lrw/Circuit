@@ -137,10 +137,13 @@ function renderDetailInner(){
       box.innerHTML=`<div class="big">${esc(z.name)} ${hq('zone')}</div>${hn('zone','拖曳左上角的名稱可移動整區，區內器具會一起移動。現場區只是示意，位置不影響線長。')}<dl><dt>器具</dt><dd>${devs.map(d=>esc(d.tag)).join(' ')||'無'}</dd></dl>
       <div class="fields"><label for="zName" style="grid-column:1/-1">名稱<input id="zName" maxlength="20" value="${esc(z.name)}"></label>
       <label for="zx">X（距箱體左緣）<input id="zx" type="number" step="10" value="${r1(z.x-bo.x)}"></label><label for="zy">Y（距箱底）<input id="zy" type="number" step="10" value="${r1(z.y-bo.y-S.box.h)}"></label>
-      <label for="zw">寬 (mm)<input id="zw" type="number" step="10" min="50" value="${z.w}"></label><label for="zh">高 (mm)<input id="zh" type="number" step="10" min="50" value="${z.h}"></label></div>
+      <label for="zw">寬 (mm)<input id="zw" type="number" step="10" min="50" value="${z.w}"></label><label for="zh">高 (mm)<input id="zh" type="number" step="10" min="50" value="${z.h}"></label>
+      <label for="zRoute" style="grid-column:1/-1">走線方式<select id="zRoute">${[['auto','自動幹線（程式自動整線）'],['duct','照我放的箱外線槽'],['direct','直接拉']].map(([v,t])=>`<option value="${v}"${zoneRoute(z)===v?' selected':''}>${t}</option>`).join('')}</select></label></div>
+      <p class="note" style="margin-top:4px">${zoneRoute(z)==='auto'?(TRUNKS.some(d=>d.zone===z.id)?'虛線框是自動幹線：外線沿它排好再進出線口，不用自己放線槽，也不算材料。':'放不下自動幹線（現場區和箱子要在上下或左右分開，器具和邊框或箱子之間要留空間），目前直接拉。'):zoneRoute(z)==='duct'?'外線照你放的箱外線槽走（只走順路的），沒有線槽就直接拉。':'外線從器具直接拉到出線口，這一區的箱外線槽不拿來走線。'}</p>
       ${moveHtml(false)}
       <div class="row"><button class="tool danger" id="delPicked">刪除現場區</button></div>`;
       $('zName').onchange=e=>{z.name=e.target.value.trim().slice(0,20)||z.id;commit();recompute();};
+      $('zRoute').onchange=e=>{z.route=e.target.value;commit();recompute();renderDetail();};
       const mvz=(dx,dy)=>{devs.forEach(d=>{d.x=r1(d.x+dx);d.y=r1(d.y+dy);});z.x=r1(z.x+dx);z.y=r1(z.y+dy);};
       $('zx').onchange=e=>{const v=Number(e.target.value);if(e.target.value===''||!isFinite(v))return;mvz(bo.x+v-z.x,0);commit();recompute();};
       $('zy').onchange=e=>{const v=Number(e.target.value);if(e.target.value===''||!isFinite(v))return;mvz(0,bo.y+S.box.h+v-z.y);commit();recompute();};

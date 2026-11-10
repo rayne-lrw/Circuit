@@ -235,6 +235,7 @@ label.check input{margin:2px 0 0;flex:none}
 .dim{font-family:var(--mono);font-size:9px;fill:var(--ink)}
 .tick{stroke:var(--ink);stroke-width:.5}
 .duct-label.over{fill:#c00000;font-weight:600;fill-opacity:1}
+.trunk{fill:var(--ink);fill-opacity:.04;stroke:var(--ink);stroke-opacity:.28;stroke-width:.8;stroke-dasharray:6 4;vector-effect:non-scaling-stroke;pointer-events:none}
 .duct-body{fill:var(--duct);stroke:var(--duct-edge);stroke-width:.8}
 .duct-teeth{stroke:var(--duct-edge);stroke-width:3;stroke-dasharray:4 4;fill:none;stroke-opacity:.55}
 .duct-label{font-family:var(--mono);font-size:6px;fill:var(--ink);fill-opacity:.72;paint-order:stroke;stroke:var(--duct);stroke-width:2px}

@@ -167,7 +167,7 @@ const SCENARIOS=[
   }},
   {name:'箱外線槽（走線架）',build:arg=>{
     const st=normalize(sampleState()).state;S=st;const o=boxOrigin();
-    const z=st.fields[0],dy=(o.y-120-z.h)-z.y;st.devices.filter(d=>d.sheet==='field').forEach(d=>d.y+=dy);z.y+=dy;
+    const z=st.fields[0],dy=(o.y-120-z.h)-z.y;st.devices.filter(d=>d.sheet==='field').forEach(d=>d.y+=dy);z.y+=dy;z.route='duct';
     const fd=new Set(st.devices.filter(d=>d.sheet==='field').map(d=>d.id));st.devices=st.devices.filter(d=>!fd.has(d.id));st.wires=st.wires.filter(w=>!fd.has(w.a.d)&&!fd.has(w.b.d));st.cables=st.cables.filter(c=>st.wires.some(w=>w.cab===c.id));
     st.glands=[{id:'GK',side:'top',x:o.x+700,y:o.y,spec:'M32'}];
     // 現場區和箱子之間放一條橫向箱外線槽；三個感測器在左邊，線要沿線槽走到右邊的出線口
@@ -181,6 +181,11 @@ const SCENARIOS=[
       st.devices.filter(d=>d.sheet==='field').forEach(d=>d.y-=150);z.y-=150;st.ducts.find(d=>d.id==='DF').y-=150;
       const DF=st.ducts.find(d=>d.id==='DF');st.wires.forEach(w=>{if(w.no==='FK0')w.wps=[{x:o.x+690,y:DF.y+DF.h+15}];});
       return {state:st,expectClean:[],expectGland:{FK0:'GK'}};
+    }
+    if(arg==='auto'){
+      // 不放箱外線槽，現場區設成自動幹線：三條線都要走自動幹線，不可以穿箱壁
+      st.ducts=st.ducts.filter(d=>d.id!=='DF');z.route='auto';
+      return {state:st,expectClean:nos,expectGland:exp,expectFieldDuct:{duct:'~'+z.id,wires:nos}};
     }
     if(arg==='far'){
       // 線槽只放在左邊一小段；右邊遠處的感測器走右邊的出線口，不可以為了線槽繞過去
@@ -372,6 +377,7 @@ function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,exp
   };
   for(const sc of SCENARIOS) await run(sc.name,sc.build.toString());
   { const sc=SCENARIOS.find(x=>x.name.startsWith('箱外線槽'));await run('箱外線槽只收順路的線（遠的不繞過去）',sc.build.toString(),'far'); }
+  { const sc=SCENARIOS.find(x=>x.name.startsWith('箱外線槽'));await run('現場區自動幹線（不用放箱外線槽）',sc.build.toString(),'auto'); }
   { const sc=SCENARIOS.find(x=>x.name.startsWith('箱外線槽'));await run('箱外線槽旁邊的中繼點（不進線槽再折回）',sc.build.toString(),'wp'); }
   { const sc=SCENARIOS.find(x=>x.name.startsWith('出線口在器具正上方'));await run('電纜：拉芯線時放的中繼點改放到外皮上',sc.build.toString(),'cab'); }
   for(const e of extra) await run(e.name,(j=>({state:normalize(JSON.parse(j)).state,expectClean:[]})).toString(),e.file);

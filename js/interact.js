@@ -694,7 +694,7 @@ $('palette').addEventListener('click',e=>{
   }else if(b.dataset.zoneAdd!==undefined){
     let i=1;while(S.fields.some(z=>z.id==='Z'+i))i++;
     const f0=S.fields[0],bot=Math.max(...S.fields.map(z=>z.y+z.h));
-    S.fields.push({id:'Z'+i,name:'現場 '+i,x:f0?f0.x:0,y:bot+40,w:f0?Math.min(f0.w,600):600,h:FIELD_H});
+    S.fields.push({id:'Z'+i,name:'現場 '+i,x:f0?f0.x:0,y:bot+40,w:f0?Math.min(f0.w,600):600,h:FIELD_H,route:'auto'});
     setMode('place');picked={k:'zone',id:'Z'+i};
   }else if(b.dataset.glandAdd){
     let i=1;while(S.glands.some(g=>g.id==='G'+i))i++;

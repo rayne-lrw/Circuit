@@ -39,6 +39,8 @@ const N=Number(process.argv[2])||150,SEED=Number(process.argv[3])||1;
       // 箱外線槽：一半的配置有，放在現場區和箱子之間
       if(rnd()<.5){if(side==='top'||side==='bottom'){const y=side==='top'?o.y-ri(20,Math.max(21,gap-50))-40:o.y+bh+ri(20,Math.max(21,gap-50));S.ducts.push({id:'DF',x:o.x+ri(-50,100),y,w:ri(200,bw),h:40,dp:60,sheet:'field'});}
         else{const x=side==='left'?o.x-ri(20,Math.max(21,gap-50))-40:o.x+bw+ri(20,Math.max(21,gap-50));S.ducts.push({id:'DF',x,y:o.y+ri(0,100),w:40,h:ri(200,bh),dp:60,sheet:'field'});}}
+      // 沒放箱外線槽的配置一半改用自動幹線（不用 rnd，免得其他配置跟著變）
+      if(!S.ducts.some(d=>d.sheet==='field')&&s%2===0)z.route='auto';
       // 器具：底板 4～10 台、現場 2～6 台，不互相重疊、不壓線槽
       const placed=[];const put=(tpl,area,sheet)=>{const t=resolveTpl(tpl);for(let k=0;k<30;k++){const rot=sheet==='field'?pick([0,0,90,180,270]):pick([0,0,0,90]);const w=rot%180?t.h:t.w,h=rot%180?t.w:t.h;
         const r={x:Math.round(area.x+rnd()*Math.max(1,area.w-w)),y:Math.round(area.y+rnd()*Math.max(1,area.h-h)),w,h};
@@ -83,7 +85,7 @@ const N=Number(process.argv[2])||150,SEED=Number(process.argv[3])||1;
   // 繞路只列出參考，不算失敗（箱內兩台器具超過 95 mm 照規則要走線槽，繞一圈是正常的）
   // 防退步的上限：預設這組（150 組，種子 1 起）目前的結果。之後改走線，數字只能更少，變多就算失敗
   // 電纜芯線的折返目前剩下的是已知特例：剝線點兩側接點朝向不同的器具（例如 THS-62）、相鄰器具間的電纜最近的線槽在旁邊
-  const LIMIT=N===150&&SEED===1?{'程式折返（電纜芯線）':18,'外皮過短':6}:{};
+  const LIMIT=N===150&&SEED===1?{'程式折返（電纜芯線）':17,'外皮過短':6}:{};
   const fail=ks.filter(k=>k!=='繞路'&&res.stats[k]>(LIMIT[k]||0));
   ks.forEach(k=>{const bad=fail.includes(k);console.log(`${bad?'✗':'△'} ${k}：${res.stats[k]} 條${k==='繞路'?'（參考）':bad?'':`（已知上限 ${LIMIT[k]} 條內）`}`);res.ex[k].forEach(x=>console.log('    '+x));});
 
