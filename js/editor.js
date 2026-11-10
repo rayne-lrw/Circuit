@@ -129,7 +129,9 @@ function edDelSel(){if(!ed.sel.size)return;edPush();ed.terms=ed.terms.filter(t=>
 /* ---------- 右側屬性 ---------- */
 function edSide(){
   const ts=edSel(),n=ts.length,lab=t=>esc(t.id||'（未命名）');
-  let h='';
+  // 自訂器具提示：程式不會核對；改內建器具時，只是要改接點名稱就引導到片上標籤或接點別名
+  const bi=ed.srcId&&TPL[ed.srcId]&&!(S.tpls&&S.tpls[ed.srcId]);
+  let h=`<section class="ed-warn"><b>自訂器具（不會核對）</b><p class="note">尺寸、接點、動作都由你自己設定，程式不會核對；模擬只照下面「模擬動作」的設定計算。${bi?'<br>存檔後這個器具會變成自訂器具。只是想改接點名稱的話：端子台請用右側的「片上標籤」，其他器具請用器具資料裡的「接點別名」，器具保持內建、功能都不會少。':''}</p></section>`;
   if(ed.row){const R=ed.row;h+=`<section id="esRow"><div class="sub-h">一次放一排接點</div><div class="fields">
       <label for="erN">數量<input id="erN" type="number" min="1" max="120" value="${R.n}"></label><label for="erP">間距 mm<input id="erP" type="number" min="0.5" step="0.5" value="${R.pitch}"></label>
       <label for="erD">方向<select id="erD"><option value="h"${R.dir==='h'?' selected':''}>橫排（左到右）</option><option value="v"${R.dir==='v'?' selected':''}>直排（上到下）</option></select></label>

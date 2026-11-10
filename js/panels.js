@@ -2,7 +2,8 @@
 /* ---------- 面板 ---------- */
 function libButton(id,t){
   const size=t.gen?t.cntLabel:(+t.w.toFixed(1)+'×'+t.h);
-  return `<button class="lib" data-add="${id}" title="${esc(verText(id,t))}"><span class="nm">${esc(t.n)}</span><small>${size}</small><span class="bd">${esc(t.b)||'—'}</span></button>`;
+  const cus=S.tpls&&S.tpls[id];
+  return `<button class="lib${cus?' cus':''}" data-add="${id}" title="${esc(cus?'自訂器具（未核對）：尺寸、接點、動作都是自己設定的，程式不會核對':verText(id,t))}"><span class="nm">${cus?'<span class="cus-badge">自訂</span>':''}${esc(t.n)}</span><small>${size}</small><span class="bd">${esc(t.b)||'—'}</span></button>`;
 }
 function renderPalette(){
   const q=$('libQ').value.trim().toLowerCase();
@@ -13,7 +14,9 @@ function renderPalette(){
   let h='';
   // 自訂器具：每一個旁邊有編輯、複製、刪除
   const cus=([id,t])=>custom[id]&&mode!=='view'?`<div class="lib-c">${libButton(id,t)}<span class="lib-act"><button class="tool sm" data-tpl-ed="${id}" title="編輯這個器具（已放的會一起更新）">編輯</button><button class="tool sm" data-tpl-cp="${id}" title="複製成新器具">複製</button><button class="tool sm danger" data-tpl-del="${id}" title="${TPL[id]?'換回原廠':'刪除'}">${TPL[id]?'換回原廠':'刪除'}</button></span></div>`:libButton(id,t);
-  order.forEach(c=>{if(cats[c]) h+=`<div class="brand"><h2>${c}</h2>${cats[c].map(e=>cus(e)).join('')}</div>`;});
+  // 沒有器具在用的自訂器具：可以一次清掉
+  const unused=Object.keys(custom).filter(id=>!S.devices.some(d=>d.tpl===id));
+  order.forEach(c=>{if(cats[c]) h+=`<div class="brand"><h2>${c}${c==='自訂器具'&&unused.length&&mode!=='view'?` <button class="tool sm" id="cusClean" title="列出沒有器具在用的自訂器具，勾選後刪除">清理沒用到的（${unused.length}）</button>`:''}</h2>${c==='自訂器具'?'<p class="note cus-note">自訂器具的尺寸、接點、動作是自己設定的，程式不會核對。</p>':''}${cats[c].map(e=>cus(e)).join('')}</div>`;});
   const ductRows=DUCTINV.filter(([n,m])=>!q||(n+m).toLowerCase().includes(q)).map(([n,m,w,d])=>`<button class="lib" data-duct-add="h" data-dw="${w}" data-dd="${d}"><span class="nm">${n} 水平</span><small>寬 ${w}</small><span class="bd">${m}</span></button><button class="lib" data-duct-add="v" data-dw="${w}" data-dd="${d}"><span class="nm">${n} 垂直</span><small>寬 ${w}</small><span class="bd">${m}</span></button>`).join('');
   if(ductRows) h+=`<div class="brand"><h2>線槽</h2>${ductRows}</div>`;
   const glandRows=GLANDINV.filter(n=>!q||n.toLowerCase().includes(q)).map(n=>`<button class="lib" data-gland-add="${esc(n)}"><span class="nm">${esc(n)}</span><small>出線口</small></button>`).join('');
@@ -118,6 +121,8 @@ function renderDetailInner(){
       ${t.gen?`<div class="fields"><label for="dCount">${esc(t.cntLabel)}<input id="dCount" type="number" min="1" value="${d.count||t.cnt}"></label></div>`:''}
       ${t.userLinks?linkHtml(d):''}${hasSlots(t)?slotHtml(d)+(t.jumper?jumperHtml(d):''):slotSource(d)?`<div class="revert"><p class="note">這組端子台之前用「編輯器具」改過，變成了自訂器具，所以不能每片填端子號，也不能改片數。換回 WAGO 端子台後，原本改的編號會變成每片的端子號，接好的線都會保留。</p><button class="tool" id="slotRevert">換回 ${esc(TPL[slotSource(d)].n)}</button></div>`:''}
       ${t.terms.length>1&&!hasSlots(t)?`<label class="check"><input type="checkbox" id="dBus"${busOf(d)?' checked':''}>全部接點本來就同電位（接地銅板、共點排）</label>`:''}
+      ${!hasSlots(t)&&!t.sym&&t.terms.length?aliasHtml(d,t):''}
+      ${S.tpls&&S.tpls[d.tpl]?'<p class="note cus-note">自訂器具（未核對）：尺寸、接點、動作都是自己設定的，程式不會核對；模擬只照「模擬動作」的設定計算。</p>':''}
       <div class="fields"><label for="dX">X（距${d.sheet==='door'?doorShort():d.sheet==='field'?esc(devRef(d).name||'現場區'):'底板'}左緣）<input id="dX" type="number" step="1" value="${r1(d.x-devRef(d).x)}"></label><label for="dY">Y（距上緣）<input id="dY" type="number" step="1" value="${r1(d.y-devRef(d).y)}"></label></div>${moveHtml(false)}
       <div class="row"><button class="tool" id="rotDev">旋轉 90°</button><button class="tool" id="editTpl">編輯器具</button><button class="tool danger" id="delPicked">刪除器具${n?`與 ${n} 條線`:''}</button></div>`;
       $('dTag').onchange=e=>{
@@ -131,6 +136,7 @@ function renderDetailInner(){
       if($('swapNo'))$('swapNo').onclick=()=>{swapOffer=null;renderDetail();};
       ['X','Y'].forEach(c=>{$('d'+c).onchange=e=>{const v=Number(e.target.value);if(e.target.value===''||!isFinite(v))return;const R=devRef(d),mt=carried(d),ox=d.x,oy=d.y;if(c==='X')d.x=r1(R.x+v);else d.y=r1(R.y+v);shiftAll(mt,d.x-ox,d.y-oy,d.sheet);const h=d.on&&devOf(d.on);if(h&&!inR({x:d.x+t.w/2,y:d.y+t.h/2},rectOf('dev',h)))delete d.on;commit();recompute();};});
       if($('dBus'))$('dBus').onchange=e=>{const v=e.target.checked,def=!!(t.bus||BUS_RE.test(t.n||''));if(v===def)delete d.bus;else d.bus=v;commit();recompute();};
+      document.querySelectorAll('#detail [data-alias]').forEach(x=>x.onchange=()=>{const k=x.dataset.alias,v=x.value.trim().slice(0,12);d.alias=d.alias||{};if(v&&v!==k)d.alias[k]=v;else delete d.alias[k];if(!Object.keys(d.alias).length)delete d.alias;commit();recompute();});
       if($('dModel'))$('dModel').onchange=e=>{const v=e.target.value.trim().slice(0,30);if(v)d.model=v;else delete d.model;commit();recompute();};
       if($('dGland'))$('dGland').onchange=e=>{if(e.target.value)d.gland=e.target.value;else delete d.gland;commit();recompute();};
       if($('dShowNo'))$('dShowNo').onchange=e=>{if(e.target.checked)delete d.hideNo;else d.hideNo=true;commit();recompute();};
@@ -294,3 +300,10 @@ function setMode(m){
 }
 function lockInputs(root){if(mode==='view')root.querySelectorAll('input,select,textarea,button:not([data-pw])').forEach(el=>el.disabled=true);}
 
+
+// 接點別名：內建器具依公司習慣改接點的顯示名稱（線照樣接在原本的接點上，器具的尺寸、動作、模擬都不變）
+function aliasHtml(d,t){
+  const ids=[...new Set(t.terms.map(x=>x.id))],n=d.alias?Object.keys(d.alias).length:0;
+  return `<details class="alias"${n?' open':''}><summary>接點別名${n?`（已改 ${n} 個）`:''}</summary><p class="note">只改顯示名稱，線、尺寸、模擬動作都不變；空白就是原本的名稱。端子台請用片上標籤。</p>
+  <div class="alias-g">${ids.map(id=>{const td=t.terms.find(x=>x.id===id);return `<label title="${esc(td.desc||'')}"><span>${esc(id)}</span><input data-alias="${esc(id)}" maxlength="12" value="${esc((d.alias&&d.alias[id])||'')}" placeholder="${esc(id)}"></label>`;}).join('')}</div></details>`;
+}

@@ -61,6 +61,7 @@ function simPanel(box){
   <div class="sub-h">動作中</div><p class="note">${act.join('、')||'沒有'}</p>
   <div class="sub-h">自動測試</div><div class="row" style="justify-content:flex-start"><button class="tool" id="simTestY">Y 輸出逐點測試</button><button class="tool" id="simTestX">輸入逐點測試</button></div>
   ${simTest?simTestHtml():''}
+  ${(()=>{const cu=S.devices.filter(d=>S.tpls&&S.tpls[d.tpl]).map(d=>d.tag);return cu.length?`<p class="note cus-note">用到自訂器具（未核對，結果以你設定的模擬動作為準）：${esc(cu.join('、'))}</p>`:'';})()}
   ${noSim.length?`<p class="note">沒有動作資料、模擬時只當導線的器具：${esc(noSim.join('、'))}</p>`:''}`;
 }
 document.addEventListener('pointerdown',e=>{if(mode!=='sim')return;const b=e.target.closest&&e.target.closest('[data-sim-op]');if(!b)return;const [id,btn]=b.dataset.simOp.split('|');simPress(id,btn,true);

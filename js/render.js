@@ -128,7 +128,7 @@ function renderBoard(){
       const x=d.x+p.x,y=d.y+p.y;
       h+=`<circle class="term" cx="${x}" cy="${y}" r="${tr}"/>`;
       if(t.sym) continue; // 二極體：方向看符號，不另外標 A、K 文字（滑鼠靠近接點會顯示）
-      const lb=termLabel(d,p.id),sm=lb!==p.id&&SLOT_RE.exec(p.id);
+      const lb=termLabel(d,p.id),al=!!(d.alias&&d.alias[p.id]),sm=lb!==p.id&&(SLOT_RE.exec(p.id)||(al&&[...lb].length>[...p.id].length?[0,0,'']:null));
       // 極距很密的端子（例如 FX5U 左側 5 極端子）：標籤照手冊直寫
       if(LV.has(p.id)){const up=p.side==='bottom',ty=y+(up?-2.6:2.6);h+=`<text class="tl" x="${x}" y="${ty}" text-anchor="${up?'start':'end'}" dominant-baseline="central" transform="rotate(-90 ${x} ${ty})" fill="${t.i}" style="font-size:${LV.get(p.id).toFixed(2)}px">${esc(lb)}</text>`;continue;}
       const ls=p.ls||p.side; // 接點文字位置（可以和出線方向不同）

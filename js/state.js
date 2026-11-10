@@ -109,7 +109,8 @@ const wireKind=w=>{const a=devOf(w.a.d),b=devOf(w.b.d);if(!a||!b)return 'in';if(
    接點本身仍是 1A、1B…，所以改號碼不會影響已接好的線 */
 const SLOT_RE=/^(\d+)([A-D])$/;
 const hasSlots=t=>!!(t&&t.gen&&t.cntLabel==='片數');
-function termLabel(d,t){if(!d||!d.labels)return t;const m=SLOT_RE.exec(t);return (m&&d.labels[m[1]-1])||t;}
+// 接點顯示名稱：接點別名（使用者依公司習慣改的名稱，器具還是原本的）優先，端子台用片上標籤
+function termLabel(d,t){if(d&&d.alias&&d.alias[t])return d.alias[t];if(!d||!d.labels)return t;const m=SLOT_RE.exec(t);return (m&&d.labels[m[1]-1])||t;}
 /* 出線口：可裝在箱體四面。side=bottom/top 用 x 定位，left/right 用 y 定位 */
 const GSIDE={bottom:'箱底',top:'箱頂',left:'左側',right:'右側'};
 function glandPt(g){

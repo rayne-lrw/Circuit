@@ -691,6 +691,7 @@ $('libQ').oninput=renderPalette;
  tt.onclick=()=>{const rm=matchMedia('(prefers-reduced-motion: reduce)').matches;sc.scrollTo({top:0,behavior:rm?'auto':'smooth'});};}
 $('palette').addEventListener('click',e=>{
   // 自訂器具的編輯、複製、刪除
+  if(e.target.id==='cusClean'){cleanCustomAsk();return;}
   {const b=e.target.closest('[data-tpl-ed],[data-tpl-cp],[data-tpl-del]');if(b){
     if(b.dataset.tplEd){openEditor(b.dataset.tplEd,null);return;}
     if(b.dataset.tplCp){openEditor(b.dataset.tplCp,null,{copy:true});return;}
@@ -806,3 +807,13 @@ $('list').addEventListener('input',e=>{if(tab==='rev'&&e.target.dataset.noteT){c
 $('list').addEventListener('change',e=>{if(e.target.id==='spareIn'){const v=Number(e.target.value);if(!(v>=0)){e.target.value=spare();return;}S.spare=Math.min(5000,Math.round(v));commit();renderList();}});
 $('fDev').onchange=e=>{filt.dev=e.target.value;renderList();applyWireClasses();};
 
+
+// 清理沒用到的自訂器具：列出來勾選刪除（可以復原）
+function cleanCustomAsk(){
+  const ids=Object.keys(S.tpls||{}).filter(id=>!S.devices.some(d=>d.tpl===id));if(!ids.length){toast('沒有沒用到的自訂器具');return;}
+  askConfirm('清理沒用到的自訂器具',`這些自訂器具目前沒有器具在用，勾選要刪除的：<span class="cus-list">${ids.map(id=>`<label class="check"><input type="checkbox" data-cus="${esc(id)}" checked>${esc(S.tpls[id].n)}${TPL[id]?'（內建器具改過的版本，刪除後換回原廠）':''}</label>`).join('')}</span>刪除後可以按「復原」救回。`,[
+    {t:'刪除勾選的',cls:'primary danger-bg',go:()=>{}}]);
+  // 按鈕要讀勾選狀態：在對話框關閉前取值
+  const btn=document.querySelector('#askCard [data-ask="0"]');btn.onclick=()=>{const sel=[...document.querySelectorAll('#askCard [data-cus]')].filter(x=>x.checked).map(x=>x.dataset.cus);askClose();
+    if(!sel.length)return;sel.forEach(id=>delete S.tpls[id]);commit();recompute();renderPalette();toast(`已刪除 ${sel.length} 個沒用到的自訂器具，可以按復原`);};
+}
