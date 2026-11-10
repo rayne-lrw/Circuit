@@ -19,7 +19,7 @@ const {chromium}=require('playwright'),path=require('path');
     const we=W('w2',{d:'SV',t:pe.id},{d:'E1',t:t('E1')[0].id},2,'black');recompute();
     ok(!has(new RegExp('SV 的接地 (.*、)?'+pe.id+'(、|\\s)')),'接上的接地點不再列在提示裡（還沒接的另一個接地點照樣提示）');
     ok(has(/w2.*線色不是黃綠/),'接地線不是黃綠：提示');
-    we.color='ground';recompute();ok(!has(/w2.*線色不是黃綠/),'改成黃綠後不再提示');
+    we.color='green';recompute();ok(!has(/w2.*線色不是/),'改成綠色不提示');we.color='ground';recompute();ok(!has(/w2.*線色不是/),'改成黃綠不提示');
     ok(!has(/Q（16A）/),'16A 斷路器接 2mm²（約 17A）不提示');
     S.wires[0].gauge=.75;recompute();ok(has(/Q（16A）接的 w1 是 0\.75mm²/),'16A 斷路器接 0.75mm²：提示線徑太細');
     ok(ISSUES.some(i=>/線徑可能太細/.test(i.t)),'電氣檢查會列在檢查清單');

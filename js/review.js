@@ -4,6 +4,7 @@
    二、審查流程（人工）：每條線可以標「已確認」（線改過會變成「改過要重看」）、在圖上放註記（待處理／已修正／已確認）、列印審查報告。
    審查資料存在 S.review = {ok:{線id:簽章}, notes:[{id,x,y,t,st,at}]}。 */
 
+// 接地線色：黃綠或綠都可以
 // 接地接點：名稱 PE、PE2、FG、E、⏚，或說明裡有「接地」
 const EARTH_ID=/^(PE\d*|FG\d*|E|⏚)$/i;
 const isEarthTerm=t=>!!t&&(EARTH_ID.test(t.id)||/接地/.test(t.desc||''));
@@ -28,7 +29,7 @@ function reviewIssues(){
     const miss=[...new Set(t.terms.filter(x=>isEarthTerm(x)&&!conn.has(d.id+'|'+x.id)).map(x=>x.id))];
     if(miss.length)out.push({t:`${d.tag} 的接地 ${miss.join('、')} 沒有接`,k:'dev',id:d.id});});
   // 接地線不是黃綠（電纜芯線照電纜規格，不檢查）
-  S.wires.forEach(w=>{if(w.cab||!(earthEnd(w.a)||earthEnd(w.b)))return;if(w.color!=='ground'&&!(w.hex&&/黃綠/.test(w.cname||'')))out.push({t:`${wireRef(w)} 接在接地，線色不是黃綠`,k:'wire',id:w.id});});
+  S.wires.forEach(w=>{if(w.cab||!(earthEnd(w.a)||earthEnd(w.b)))return;if(!['ground','green'].includes(w.color)&&!(w.hex&&/綠/.test(w.cname||'')))out.push({t:`${wireRef(w)} 接在接地，線色不是黃綠或綠`,k:'wire',id:w.id});});
   // 接地和主電源（L、N、R、S、T、U、V、W）接在同一個電位
   const nets=netsOf(),byNet=new Map();
   S.wires.forEach(w=>{const n=nets.get(w.id);if(!byNet.has(n))byNet.set(n,{e:null,m:null,w});const g=byNet.get(n);
