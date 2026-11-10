@@ -52,6 +52,7 @@ function hoverUpdate(e){
   if(!s&&!draft){const g=e.target.closest&&e.target.closest('.wire');hw=g?g.dataset.wid:null;}
   if(hw!==hoverW){hoverW=hw;applyWireClasses();}
   else if(s||was||draft) renderOverlay();
+  const cur=!s&&!draft?segCursor(p):'';if(svg.style.cursor!==cur)svg.style.cursor=cur;
   if(cabHover(e,p,!!(hw||s||draft)))return;
   showTip(hw,p.sx,p.sy);
 }
@@ -116,6 +117,7 @@ svg.addEventListener('pointerdown',e=>{
     const c=cabOf(selCab),wp=c&&(c.wps||[]).find(q=>Math.hypot((q.x-p.x)*view.k,(q.y-p.y)*view.k)<=10);
     if(wp){snap=null;hoverW=null;$('tip').hidden=true;act={t:'wp',wp,cab:true,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId};renderOverlay();return;}
   }
+  if(mode==='wire'&&!draft&&e.button===0&&!findSnap(p,e.altKey)){const g=segAt(p);if(g){snap=null;$('tip').hidden=true;act={t:'seg',g,p0:p,sx:e.clientX,sy:e.clientY,vx:view.x,vy:view.y,moved:false,btn:e.button,alt:e.altKey,id:e.pointerId,target:e.target,pan:false};return;}}
   // 左鍵拖曳空白處：舊方式或觸控才平移；CAD 方式在接線、檢視模式不做任何事（平移用中鍵）
   act={t:'press',sx:e.clientX,sy:e.clientY,vx:view.x,vy:view.y,moved:false,btn:e.button,alt:e.altKey,id:e.pointerId,target:e.target,pan:e.pointerType==='touch'||opPref().drag==='old'};
 });
@@ -158,6 +160,7 @@ svg.addEventListener('pointermove',e=>{
     // 剝線點可以放在線槽裡任何位置（包含靠線槽邊），不吸到中心線
     const q={x:Math.round(p.x),y:Math.round(p.y)};
     c.bo[act.k]=q;frame(()=>{computeRoutes();renderWires();});
+  }else if(act.t==='seg'){segMove(act,e);
   }else if(act.t==='wp'){
     // 拖曳中只在最上層畫這條線的預覽，原本那條先藏起來；整張重畫在放開時才做（放大時整張重畫會閃）
     const p=toWorld(e);act.wp.x=Math.round(p.x/5)*5;act.wp.y=Math.round(p.y/5)*5;
@@ -176,6 +179,7 @@ svg.addEventListener('pointerup',e=>{
   if(a.t==='box'){endBox(a);return;}
   if(a.t==='multi'){endMultiDrag(a);return;}
   if(a.copy&&!a.moved){dropClip(a.copy);picked=a.src;recompute();return;} // Ctrl＋點一下沒拖：不複製
+  if(a.t==='seg'){if(a.moved){segEnd(a);return;}a.t='press';} // 沒拖動：當成一般點擊（雙擊加中繼點等照舊）
   dragPrev=null;
   if(a.t==='wp'&&!a.moved&&noteTap(e)&&tryDouble(toWorld(e))) return;
   if(a.t==='lab'){if(a.moved){commit();renderWires();renderDetail();}return;}
@@ -184,7 +188,8 @@ svg.addEventListener('pointerup',e=>{
   if(a.moved||a.btn!==0) return;
   if(mode==='wire') clickWire(e,a); else if(mode==='view') viewClick(a); else {picked=null;multi=[];sel=null;selCab=null;renderWires();renderDetail();updateHint();}
 });
-svg.addEventListener('pointercancel',()=>{const a=act;act=null;if(a&&a.t==='wp'){dragPrev=null;recompute();}});
+svg.addEventListener('pointercancel',()=>{const a=act;act=null;if(a&&a.t==='wp'){dragPrev=null;recompute();}
+  if(a&&a.t==='seg'&&a.moved){dragPrev=null;if(a.g.kind==='wire')a.g.w.wps=a.g.wps;else{if(a.g.wps.length)a.g.c.wps=a.g.wps;else delete a.g.c.wps;}recompute();}});
 svg.addEventListener('pointerenter',()=>{cursorIn=true;});
 svg.addEventListener('pointerleave',()=>{cursorIn=false;});
 svg.addEventListener('pointerleave',()=>{if(!act&&(snap||hoverW||hoverCab)){snap=null;hoverW=null;hoverCab=null;$('tip').hidden=true;applyWireClasses();}});
