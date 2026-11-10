@@ -72,6 +72,15 @@ function exits(P){
   }
   return out;
 }
+// 從某個進線槽位置到每個線槽轉角的最短距離（和 ductPath 同樣算法，但一次算完所有轉角，查表用）
+function ductDist(a,J){
+  const n=J.length,dist=new Array(n).fill(Infinity),done=new Array(n).fill(false);
+  J.forEach((j,i)=>{if(onD(j,a.duct))dist[i]=Math.abs(along(j,a.duct)-a.along)+20;});
+  for(let c=0;c<n;c++){let u=-1;for(let i=0;i<n;i++)if(!done[i]&&dist[i]<Infinity&&(u<0||dist[i]<dist[u]))u=i;if(u<0)break;done[u]=true;
+    for(let i=0;i<n;i++){if(done[i]||i===u)continue;const s=[J[u].h,J[u].v].find(d=>onD(J[i],d));if(!s)continue;const w=dist[u]+Math.abs(along(J[u],s)-along(J[i],s))+20;if(w<dist[i])dist[i]=w;}}
+  // 到某條線槽上某個位置的距離
+  return c=>{if(c.duct===a.duct)return Math.abs(a.along-c.along);let b=Infinity;for(let i=0;i<n;i++)if(dist[i]<Infinity&&onD(J[i],c.duct))b=Math.min(b,dist[i]+Math.abs(along(J[i],c.duct)-c.along));return b;};
+}
 function ductPath(a,b,J){
   if(a.duct===b.duct) return {ducts:[a.duct],cost:Math.abs(a.along-b.along)};
   const n=J.length,dist=new Array(n).fill(Infinity),prev=new Array(n).fill(null),done=new Array(n).fill(false);
@@ -205,7 +214,8 @@ function realize(wid,anchors,legs,lane0){
   // 中繼點只落在一條線槽裡：這條線在那條線槽裡沿中繼點的位置走（進出都一樣，不會橫移再折回）；
   // 落在兩條線槽交界時不改，只橫移經過
   const ovr=new Map();
-  anchors.forEach(a=>{if(!a.wp||a.bo||!a.inDuct||ovr.has(a.inDuct))return;if(S.ducts.filter(d=>d.sheet===a.sheet&&inR(a,d)).length!==1)return;ovr.set(a.inDuct,axis(a.inDuct)==='h'?a.y:a.x);});
+  // 自動剝線點已經移到外皮的線道上：芯線和外皮在那條線槽都走剝線點的位置（手動移過的剝線點照舊不改線道）；同一條線槽裡使用者放的中繼點優先
+  [...anchors.filter(a=>!a.bo),...anchors.filter(a=>a.bo)].forEach(a=>{if(!a.wp||(a.bo&&a.auto===false)||!a.inDuct||ovr.has(a.inDuct))return;if(S.ducts.filter(d=>d.sheet===a.sheet&&inR(a,d)).length!==1)return;ovr.set(a.inDuct,axis(a.inDuct)==='h'?a.y:a.x);});
   // 中繼點也落在前後相鄰線槽的寬度範圍內（點在轉角附近）：那條線槽也沿中繼點的位置走，轉角就在中繼點上
   anchors.forEach((a,i)=>{
     if(!a.wp||a.bo||!a.inDuct) return;
@@ -272,6 +282,15 @@ function realize(wid,anchors,legs,lane0){
     if(!to.inDuct){open.i1=pts.length-1;runs.push(open);open=null;pts.push({x:to.x,y:to.y});cur=to;last=null;}
   });
   return {pts,runs};
+}
+// 拿掉同一直線上折回的點（fixed 裡的點是必經點，不拿）
+function unfold(pts,fixed){
+  const isFix=b=>fixed.some(f=>Math.abs(f.x-b.x)<.6&&Math.abs(f.y-b.y)<.6);
+  for(let guard=0;guard<50;guard++){let hit=-1;
+    for(let i=1;i<pts.length-1;i++){const a=pts[i-1],b=pts[i],c=pts[i+1];if(isFix(b))continue;
+      if((Math.abs(a.y-b.y)<.01&&Math.abs(b.y-c.y)<.01&&(b.x-a.x)*(c.x-b.x)<0)||(Math.abs(a.x-b.x)<.01&&Math.abs(b.x-c.x)<.01&&(b.y-a.y)*(c.y-b.y)<0)){hit=i;break;}}
+    if(hit<0)break;pts=simplify([...pts.slice(0,hit),...pts.slice(hit+1)]);}
+  return pts;
 }
 function simplify(pts){
   const o=[];
@@ -446,7 +465,20 @@ function computeIssues(){
   });
   S.wires.forEach(w=>{const r=ROUTES.get(w.id);if(r&&r.warn) out.push({t:`${wireRef(w)} ${r.warn}`,k:'wire',id:w.id});});
   // 有中繼點的線在同一條直線上沿原路折返：多半是中繼點放的位置讓線跑過頭再回來
-  S.wires.forEach(w=>{if(!w.wps.length||w.cab)return;const r=ROUTES.get(w.id);if(r&&backtrack(r.pts))out.push({t:`${wireRef(w)} 在中繼點前後沿原路折返，建議移動中繼點`,k:'wire',id:w.id});});
+  // 自我檢查：路徑在同一條直線上折回、外線穿過箱壁的次數不對。分清楚是中繼點（使用者放的）造成，還是程式走線不理想
+  const BXR={...boxOrigin(),w:S.box.w,h:S.box.h},cabSeen=new Set();
+  S.wires.forEach(w=>{const r=ROUTES.get(w.id);if(!r)return;const c=w.cab&&cabOf(w.cab);
+    if(c){if(cabSeen.has(c.id))return;
+      // 照折返的那一點判斷原因：中繼點、手動移過的剝線點、自動剝線點，或程式走線
+      const f=foldAt(r.pts);if(f){cabSeen.add(c.id);const R=CABROUTES.get(c.id),on=q=>q&&Math.abs(q.x-f.x)<1.5&&Math.abs(q.y-f.y)<1.5;
+        const why=(c.wps||[]).some(on)?'在外皮的中繼點沿原路折返，建議移動或清除中繼點':['a','b'].some(k=>c.bo&&c.bo[k]&&R&&on(R[k]))?'在手動移過的剝線點沿原路折返，建議把剝線點改回自動或移到外皮要去的那一側':R&&['a','b'].some(k=>on(R[k]))?'的芯線在剝線點沿原路折返，可以拖曳剝線點到外皮要去的那一側':'的路徑沿原路折返（程式走線不理想），可以加中繼點調整';
+        out.push({t:`電纜 ${c.no} ${why}`,k:'cable',id:c.id});}
+      return;}
+    if(backtrack(r.pts))out.push({t:w.wps.length?`${wireRef(w)} 在中繼點前後沿原路折返，建議移動中繼點`:`${wireRef(w)} 的路徑沿原路折返（程式走線不理想），可以加中繼點調整`,k:'wire',id:w.id});
+    // 外線穿過箱壁應該只有出線口那一次；箱內線不應該穿出去（有中繼點時照使用者的路線，不檢查）
+    if(!w.wps.length&&!plugWire(w)){const A=endpoint(w.a,0),B=endpoint(w.b,0),ia=inR(A,BXR)&&!outBox(A),ib=inR(B,BXR)&&!outBox(B),want=ia===ib?0:1;
+      const n=r.pts.filter((q,i)=>i&&inR(q,BXR)!==inR(r.pts[i-1],BXR)).length;if(n!==want&&A.sheet!=='door'&&B.sheet!=='door')out.push({t:`${wireRef(w)} 穿過箱壁 ${n} 次（${want?'應該只從出線口進出一次':'箱內的線不應該穿出箱子'}）`,k:'wire',id:w.id});}
+  });
   // 二極體接在線圈上：K 要接 +、A 接 −；AC 線圈不能接二極體
   {const P=new Map(),f=k=>{while(P.has(k)&&P.get(k)!==k)k=P.get(k);return k;},u=(a,b)=>{const x=f(a),y=f(b);if(x!==y)P.set(x,y);};
    S.wires.forEach(w=>u(endKey(w,'a'),endKey(w,'b')));
@@ -478,6 +510,13 @@ function computeIssues(){
   }
   return out;
 }
+// 回傳第一個沿原路折回的轉折點（沒有就 null）
+function foldAt(p){
+  for(let i=2;i<p.length;i++){const a=p[i-2],b=p[i-1],c=p[i];
+    const col=(Math.abs(a.x-b.x)<.01&&Math.abs(b.x-c.x)<.01)||(Math.abs(a.y-b.y)<.01&&Math.abs(b.y-c.y)<.01);
+    if(col&&((b.x-a.x)*(c.x-b.x)+(b.y-a.y)*(c.y-b.y))<-.01) return b;}
+  return null;
+}
 function backtrack(p){
   for(let i=2;i<p.length;i++){const a=p[i-2],b=p[i-1],c=p[i];
     const col=(Math.abs(a.x-b.x)<.01&&Math.abs(b.x-c.x)<.01)||(Math.abs(a.y-b.y)<.01&&Math.abs(b.y-c.y)<.01);
@@ -487,7 +526,9 @@ function backtrack(p){
 // 接到插座「插頭」點的線：外部插頭的電線，實際隨使用者拉，不檢查穿過器具
 const plugWire=w=>[w.a,w.b].some(e=>e.t==='插頭');
 const key=(e)=>e.d+'|'+e.t;
-function computeRoutes(){
+// hint：上一輪發現自動剝線點有折返時，外皮實際過來的點（電纜 id|a 或 b → 點），這一輪剝線點改往那裡靠
+let BOHINT={}; // 上次發現剝線點折返後調整用的目標，下次直接沿用（不用每次都多算一輪）
+function computeRoutes(hint){hint=hint&&hint.retry?hint:BOHINT;const sigs={};
   ROUTES.clear();DUCTUSE.clear();ROUTES_MANUAL.clear();CABROUTES.clear();fixBatteries();syncCoilWires();syncCables();bundleSel=sel;
   const J=junctions();
   const use=new Map();
@@ -516,7 +557,17 @@ function computeRoutes(){
     const cw=coresOf(c),P=c.plug||{};if(!cw.length&&!(P.a&&P.b)) return;
     const ea=cw.map(w=>endpoint(w.a,off(w.a))),eb=cw.map(w=>endpoint(w.b,off(w.b)));
     // 接頭那一端：外皮直接走到接頭（接點），不剝線
-    const side=(k,ends)=>{if(P[k])return endpoint(P[k],0);const o=c.bo&&c.bo[k];const p=o?{x:o.x,y:o.y,sheet:sheetAt(o)}:autoBO(ends,ends[0].sheet);return {x:p.x,y:p.y,sheet:p.sheet,inDuct:locate(p,p.sheet),wp:true,bo:true,auto:!o,...(!o&&p.dev&&p.side?{boDev:p.dev,boSide:p.side}:{})};};
+    // 剝線點要往哪裡靠：一端在箱內、另一端在箱外（或箱外器具）時是出線口，兩端都在箱內時是另一端芯線的中心
+    const cen=es=>es.length?{x:es.reduce((s,e)=>s+e.x,0)/es.length,y:es.reduce((s,e)=>s+e.y,0)/es.length}:null;
+    const fieldOf=es=>es.some(e=>e.sheet==='field'||outBox(e));
+    const cgl=c.gland||([...cw.map(w=>devOf(w.b.d)),P.b&&devOf(P.b.d)].find(d=>d&&d.gland)||{}).gland;
+    const glandNear=q=>{const g=(cgl&&S.glands.find(x=>x.id===cgl))||(q&&S.glands.reduce((b,x)=>{const t=glandPt(x),u=b&&glandPt(b);return !b||Math.abs(t.x-q.x)+Math.abs(t.y-q.y)<Math.abs(u.x-q.x)+Math.abs(u.y-q.y)?x:b;},null));return g?glandPt(g):null;};
+    // 兩端同在箱內（或同在箱外）：往另一端；一內一外：往出線口（以箱外那一端找最近的出線口，或電纜指定的出線口）
+    // 兩端同側時目標帶著另一端的芯線接點（剝線點照那些芯線實際會進的線槽算距離）
+    const tgt=(mine,other)=>!mine.length?null:fieldOf(mine)===fieldOf(other)?(other.length?{...cen(other),ends:other}:null):glandNear(cen(fieldOf(mine)?mine:other));
+    // 記住的調整目標只在兩端接點都沒動時才沿用（簽章不同就作廢）
+    const sig=[...ea,...eb].map(e=>Math.round(e.x)+','+Math.round(e.y)).join(';'),hintFor=k=>{const h=hint[k];return h&&h.sig===sig?h:null;};sigs[c.id]=sig;
+    const side=(k,ends)=>{if(P[k])return endpoint(P[k],0);const o=c.bo&&c.bo[k];const p=o?{x:o.x,y:o.y,sheet:sheetAt(o)}:autoBO(ends,ends[0].sheet,hintFor(c.id+'|'+k)||((c.wps||[]).length?(k==='a'?c.wps[0]:c.wps[c.wps.length-1]):null)||(k==='a'?tgt(ea,eb):tgt(eb,ea)));return {x:p.x,y:p.y,sheet:p.sheet,inDuct:locate(p,p.sheet),wp:true,bo:true,auto:!o,...(!o&&p.dev&&p.side?{boDev:p.dev,boSide:p.side}:{})};};
     const A=side('a',ea),B=side('b',eb);
     // 外皮可以加中繼點、可以不進線槽；電纜本來就能走線槽外，穿過其他器具不警告
     const cg=c.gland||([...cw.map(w=>devOf(w.b.d)),P.b&&devOf(P.b.d)].find(d=>d&&d.gland)||{}).gland; // 電纜：指定的出線口，其次是現場設備的預設出線口
@@ -601,10 +652,17 @@ function computeRoutes(){
       dn.forEach(e=>lanes.set(e.id+'|'+d.id,T===1?c:hi-pad-e.l*p));
     }
   }
+  // 剝線點在線槽裡：移到外皮在那條線槽實際走的線道上，芯線直接走到外皮的線道會合（不會先走到中心線、外皮再橫移到自己的線道）
+  cabJobs.forEach(({A,B,sh,tails})=>{
+    [[A,'a'],[B,'b']].forEach(([P,k])=>{if(!P.bo||!P.auto||!P.inDuct)return;const L=lanes.get(sh.id+'|'+P.inDuct.id);if(L==null)return;
+      const h=axis(P.inDuct)==='h';if(h)P.y=L;else P.x=L;
+      tails.forEach(({ja,jb})=>{const j=k==='a'?ja:jb;if(!j)return;const q=k==='a'?j.anchors[j.anchors.length-1]:j.anchors[0];if(h)q.y=L;else q.x=L;});});
+  });
   const FIN=new Map();
   for(const it of items){
     const f=realize(it.id,it.anchors,it.legs,(id,d)=>lanes.get(id+'|'+d.id)??center(d));
-    const pts=simplify(f.pts);
+    // 最後一道整理：同一直線上走過去又折回來的點，只要不是必經點（接點、中繼點、剝線點、出線口）就拿掉
+    const pts=unfold(simplify(f.pts),it.anchors.filter((a,i)=>i===0||i===it.anchors.length-1||a.wp||a.gland));
     let len=0;for(let i=1;i<pts.length;i++)len+=Math.abs(pts[i].x-pts[i-1].x)+Math.abs(pts[i].y-pts[i-1].y);
     const via=[];f.runs.forEach(r=>{if(via[via.length-1]!==r.d.id)via.push(r.d.id);});
     if(it.manual)(manualVia.get(it.id)||[]).forEach(id=>{if(!via.includes(id))via.push(id);});
@@ -618,6 +676,15 @@ function computeRoutes(){
   }
   cabJobs.forEach(({c,A,B,sh,tails})=>{
     const S0=FIN.get(sh.id);
+    // 自動剝線點：外皮離開剝線點的第一小段（4 mm 內）是往芯線來的方向折回，就把剝線點挪到那個轉彎處，芯線直接接過去
+    [[A,'a'],[B,'b']].forEach(([P,k])=>{if(!P.bo||!P.auto||S0.pts.length<3)return;const sp=k==='a'?S0.pts:S0.pts.slice().reverse(),q=sp[1];
+      if(Math.hypot(q.x-sp[0].x,q.y-sp[0].y)>4)return;
+      const tl=tails.map(t=>k==='a'?t.ja:t.jb).filter(Boolean).map(j=>FIN.get(j.id));
+      const back=tl.some(r=>{const T=k==='a'?r.pts:r.pts.slice().reverse(),n=T.length;if(n<2)return false;const u=T[n-2],v=T[n-1];return (v.x-u.x)*(q.x-v.x)+(v.y-u.y)*(q.y-v.y)<0;});
+      if(!back)return;
+      sp.shift();sp[0]={x:q.x,y:q.y};const np=k==='a'?sp:sp.reverse();S0.pts=simplify(np);P.x=q.x;P.y=q.y;
+      tl.forEach(r=>{const T=r.pts;if(k==='a'){const u=T[T.length-2];T[T.length-1]={x:q.x,y:q.y};if(u&&Math.abs(u.x-q.x)>.01&&Math.abs(u.y-q.y)>.01)T.splice(T.length-1,0,Math.abs(u.x-T[T.length-1].x)<Math.abs(u.y-T[T.length-1].y)?{x:u.x,y:q.y}:{x:q.x,y:u.y});r.pts=simplify(T);}
+        else{const u=T[1];T[0]={x:q.x,y:q.y};if(u&&Math.abs(u.x-q.x)>.01&&Math.abs(u.y-q.y)>.01)T.splice(1,0,{x:q.x,y:u.y});r.pts=simplify(T);}});});
     CABROUTES.set(c.id,{...S0,a:A.bo?{x:A.x,y:A.y,auto:A.auto}:null,b:B.bo?{x:B.x,y:B.y,auto:B.auto}:null});
     const none={pts:[],len:0,via:[],warn:null}; // 接頭那一端沒有芯線段
     tails.forEach(({w,ja,jb})=>{
@@ -627,6 +694,17 @@ function computeRoutes(){
       ROUTES.set(w.id,{pts:simplify([...ra.pts,...S0.pts,...rb.pts]),len:ra.len+S0.len+rb.len,via,warn,gland:S0.gland,cab:c.id,parts:[ra.pts,S0.pts,rb.pts],tails:[ra.pts,rb.pts]});
     });
   });
+  // 自動剝線點還有折返（外皮從另一邊繞過來）：以外皮實際過來的點當目標，重新放剝線點再算一輪（只重算一次）
+  if(!hint.retry){const nh={...BOHINT,retry:true};let n=0;
+    cabJobs.forEach(({c,A,B,tails})=>{const R0=CABROUTES.get(c.id);if(!R0)return;[[A,'a'],[B,'b']].forEach(([P,k])=>{if(!P.bo||!P.auto)return;
+      const L0=R0.pts,dz=q=>Math.abs(q.x-P.x)+Math.abs(q.y-P.y),sp=L0.length&&dz(L0[0])<=dz(L0[L0.length-1])?L0:L0.slice().reverse();if(sp.length<2)return;const q=sp[1],o=sp[0]; // 外皮從靠這個剝線點的那一端算起
+      const bad=tails.some(({w})=>{const r=ROUTES.get(w.id);const T=r&&r.tails&&(k==='a'?r.tails[0]:r.tails[1].slice().reverse());if(!T||T.length<2)return false;const v=T[T.length-1],u=T[T.length-2];
+        const col=(Math.abs(u.y-v.y)<.01&&Math.abs(v.y-q.y)<.01)||(Math.abs(u.x-v.x)<.01&&Math.abs(v.x-q.x)<.01);return col&&(v.x-u.x)*(q.x-o.x)+(v.y-u.y)*(q.y-o.y)<0;});
+      // 同一個調整已經試過（上次就是用這個目標）就不再重算，免得修不掉的折返每次都多算一輪
+      const key=c.id+'|'+k,old=BOHINT[key];if(bad&&!(old&&old.sig===sigs[c.id]&&Math.abs(old.x-q.x)<.5&&Math.abs(old.y-q.y)<.5)){nh[key]={x:q.x,y:q.y,sig:sigs[c.id]};n++;}});
+      // 兩端都有折返：只調整 B 端，A 端留著當基準（兩端同時往對方靠會互換位置，折返還在）
+      if(nh[c.id+'|a']&&nh[c.id+'|b']&&nh[c.id+'|a']!==BOHINT[c.id+'|a']){delete nh[c.id+'|a'];n--;}});
+    if(n){BOHINT={...nh};delete BOHINT.retry;computeRoutes(nh);return;}}
   ISSUES=computeIssues();
 }
 // 拖曳中繼點時的預覽：只算這一條線（線槽中心線），放開後再整張重算線道

@@ -140,16 +140,41 @@ function migrateCables(st){
   });
 }
 // 剝線點自動位置：這一側芯線出線點的中心，投影到最近的線槽中心線；沒有線槽（現場）就往出線方向推一點
-function autoBO(ends,sheet){
+// target：外皮接下來要去的地方（出線口，或電纜另一端）。有 target 時，選「芯線到剝線點＋剝線點到 target」最短的線槽，
+// 剝線點才會落在往出線口的路上，不會落在反方向（芯線走過去、外皮再整段折回來）
+function autoBO(ends,sheet,target){
   if(!ends.length) return null;
   const ps=ends.map(e=>stubOf(e)||e),cx=ps.reduce((s,p)=>s+p.x,0)/ps.length,cy=ps.reduce((s,p)=>s+p.y,0)/ps.length;
+  // 沿某個方向的位置：有 target 時取「往 target 方向最前面那一芯」（target 在芯線範圍中間就對齊 target），沒有就取中心
+  const front=(vals,t,c)=>t==null?c:Math.max(Math.min(...vals),Math.min(Math.max(...vals),t));
   const ds=S.ducts.filter(d=>d.sheet===sheet);
   if(!ds.length||sheet==='field'){
     const cnt={};ends.forEach(e=>{if(e.side)cnt[e.side]=(cnt[e.side]||0)+1;});
     const side=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a])[0]||'bottom',v={top:[0,-1],bottom:[0,1],left:[-1,0],right:[1,0]}[side];
     // 記下剝線點是靠哪台器具、在哪一側：外皮從另一側過來時要繞過器具，不能直接穿過去
     const dc={};ends.forEach(e=>{if(e.dev)dc[e.dev]=(dc[e.dev]||0)+1;});const dev=Object.keys(dc).sort((a,b)=>dc[b]-dc[a])[0]||null;
-    return {x:cx+v[0]*14,y:cy+v[1]*14,sheet,side:cnt[side]?side:null,dev};
+    const bx=v[0]?cx:front(ps.map(p=>p.x),target&&target.x,cx),by=v[1]?cy:front(ps.map(p=>p.y),target&&target.y,cy);
+    return {x:bx+v[0]*14,y:by+v[1]*14,sheet,side:cnt[side]?side:null,dev};
+  }
+  // 箱內：剝線點放在芯線本來就會進去的那條線槽（和走線一樣的出線規則），在那條線槽上取往 target 方向最前面那一芯的位置
+  const ent=ps.map(p=>{const d=locate(p,sheet);if(d)return {duct:d,along:axis(d)==='h'?p.x:p.y,cost:0};const ex=exits(p);return ex.length?ex.reduce((b,x)=>x.cost<b.cost?x:b):null;}).filter(Boolean);
+  if(ent.length){
+    // 候選：每一芯進線槽的位置，以及每條線槽上往 target 方向最前面那一芯的位置。選導線總長最短的：各芯走到剝線點＋外皮到 target（每一芯都要走，乘芯數）
+    const md=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y),pt=(d,al)=>{const h=axis(d)==='h',lo=(h?d.x:d.y)+4,hi=(h?d.x+d.w:d.y+d.h)-4,v=Math.max(lo,Math.min(hi,al));return h?{x:v,y:center(d)}:{x:center(d),y:v};};
+    const by=new Map();ent.forEach(e=>{if(!by.has(e.duct))by.set(e.duct,[]);by.get(e.duct).push(e);});
+    const cand=[...ent.map(e=>pt(e.duct,e.along)),...[...by].map(([d,es])=>pt(d,front(es.map(e=>e.along),target?(axis(d)==='h'?target.x:target.y):null,es.reduce((s,e)=>s+e.along,0)/es.length)))];
+    // 每條線槽上最靠近 target 的位置也當候選（芯線分散在不同線槽時，可能在靠出線口那一側會合最省線）
+    if(target)ds.forEach(d=>cand.push(pt(d,axis(d)==='h'?target.x:target.y)));
+    // 距離照實際沿線槽走的長度算（和走線一樣：接點出線進線槽，再經線槽轉角），直線距離會低估繞遠路的芯線
+    const J=junctions(),cd=q=>{const d=locate(q,sheet);return d&&{duct:d,along:axis(d)==='h'?q.x:q.y};};
+    // 每個進線槽位置只算一次到所有轉角的距離表，候選位置直接查表
+    const tab=ex=>ex.map(a=>({c:a.cost,f:ductDist(a,J)})),net=(T,c)=>{let b=Infinity;for(const t of T)b=Math.min(b,t.c+t.f(c));return b;};
+    // 點本身已經在線槽裡（例如出線點落在線槽內）：直接用那條線槽上的位置，不往外找
+    const exAt=q=>{const d=locate(q,sheet);return d?[{duct:d,along:axis(d)==='h'?q.x:q.y,cost:0}]:exits(q);};
+    const pex=ps.map(p=>tab(exAt(p))),tex=tab(!target?[]:target.ends?target.ends.flatMap(e=>exAt(stubOf(e)||e)):exAt({x:target.x,y:target.y,sheet}));
+    const cost=q=>{const c=cd(q);if(!c)return Infinity;return pex.reduce((s,ex)=>s+net(ex,c),0)+(target&&tex.length?ps.length*net(tex,c):0);};
+    const q=cand.reduce((b,x)=>cost(x)<cost(b)?x:b);
+    return {x:q.x,y:q.y,sheet};
   }
   const dist=d=>{const dx=Math.max(d.x-cx,0,cx-d.x-d.w),dy=Math.max(d.y-cy,0,cy-d.y-d.h);return Math.hypot(dx,dy);};
   const d=ds.reduce((b,x)=>dist(x)<dist(b)?x:b),cl=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));

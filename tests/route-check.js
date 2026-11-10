@@ -314,7 +314,8 @@ function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,exp
     if(e){if(e.cores!=null&&coresOf(c).length!==e.cores)msgs.push(`芯數應為 ${e.cores}，實際 ${coresOf(c).length}`);
       if(e.ext!=null&&L.ext!==e.ext)msgs.push(`種類應為${e.ext?'外部':'箱內'}`);
       if(e.field!=null&&Math.abs(L.total-L.box-L.spare-e.field)>.5)msgs.push(`現場長度沒有算進去（${L.total}）`);}
-    const iss=ISSUES.filter(i=>i.k==='cable'&&i.id===c.id);if(iss.length)msgs.push(iss.map(i=>i.t).join('、'));
+    // 折返提示是給使用者看的自我檢查（是否合理由 tests/fuzz-check.js 統計），這裡不算失敗
+    const iss=ISSUES.filter(i=>i.k==='cable'&&i.id===c.id&&!i.t.includes('沿原路折返'));if(iss.length)msgs.push(iss.map(i=>i.t).join('、'));
     if(L.ext&&c.bo&&c.bo.a){const r=CABROUTES.get(c.id);if(Math.abs(r.a.x-c.bo.a.x)+Math.abs(r.a.y-c.bo.a.y)>.01)msgs.push('剝線點沒有照拖曳的位置');}
     res.push({no:'電纜 '+c.no,ok:!msgs.length,msg:msgs.join('；')});
   }
