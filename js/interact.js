@@ -693,8 +693,14 @@ $('palette').addEventListener('click',e=>{
     setMode('place');picked={k:'duct',id:'D'+i};
   }else if(b.dataset.zoneAdd!==undefined){
     let i=1;while(S.fields.some(z=>z.id==='Z'+i))i++;
-    const f0=S.fields[0],bot=Math.max(...S.fields.map(z=>z.y+z.h));
-    S.fields.push({id:'Z'+i,name:'現場 '+i,x:f0?f0.x:0,y:bot+40,w:f0?Math.min(f0.w,600):600,h:FIELD_H,route:'auto'});
+    // 放在空的地方：箱子下方、上方、左邊、右邊依序找，不壓到箱子、面板和其他現場區
+    const o=boxOrigin(),BX={x:o.x,y:o.y,w:S.box.w,h:S.box.h},busy=[BX,...(useDoor()?[sheetRect('door')]:[]),...S.fields].map(r=>({x:r.x-30,y:r.y-30,w:r.w+60,h:r.h+60}));
+    const W=Math.min(600,S.box.w),H=FIELD_H,free=r=>!busy.some(b=>overlap(r,b));
+    const lowest=Math.max(BX.y+BX.h,...S.fields.map(z=>z.y+z.h)),highest=Math.min(BX.y,...S.fields.map(z=>z.y)),leftest=Math.min(BX.x,...S.fields.map(z=>z.x)),rightest=Math.max(BX.x+BX.w,...busy.map(b=>b.x+b.w-30));
+    const cand=[{x:BX.x,y:BX.y+BX.h+90,w:W,h:H},{x:BX.x,y:BX.y-90-H,w:W,h:H},{x:BX.x-90-W,y:BX.y,w:W,h:H},{x:BX.x+BX.w+90,y:BX.y,w:W,h:H},
+      {x:BX.x,y:lowest+90,w:W,h:H},{x:BX.x,y:highest-90-H,w:W,h:H},{x:leftest-90-W,y:BX.y,w:W,h:H},{x:rightest+90,y:BX.y,w:W,h:H}];
+    const r=cand.find(free)||cand[4];
+    S.fields.push({id:'Z'+i,name:'現場 '+i,x:Math.round(r.x/10)*10,y:Math.round(r.y/10)*10,w:W,h:H,route:'auto'});
     setMode('place');picked={k:'zone',id:'Z'+i};
   }else if(b.dataset.glandAdd){
     let i=1;while(S.glands.some(g=>g.id==='G'+i))i++;

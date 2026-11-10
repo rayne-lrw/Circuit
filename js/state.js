@@ -70,10 +70,12 @@ function zoneOf(d){
 const devRef=d=>d.sheet==='field'?(zoneOf(d)||sheetRect('field')):sheetRect(d.sheet);
 // 拖現場框時一起帶走的東西：框裡的現場器具、箱外線槽、線和電纜外皮的中繼點、電纜剝線點（都是有 x、y 的物件）
 function zoneCarry(z){
-  const out=S.devices.filter(d=>inZone(z,d));
-  S.ducts.forEach(d=>{if(d.sheet==='field'&&inR({x:d.x+d.w/2,y:d.y+d.h/2},z))out.push(d);});
-  S.wires.forEach(w=>(w.wps||[]).forEach(p=>{if(inR(p,z))out.push(p);}));
-  (S.cables||[]).forEach(c=>{(c.wps||[]).forEach(p=>{if(inR(p,z))out.push(p);});['a','b'].forEach(k=>{const p=c.bo&&c.bo[k];if(p&&inR(p,z))out.push(p);});});
+  // 只帶走屬於這一區的東西：區內器具；整條都在框裡的箱外線槽；接到區內器具的線和電纜在框裡的中繼點、剝線點
+  // （剛新增或拖過別區的框可能蓋到其他區的線，那些不能跟著走）
+  const out=S.devices.filter(d=>inZone(z,d)),ids=new Set(out.map(d=>d.id)),mine=w=>ids.has(w.a.d)||ids.has(w.b.d);
+  S.ducts.forEach(d=>{if(d.sheet==='field'&&d.x>=z.x&&d.y>=z.y&&d.x+d.w<=z.x+z.w&&d.y+d.h<=z.y+z.h)out.push(d);});
+  S.wires.forEach(w=>{if(mine(w))(w.wps||[]).forEach(p=>{if(inR(p,z))out.push(p);});});
+  (S.cables||[]).forEach(c=>{if(!S.wires.some(w=>w.cab===c.id&&mine(w)))return;(c.wps||[]).forEach(p=>{if(inR(p,z))out.push(p);});['a','b'].forEach(k=>{const p=c.bo&&c.bo[k];if(p&&inR(p,z))out.push(p);});});
   return out;
 }
 const inZone=(z,d)=>{if(d.sheet!=='field')return false;const t=tplOf(d);return inR({x:d.x+t.w/2,y:d.y+t.h/2},z);};
