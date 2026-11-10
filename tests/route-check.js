@@ -175,6 +175,13 @@ const SCENARIOS=[
     const nos=[];[0,1,2].forEach(i=>{const id='PK'+i;st.devices.push({id,tag:id,tpl:'pzg101',x:z.x+40+i*70,y:z.y+z.h-60,sheet:'field',rot:180});
       st.wires.push({id:'fk'+i,no:'FK'+i,a:{d:id,t:'黑'},b:{d:'X1',t:(10+i)+'A'},wps:[],gauge:.75,color:'black'});nos.push('FK'+i);});
     const exp={};nos.forEach(n=>exp[n]='GK');
+    if(arg==='wp'){
+      // 中繼點放在線槽和箱子之間：出線口到中繼點直接連，不先進線槽再折回來
+      // 和實際專案一樣：線槽離箱頂比較遠（現場區、線槽一起往上移 150），中繼點在線槽下方 15 mm
+      st.devices.filter(d=>d.sheet==='field').forEach(d=>d.y-=150);z.y-=150;st.ducts.find(d=>d.id==='DF').y-=150;
+      const DF=st.ducts.find(d=>d.id==='DF');st.wires.forEach(w=>{if(w.no==='FK0')w.wps=[{x:o.x+690,y:DF.y+DF.h+15}];});
+      return {state:st,expectClean:[],expectGland:{FK0:'GK'}};
+    }
     if(arg==='far'){
       // 線槽只放在左邊一小段；右邊遠處的感測器走右邊的出線口，不可以為了線槽繞過去
       st.ducts=st.ducts.filter(d=>d.id!=='DF');st.ducts.push({id:'DF',x:o.x+20,y:o.y-90,w:200,h:40,dp:60,sheet:'field'});
@@ -351,6 +358,7 @@ function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,exp
   };
   for(const sc of SCENARIOS) await run(sc.name,sc.build.toString());
   { const sc=SCENARIOS.find(x=>x.name.startsWith('箱外線槽'));await run('箱外線槽只收順路的線（遠的不繞過去）',sc.build.toString(),'far'); }
+  { const sc=SCENARIOS.find(x=>x.name.startsWith('箱外線槽'));await run('箱外線槽旁邊的中繼點（不進線槽再折回）',sc.build.toString(),'wp'); }
   { const sc=SCENARIOS.find(x=>x.name.startsWith('出線口在器具正上方'));await run('電纜：拉芯線時放的中繼點改放到外皮上',sc.build.toString(),'cab'); }
   for(const e of extra) await run(e.name,(j=>({state:normalize(JSON.parse(j)).state,expectClean:[]})).toString(),e.file);
   if(errs.length){console.log('頁面錯誤：',errs);fail++;}

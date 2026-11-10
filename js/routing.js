@@ -153,7 +153,8 @@ function slideJog(pts,side,ok){
 }
 function routeLeg(A,B,J,noDuct){
   // 兩點都在箱外：直接連，會穿過箱體就繞過去（箱外沒有線槽）
-  const fieldDucts=A.sheet==='field'&&S.ducts.some(d=>d.sheet==='field');
+  // 箱外有線槽時才找線槽走；但一端是使用者放的中繼點（不在線槽裡）時，照中繼點直接連（中繼點就是使用者指定的路線）
+  const fieldDucts=A.sheet==='field'&&S.ducts.some(d=>d.sheet==='field')&&!((A.wp&&!A.bo&&!A.inDuct)||(B.wp&&!B.bo&&!B.inDuct));
   if(A.sheet==='field'&&B.sheet==='field'&&!(A.dev&&B.dev&&A.dev===B.dev)&&!fieldDucts){let d=directPts(A,B);
     if(crossBox(d)){const q=avoidBox(A,B);if(q)d=q;}
     // 出線口正外面的小折角（同一個出線口多條線錯開造成）：推到下一個轉角合併，不在出線口正上方小折一下
