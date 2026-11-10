@@ -85,7 +85,7 @@ const N=Number(process.argv[2])||150,SEED=Number(process.argv[3])||1;
   // 繞路只列出參考，不算失敗（箱內兩台器具超過 95 mm 照規則要走線槽，繞一圈是正常的）
   // 防退步的上限：預設這組（150 組，種子 1 起）目前的結果。之後改走線，數字只能更少，變多就算失敗
   // 電纜芯線的折返目前剩下的是已知特例：剝線點兩側接點朝向不同的器具（例如 THS-62）、相鄰器具間的電纜最近的線槽在旁邊
-  const LIMIT=N===150&&SEED===1?{'程式折返（電纜芯線）':17,'外皮過短':6}:{};
+  const LIMIT=N===150&&SEED===1?{'程式折返（電纜芯線）':14,'外皮過短':6}:{};
   const fail=ks.filter(k=>k!=='繞路'&&res.stats[k]>(LIMIT[k]||0));
   ks.forEach(k=>{const bad=fail.includes(k);console.log(`${bad?'✗':'△'} ${k}：${res.stats[k]} 條${k==='繞路'?'（參考）':bad?'':`（已知上限 ${LIMIT[k]} 條內）`}`);res.ex[k].forEach(x=>console.log('    '+x));});
 

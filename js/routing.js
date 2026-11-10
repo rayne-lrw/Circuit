@@ -161,13 +161,14 @@ function slideJog(pts,side,ok){
   return ok(r)?r:pts; // 推上去會穿過器具或箱體（原本的橫移是在避開東西）：維持原樣
 }
 // pts[0] 是出線口外面那一點：一出來就沿著箱壁橫走（貼在箱子邊線上）時，先往外走一段再轉彎；ok 檢查新路線沒有穿過器具或箱體
-function standoff(pts,side,ok){
+function standoff(pts,side,ok,gi=0){
   const n={top:[0,-1],bottom:[0,1],left:[-1,0],right:[1,0]}[side];if(!n||pts.length<3)return pts;
   const v=n[1]!==0,k=v?'y':'x',sg=v?n[1]:n[0],a=pts[0],b=pts[1],c=pts[2];
   if(Math.abs(a[k]-b[k])>.01||Math.abs(a.x-b.x)+Math.abs(a.y-b.y)<.05)return pts; // 第一段不是沿箱壁
   const room=(c[k]-a[k])*sg;if(!(room>6))return pts;
   // 轉彎的位置：先試路上經過的箱外線槽（自動幹線）中間，再從遠到近試（在靠近器具的地方轉，不在箱子和現場中間的空隙轉）
-  const o=v?'x':'y',ds=S.ducts.filter(d=>d.sheet==='field'&&a[o]>=d[o]&&a[o]<=d[o]+(v?d.w:d.h)).map(d=>((v?d.y+d.h/2:d.x+d.w/2)-a[k])*sg).filter(x=>x>4&&x<room-2);
+  // 在線槽裡依出線口的線序錯開（直接拉的線不會全部疊在線槽中線上）
+  const o=v?'x':'y',ds=S.ducts.filter(d=>d.sheet==='field'&&a[o]>=d[o]&&a[o]<=d[o]+(v?d.w:d.h)).map(d=>{const T=v?d.h:d.w,off=((gi%8)-3.5)*Math.min(4,Math.max(0,(T-6)/8));return ((v?d.y:d.x)+T/2+off-a[k])*sg;}).filter(x=>x>4&&x<room-2);
   for(const s of [...ds,room-12,room*.75,room/2,40,25,15,8]){if(s>room-2||s<4)continue;const val=a[k]+s*sg,r=simplify([a,{...a,[k]:val},{...b,[k]:val},...pts.slice(2)]);if(ok(r))return r;}
   return pts;
 }
@@ -175,7 +176,7 @@ function routeLeg(A,B,J,noDuct){
   // 箱外直接拉：會穿過箱體就繞過去；出線口正外面的小折角推到下一個轉角，貼著箱壁橫走的先往外走一段
   const fieldDirect=()=>{let d=directPts(A,B);if(crossBox(d)){const q=avoidBox(A,B);if(q)d=q;}
     const okp=p=>!crossBox(p)&&clean(p,A,B,true);
-    if(A.gout)d=standoff(slideJog(d,A.gout,okp),A.gout,okp);if(B.gout)d=standoff(slideJog(d.slice().reverse(),B.gout,okp),B.gout,okp).reverse();
+    if(A.gout)d=standoff(slideJog(d,A.gout,okp),A.gout,okp,A.gi);if(B.gout)d=standoff(slideJog(d.slice().reverse(),B.gout,okp),B.gout,okp,B.gi).reverse();
     return d;};
   // 兩點都在箱外：直接連，會穿過箱體就繞過去（箱外沒有線槽）
   // 箱外有線槽時才找線槽走；但一端是使用者放的中繼點（不在線槽裡）時，照中繼點直接連（中繼點就是使用者指定的路線）
@@ -304,10 +305,10 @@ function unfold(pts,fixed){
   return pts;
 }
 const plen=p=>p.reduce((s,q,i)=>i?s+Math.abs(q.x-p[i-1].x)+Math.abs(q.y-p[i-1].y):s,0);
-// T 是芯線尾段（從接點走到剝線點，最後一點是剝線點），nx 是外皮離開剝線點的下一點。尾段最後一小段（5 mm 內）和外皮方向相反時，把它前面那一橫段平移到剝線點上；回傳新的尾段，不用改就回傳 null
+// T 是芯線尾段（從接點走到剝線點，最後一點是剝線點），nx 是外皮離開剝線點的下一點。尾段最後一小段（25 mm 內，多芯錯開線道時會超過剝線點）和外皮方向相反時，把它前面那一橫段平移到剝線點上；回傳新的尾段，不用改就回傳 null
 function joinFix(T,nx){const n=T.length;if(n<4)return null;const u=T[n-3],a=T[n-2],b=T[n-1];
   const vt=Math.abs(a.x-b.x)<.01&&Math.abs(b.x-nx.x)<.01,hz=Math.abs(a.y-b.y)<.01&&Math.abs(b.y-nx.y)<.01;if(!vt&&!hz)return null;
-  const k=vt?'y':'x';if((b[k]-a[k])*(nx[k]-b[k])>=0||Math.abs(a[k]-b[k])>5||Math.abs(u[k]-a[k])>.01)return null;
+  const k=vt?'y':'x';if((b[k]-a[k])*(nx[k]-b[k])>=0||Math.abs(a[k]-b[k])>25||Math.abs(u[k]-a[k])>.01)return null;
   return simplify([...T.slice(0,n-3),{...u,[k]:b[k]},{...a,[k]:b[k]},b]);}
 function simplify(pts){
   const o=[];
@@ -348,7 +349,7 @@ function gates(from,to,ctr,fieldP,glandId){
     const m=12+k;
     if(beyond[P.side]){
       const far=(fp.x-a.x)*P.nx+(fp.y-a.y)*P.ny,ext=far<=0?m:Math.min(m,Math.max(.5,far));
-      const pts=[a,{x:a.x+P.nx*ext,y:a.y+P.ny*ext,sheet:'field',side:null,gout:P.side}];
+      const pts=[a,{x:a.x+P.nx*ext,y:a.y+P.ny*ext,sheet:'field',side:null,gout:P.side,gi:i}];
       return from==='field'?pts.reverse():pts;
     }
     // 對方在別的面：出去後沿著箱體外圍（離箱壁 m）繞到對方那一面，不穿過箱體、不貼著箱壁
