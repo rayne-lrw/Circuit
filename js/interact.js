@@ -45,6 +45,7 @@ function hoverUpdate(e){
     const g=e.target.closest&&e.target.closest('.wire'),hw=g?g.dataset.wid:null;
     if(hw!==hoverW){hoverW=hw;applyWireClasses();}if(cabHover(e,p,!!hw))return;showTip(hw,p.sx,p.sy);return;
   }
+  if(mode==='place'){const zh=zoneHandleAt(p),c=zh?ZCUR[zh]:'';if(svg.style.cursor!==c)svg.style.cursor=c;}
   if(mode!=='wire'||(draft&&draft.pop)){if(snap){snap=null;renderOverlay();}return;}
   const s=findSnap(p,e.altKey);
   const was=snap;snap=s;
@@ -69,6 +70,7 @@ svg.addEventListener('pointerdown',e=>{
   const bg=mode!=='view'&&e.button===0&&!draft&&e.target.closest&&e.target.closest('[data-bo]');
   if(bg){const [cid,k]=bg.dataset.bo.split('|');act={t:'bo',cid,k,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId};svg.setPointerCapture(e.pointerId);return;}
   if(mode==='place'&&e.button===0){
+    {const zh=zoneHandleAt(p);if(zh){const z=S.fields.find(x=>x.id===picked.id);act={t:'zres',z,h:zh,r0:{x:z.x,y:z.y,w:z.w,h:z.h},p0:p,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId};svg.setPointerCapture(e.pointerId);return;}}
     const dg=e.target.closest('[data-dev]'),cg=e.target.closest('[data-duct]'),gg=e.target.closest('[data-gland]'),zg=!dg&&!cg&&!gg&&e.target.closest('.zone-h,.zoneg .field-t')&&e.target.closest('[data-zone]');
     // 多選：Shift＋點加入或移出、Shift＋拖曳空白處框選；拖曳選取中的任一個一起移動
     const hitK=gg?'gland':dg?'dev':cg?'duct':null,hitId=gg?gg.dataset.gland:dg?dg.dataset.dev:cg?cg.dataset.duct:null;
@@ -91,7 +93,7 @@ svg.addEventListener('pointerdown',e=>{
     if(zg){
       const obj=S.fields.find(z=>z.id===zg.dataset.zone);
       picked={k:'zone',id:obj.id};sel=null;
-      act={t:'zone',obj,ox:p.x-obj.x,oy:p.y-obj.y,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId,mounted:S.devices.filter(d=>inZone(obj,d)).map(d=>({d,dx:d.x-obj.x,dy:d.y-obj.y}))};
+      act={t:'zone',obj,ox:p.x-obj.x,oy:p.y-obj.y,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId,mounted:zoneCarry(obj).map(d=>({d,dx:d.x-obj.x,dy:d.y-obj.y}))};
       svg.setPointerCapture(e.pointerId);renderWires();renderDetail();updateHint();return;
     }
     if(gg){
@@ -144,6 +146,13 @@ svg.addEventListener('pointermove',e=>{
     }
     if(act.mounted) act.mounted.forEach(m=>{m.d.x=r1(o.x+m.dx);m.d.y=r1(o.y+m.dy);m.d.sheet=o.sheet;});
     frame(()=>{computeRoutes();renderBoard();renderWires();});
+  }else if(act.t==='zres'){
+    // 現場框改大小：拖哪一邊就動哪一邊，10 mm 格點，最小 120×80
+    const p=toWorld(e),r=act.r0,z=act.z,h=act.h,dx=p.x-act.p0.x,dy=p.y-act.p0.y,sn=v=>Math.round(v/10)*10;
+    let x0=r.x,y0=r.y,x1=r.x+r.w,y1=r.y+r.h;
+    if(h.includes('w'))x0=Math.min(sn(r.x+dx),x1-120);if(h.includes('e'))x1=Math.max(sn(r.x+r.w+dx),x0+120);
+    if(h.includes('n'))y0=Math.min(sn(r.y+dy),y1-80);if(h.includes('s'))y1=Math.max(sn(r.y+r.h+dy),y0+80);
+    z.x=x0;z.y=y0;z.w=x1-x0;z.h=y1-y0;frame(()=>{renderBoard();renderOverlay();});
   }else if(act.t==='zone'){
     const p=toWorld(e),z=act.obj;
     z.x=Math.round((p.x-act.ox)/10)*10;z.y=Math.round((p.y-act.oy)/10)*10;
@@ -184,7 +193,7 @@ svg.addEventListener('pointerup',e=>{
   if(a.t==='wp'&&!a.moved&&noteTap(e)&&tryDouble(toWorld(e))) return;
   if(a.t==='lab'){if(a.moved){commit();renderWires();renderDetail();}return;}
   if(a.t==='bo'){if(a.moved)commit();else selectCable(a.cid);recompute();return;}
-  if(a.t==='drag'||a.t==='wp'||a.t==='gland'||a.t==='zone'){ if(a.moved){commit();} recompute(); return; }
+  if(a.t==='drag'||a.t==='wp'||a.t==='gland'||a.t==='zone'||a.t==='zres'){ if(a.moved){commit();} recompute(); return; }
   if(a.moved||a.btn!==0) return;
   if(mode==='wire') clickWire(e,a); else if(mode==='view') viewClick(a); else {picked=null;multi=[];sel=null;selCab=null;renderWires();renderDetail();updateHint();}
 });
@@ -322,11 +331,18 @@ function pickedObj(){
   if(picked.k==='zone') return S.fields.find(z=>z.id===picked.id);
   return picked.k==='dev'?devOf(picked.id):picked.k==='gland'?S.glands.find(g=>g.id===picked.id):S.ducts.find(d=>d.id===picked.id);
 }
+// 現場框的改大小拖曳點：選取現場框時四角、四邊中點各一個
+const ZCUR={nw:'nwse-resize',se:'nwse-resize',ne:'nesw-resize',sw:'nesw-resize',n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize'};
+function zoneHandles(z){const x0=z.x,x1=z.x+z.w,xm=z.x+z.w/2,y0=z.y,y1=z.y+z.h,ym=z.y+z.h/2;return {nw:[x0,y0],n:[xm,y0],ne:[x1,y0],e:[x1,ym],se:[x1,y1],s:[xm,y1],sw:[x0,y1],w:[x0,ym]};}
+function zoneHandleAt(p){
+  if(mode!=='place'||!picked||picked.k!=='zone'||multi.length>1)return null;const z=S.fields.find(x=>x.id===picked.id);if(!z)return null;
+  const H=zoneHandles(z),tol=9/view.k;let best=null,bd=tol;for(const k in H){const d=Math.max(Math.abs(H[k][0]-p.x),Math.abs(H[k][1]-p.y));if(d<bd){bd=d;best=k;}}return best;
+}
 function moveBy(dir,keepFocus){
   const n=moveStep,dx=dir==='l'?-n:dir==='r'?n:0,dy=dir==='u'?-n:dir==='d'?n:0;
   if(multi.length){shiftSel(dx,dy);if(keepFocus){const el=document.querySelector(`#detail [data-mv="${dir}"]`);if(el)el.focus();}return true;}
   const o=pickedObj();if(!o) return false;
-  if(picked.k==='zone'){S.devices.filter(d=>inZone(o,d)).forEach(d=>{d.x=r1(d.x+dx);d.y=r1(d.y+dy);});o.x=r1(o.x+dx);o.y=r1(o.y+dy);}
+  if(picked.k==='zone'){zoneCarry(o).forEach(d=>{d.x=r1(d.x+dx);d.y=r1(d.y+dy);});o.x=r1(o.x+dx);o.y=r1(o.y+dy);}
   else if(picked.k==='gland'){const P=glandPt(o),along=P.ny?dx:dy;if(!along) return false;glandTo(o,{x:P.x+(P.ny?dx:0),y:P.y+(P.nx?dy:0)});}
   else{const mt=picked.k==='dev'?carried(o):[];o.x=r1(o.x+dx);o.y=r1(o.y+dy);syncSheet(o);shiftAll(mt,dx,dy,o.sheet);}
   commit();recompute();

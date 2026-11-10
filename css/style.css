@@ -390,3 +390,4 @@ body{margin:0}
 .lib-c{display:flex;flex-direction:column;gap:2px;margin-bottom:4px}
 .lib-c .lib-act{display:flex;gap:4px;padding-left:6px}
 .lib-c .lib-act .tool{padding:1px 7px;font-size:11.5px}
+.zh{fill:#fff;stroke:var(--accent);pointer-events:none}

@@ -68,6 +68,14 @@ function zoneOf(d){
   return best;
 }
 const devRef=d=>d.sheet==='field'?(zoneOf(d)||sheetRect('field')):sheetRect(d.sheet);
+// 拖現場框時一起帶走的東西：框裡的現場器具、箱外線槽、線和電纜外皮的中繼點、電纜剝線點（都是有 x、y 的物件）
+function zoneCarry(z){
+  const out=S.devices.filter(d=>inZone(z,d));
+  S.ducts.forEach(d=>{if(d.sheet==='field'&&inR({x:d.x+d.w/2,y:d.y+d.h/2},z))out.push(d);});
+  S.wires.forEach(w=>(w.wps||[]).forEach(p=>{if(inR(p,z))out.push(p);}));
+  (S.cables||[]).forEach(c=>{(c.wps||[]).forEach(p=>{if(inR(p,z))out.push(p);});['a','b'].forEach(k=>{const p=c.bo&&c.bo[k];if(p&&inR(p,z))out.push(p);});});
+  return out;
+}
 const inZone=(z,d)=>{if(d.sheet!=='field')return false;const t=tplOf(d);return inR({x:d.x+t.w/2,y:d.y+t.h/2},z);};
 /* 面板模式：door 門板（比箱體小會警告、做關門碰撞檢查）、console 獨立操作台（不檢查）、none 不使用 */
 const useDoor=()=>S.doorMode!=='none';
