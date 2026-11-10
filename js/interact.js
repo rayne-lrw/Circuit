@@ -136,7 +136,7 @@ svg.addEventListener('pointermove',e=>{
     o.x=Math.round((p.x-act.ox)/5)*5;o.y=Math.round((p.y-act.oy)/5)*5;
     const r=picked.k==='dev'?rectOf('dev',o):rectOf('duct',o);
     o.sheet=sheetAt({x:r.x+r.w/2,y:r.y+r.h/2});
-    if(picked.k==='duct'&&o.sheet==='field') o.sheet='plate';
+    if(picked.k==='duct') o.sheet=ductSheet(r);
     railHit=null;
     if(picked.k==='dev'&&!isRail(o)){
       if(attachOf(o)){if(e.altKey)delete o.on;else railHit=hostSnap(o,p.x-act.ox,p.y-act.oy);if(!o.on&&BAT_VAR.has(o.tpl))o.tpl=BAT_BASE;}
@@ -388,8 +388,10 @@ function railSnap(o,x,y){
 function syncSheet(o){
   const r=picked.k==='dev'?rectOf('dev',o):rectOf('duct',o);
   o.sheet=sheetAt({x:r.x+r.w/2,y:r.y+r.h/2});
-  if(picked.k==='duct'&&o.sheet==='field') o.sheet='plate';
+  if(picked.k==='duct') o.sheet=ductSheet(r);
 }
+// 線槽在箱子裡算底板、在面板上算面板，其他地方（現場區、箱子外面）算箱外線槽（走線架、浪管）
+function ductSheet(r){const c={x:r.x+r.w/2,y:r.y+r.h/2};if(useDoor()&&inR(c,sheetRect('door')))return 'door';return inR(c,boxRect())?'plate':'field';}
 function moveHtml(horizOnly){
   const b=(d,t,l)=>`<button class="tool" data-mv="${d}" aria-label="${l}">${t}</button>`;
   return `<div><div class="sub-h">移動距離 mm</div><div class="row" style="justify-content:flex-start;align-items:center"><input id="mvD" type="number" min="0.1" step="1" value="${moveStep}" aria-label="移動距離" style="width:72px;border:1px solid var(--line);background:var(--panel-2);border-radius:5px;padding:5px 6px;font-family:var(--mono);font-size:12.5px">${b('l','←','向左')}${horizOnly?'':b('u','↑','向上')+b('d','↓','向下')}${b('r','→','向右')}</div></div>`;
@@ -669,8 +671,9 @@ $('palette').addEventListener('click',e=>{
     setMode('place');picked={k:'dev',id};
   }else if(b.dataset.ductAdd){
     let i=1;while(S.ducts.some(d=>d.id==='D'+i))i++;
-    const h=b.dataset.ductAdd==='h',wd=Number(b.dataset.dw),w=h?300:wd,hh=h?wd:300,vc=viewCenter(),c=inR(vc,boxRect())?vc:{x:S.plate.w/2,y:S.plate.h/2};
-    S.ducts.push({id:'D'+i,sheet:'plate',dp:Number(b.dataset.dd),x:Math.round((c.x-w/2)/5)*5,y:Math.round((c.y-hh/2)/5)*5,w,h:hh});
+    // 畫面中央在箱子裡就放在那裡；在箱子外面（現場區或箱子旁邊）就放成箱外線槽；在面板上則放回底板中央
+    const h=b.dataset.ductAdd==='h',wd=Number(b.dataset.dw),w=h?300:wd,hh=h?wd:300,vc=viewCenter(),onDoor=useDoor()&&inR(vc,sheetRect('door')),c=onDoor?{x:S.plate.w/2,y:S.plate.h/2}:vc;
+    const nd={id:'D'+i,sheet:'plate',dp:Number(b.dataset.dd),x:Math.round((c.x-w/2)/5)*5,y:Math.round((c.y-hh/2)/5)*5,w,h:hh};nd.sheet=ductSheet(nd);S.ducts.push(nd);
     setMode('place');picked={k:'duct',id:'D'+i};
   }else if(b.dataset.zoneAdd!==undefined){
     let i=1;while(S.fields.some(z=>z.id==='Z'+i))i++;

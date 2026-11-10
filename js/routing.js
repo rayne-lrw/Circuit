@@ -153,7 +153,8 @@ function slideJog(pts,side,ok){
 }
 function routeLeg(A,B,J,noDuct){
   // 兩點都在箱外：直接連，會穿過箱體就繞過去（箱外沒有線槽）
-  if(A.sheet==='field'&&B.sheet==='field'&&!(A.dev&&B.dev&&A.dev===B.dev)){let d=directPts(A,B);
+  const fieldDucts=A.sheet==='field'&&S.ducts.some(d=>d.sheet==='field');
+  if(A.sheet==='field'&&B.sheet==='field'&&!(A.dev&&B.dev&&A.dev===B.dev)&&!fieldDucts){let d=directPts(A,B);
     if(crossBox(d)){const q=avoidBox(A,B);if(q)d=q;}
     // 出線口正外面的小折角（同一個出線口多條線錯開造成）：推到下一個轉角合併，不在出線口正上方小折一下
     const okp=p=>!crossBox(p)&&clean(p,A,B,true);
@@ -178,8 +179,9 @@ function routeLeg(A,B,J,noDuct){
     }
     return {direct:true,pts:d,warn:A.sheet==='plate'&&!clean(d,A,B,true)?'直接拉線穿過其他器具':null};}
   if(!A.inDuct&&!B.inDuct&&!A.must&&!B.must){
-    const d=directPts(A,B), ok=clean(d,A,B), m=Math.abs(A.x-B.x)+Math.abs(A.y-B.y);
-    if(ok&&(!(A.dev&&B.dev)||m<=95)) return {direct:true,pts:d};
+    const d=directPts(A,B), ok=clean(d,A,B)&&!(A.sheet==='field'&&crossBox(d)), m=Math.abs(A.x-B.x)+Math.abs(A.y-B.y);
+    // 箱內：兩端都是器具時，近的（95 mm 內）才直接拉；箱外有線槽時同樣規則，其他都先找線槽走（找不到才直接拉）
+    if(ok&&(fieldDucts?(A.dev&&B.dev&&m<=95):(!(A.dev&&B.dev)||m<=95))) return {direct:true,pts:d};
   }
   let best=null;
   for(const a of exits(A)) for(const b of exits(B)){
@@ -187,7 +189,7 @@ function routeLeg(A,B,J,noDuct){
     const cost=a.cost+b.cost+p.cost;
     if(!best||cost<best.cost) best={cost,ducts:p.ducts,blocked:a.blocked||b.blocked};
   }
-  if(!best) return {direct:true,pts:directPts(A,B),warn:A.sheet==='plate'?'無線槽可走':null}; // 面板與現場本來就不一定有線槽
+  if(!best){let d=directPts(A,B);if(A.sheet==='field'&&crossBox(d)){const q=avoidBox(A,B);if(q)d=q;}return {direct:true,pts:d,warn:A.sheet==='plate'?'無線槽可走':null};} // 面板與現場本來就不一定有線槽
   return {ducts:best.ducts,warn:best.blocked?'穿過其他器具':null};
 }
 function realize(wid,anchors,legs,lane0){
@@ -404,7 +406,10 @@ function computeIssues(){
   if(isDoorPanel()&&(S.door.w<B.w||S.door.h<B.h)) out.push({t:`面板 ${S.door.w}×${S.door.h} 蓋不住電控箱 ${B.w}×${B.h}；如果是獨立操作台，點這裡到「盤面設定」改選面板`,k:'doormode'});
   const P0=sheetRect('plate'),D0=sheetRect('door');
   // 器具可以放在底板、面板、現場區以外（例如裝在箱體外側板金），所以不檢查器具是否在範圍內
-  S.ducts.forEach(d=>{if(outside(rectOf('duct',d),d.sheet==='door'?D0:P0)) out.push({t:`線槽 ${d.id} 超出${d.sheet==='door'?doorShort():'底板'}`,k:'duct',id:d.id});});
+  S.ducts.forEach(d=>{
+    // 箱外線槽（走線架、浪管）不在底板上：只檢查有沒有壓到箱體
+    if(d.sheet==='field'){if(overlap(rectOf('duct',d),BX)) out.push({t:`箱外線槽 ${d.id} 壓到箱體，請移到箱子外面`,k:'duct',id:d.id});return;}
+    if(outside(rectOf('duct',d),d.sheet==='door'?D0:P0)) out.push({t:`線槽 ${d.id} 超出${d.sheet==='door'?doorShort():'底板'}`,k:'duct',id:d.id});});
   S.devices.forEach((a,i)=>{
     if(a.sheet==='field'||tplOf(a).noOv||tplOf(a).sym==='diode') return;
     const ra=rectOf('dev',a);
