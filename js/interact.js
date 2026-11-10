@@ -60,6 +60,9 @@ function hoverUpdate(e){
 let act=null;
 svg.addEventListener('pointerdown',e=>{
   const p=toWorld(e);cursor=p;
+  // 審查註記：放註記模式點一下就放；點到註記圓點選取它，可以拖曳移動
+  if(e.button===0&&noteAdd){addNote(p);noteAdd=false;tab='rev';commit();renderList();renderOverlay();updateHint();return;}
+  if(e.button===0){const n=noteHit(p);if(n){act={t:'note',n,ox:p.x-n.x,oy:p.y-n.y,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId};svg.setPointerCapture(e.pointerId);return;}}
   if(mode==='wire'&&e.pointerType!=='mouse') hoverUpdate(e);
   // 拖曳線號：接線模式、選取中的線
   const lg=mode==='wire'&&e.button===0&&!draft&&e.target.closest&&e.target.closest('[data-lab]');
@@ -131,6 +134,7 @@ svg.addEventListener('pointermove',e=>{
   const dx=e.clientX-act.sx,dy=e.clientY-act.sy;
   if(!act.moved&&Math.hypot(dx,dy)<4) return;
   if(!act.moved){act.moved=true;try{svg.setPointerCapture(act.id);}catch(_){}$('tip').hidden=true;}
+  if(act.t==='note'){const p=toWorld(e);act.n.x=Math.round(p.x-act.ox);act.n.y=Math.round(p.y-act.oy);renderOverlay();return;}
   if(act.t==='box'){moveBox(toWorld(e));return;}
   if(act.t==='multi'){moveMulti(toWorld(e));return;}
   if(act.t==='drag'){
@@ -194,6 +198,7 @@ svg.addEventListener('pointerup',e=>{
   const a=act;act=null;framePend=null;
   if(!a) return;
   if(railHit){railHit=null;renderWires();}
+  if(a.t==='note'){noteSel=a.n.id;if(a.moved)commit();tab='rev';renderList();renderOverlay();return;}
   if(a.t==='box'){endBox(a);return;}
   if(a.t==='multi'){endMultiDrag(a);return;}
   if(a.copy&&!a.moved){dropClip(a.copy);picked=a.src;recompute();return;} // Ctrl＋點一下沒拖：不複製
@@ -495,6 +500,7 @@ document.addEventListener('keydown',e=>{
   if(!$('opDlg').hidden){if(e.key==='Escape')opDialog(false);return;}
   if(!$('askDlg').hidden){if(e.key==='Escape')askClose();return;}
   if(!$('specDlg').hidden){if(e.key==='Escape')specClose();return;}
+  if(noteAdd&&e.key==='Escape'){noteAdd=false;renderList();updateHint();return;}
   if(mode==='view'&&!typing){
     const k=e.key.toLowerCase();
     if(e.key==='Escape'){sel=null;picked=null;selCab=null;renderList();renderWires();renderDetail();return;}
@@ -789,6 +795,10 @@ $('tabAll').onclick=()=>{tab='all';renderList();};
 $('tabExt').onclick=()=>{tab='ext';renderList();};
 $('tabBom').onclick=()=>{tab='bom';renderList();};
 $('tabLen').onclick=()=>{tab='len';renderList();};
+$('tabRev').onclick=()=>{tab='rev';renderList();};
+$('list').addEventListener('click',e=>{if(tab==='rev'&&reviewListClick(e))e.stopImmediatePropagation();},true);
+$('list').addEventListener('change',e=>{if(tab==='rev'&&reviewListChange(e))e.stopImmediatePropagation();},true);
+$('list').addEventListener('input',e=>{if(tab==='rev'&&e.target.dataset.noteT){const n=noteOf(e.target.dataset.noteT);if(n){n.t=e.target.value.slice(0,300);save();}}});
 $('list').addEventListener('change',e=>{if(e.target.id==='spareIn'){const v=Number(e.target.value);if(!(v>=0)){e.target.value=spare();return;}S.spare=Math.min(5000,Math.round(v));commit();renderList();}});
 $('fDev').onchange=e=>{filt.dev=e.target.value;renderList();applyWireClasses();};
 

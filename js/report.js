@@ -186,16 +186,21 @@ function exportCsv(){
 
 /* 列印：圖面頁用 A4 橫向，表格頁用 A4 直向。用瀏覽器的「另存為 PDF」就能輸出 PDF。 */
 let printN=0;
-function printDrawing(title,R,cls,meta){
+function printDrawing(title,R,cls,meta,extra=''){
   // 頁面比例和範圍不同時，留白處會露出範圍外的東西，所以裁切
   const id='pc'+(++printN);
   return `<section class="pg land"><div class="ph"><b>${esc(title)}</b><span>${esc(meta)}</span></div>
-  <svg class="pdraw ${cls}" xmlns="http://www.w3.org/2000/svg" viewBox="${R.x} ${R.y} ${R.w} ${R.h}" preserveAspectRatio="xMidYMid meet"><defs><clipPath id="${id}"><rect x="${R.x}" y="${R.y}" width="${R.w}" height="${R.h}"/></clipPath></defs><g clip-path="url(#${id})">${$('board').innerHTML}${$('wires').innerHTML}${$('top').innerHTML}</g></svg></section>`;
+  <svg class="pdraw ${cls}" xmlns="http://www.w3.org/2000/svg" viewBox="${R.x} ${R.y} ${R.w} ${R.h}" preserveAspectRatio="xMidYMid meet"><defs><clipPath id="${id}"><rect x="${R.x}" y="${R.y}" width="${R.w}" height="${R.h}"/></clipPath></defs><g clip-path="url(#${id})">${$('board').innerHTML}${$('wires').innerHTML}${$('top').innerHTML}${extra}</g></svg></section>`;
 }
 function buildPrint(){
   const d=new Date(),p=n=>String(n).padStart(2,'0'),date=`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
   let tot=0;ROUTES.forEach(r=>{tot+=r.len;});
   const meta=`${date}　${S.devices.length} 器具　${S.wires.length} 線　圖面總長 ${(tot/1000).toFixed(1)} m`;
+  if(printReviewOnly){ // 審查報告：全圖（含註記圓點）＋問題清單、註記、未確認的線
+    const bo=boxOrigin(),dr=useDoor()?sheetRect('door'):{x:bo.x,y:bo.y,w:S.box.w,h:S.box.h},fr=sheetRect('field');
+    const x0=Math.min(0,bo.x,fr.x)-16,y0=Math.min(0,bo.y,dr.y,fr.y)-20,x1=Math.max(S.plate.w,dr.x+dr.w,fr.x+fr.w)+6,y1=Math.max(bo.y+S.box.h+30,fr.y+fr.h)+6;
+    const pr=$('print');pr.innerHTML=printDrawing('配線審查　全圖與註記',{x:x0,y:y0,w:x1-x0,h:y1-y0},'',meta,noteOverlay(Math.max(.2,700/(x1-x0))))+reviewReportHtml(meta);
+    pr.querySelectorAll('.picked,.issue-rect').forEach(x=>x.remove());pr.querySelectorAll('.wire').forEach(x=>x.classList.remove('on','off'));return;}
   const bo=boxOrigin(),dr=useDoor()?sheetRect('door'):{x:bo.x,y:bo.y,w:S.box.w,h:S.box.h},fr=sheetRect('field'),pad=(r,a,b=a)=>({x:r.x-a,y:r.y-a,w:r.w+2*a,h:r.h+a+b});
   const x0=Math.min(0,bo.x,fr.x)-16,y0=Math.min(0,bo.y,dr.y,fr.y)-20,x1=Math.max(S.plate.w,dr.x+dr.w,fr.x+fr.w)+6,y1=Math.max(bo.y+S.box.h+30,fr.y+fr.h)+6;
   let h=printDrawing('盤面配線圖　全圖',{x:x0,y:y0,w:x1-x0,h:y1-y0},'',meta);

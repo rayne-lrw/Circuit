@@ -42,9 +42,10 @@ function wireRow(w){
 }
 function renderList(){
   renderFilters();
-  [['tabAll','all'],['tabExt','ext'],['tabBom','bom'],['tabLen','len']].forEach(([id,t])=>$(id).setAttribute('aria-pressed',tab===t));
-  $('listCsv').textContent=`匯出${{all:'線號表',ext:'電纜表',bom:'材料表',len:'線長統計'}[tab]} CSV`;
+  [['tabAll','all'],['tabExt','ext'],['tabBom','bom'],['tabLen','len'],['tabRev','rev']].forEach(([id,t])=>$(id).setAttribute('aria-pressed',tab===t));
+  $('listCsv').hidden=tab==='rev';if(tab!=='rev')$('listCsv').textContent=`匯出${{all:'線號表',ext:'電纜表',bom:'材料表',len:'線長統計'}[tab]} CSV`;
   $('filters').hidden=tab!=='all';
+  if(tab==='rev'){renderReview();return;}
   if(tab==='bom'){renderBom();return;}
   if(tab==='len'){renderLen();return;}
   if(tab==='ext'){renderCables();return;}
@@ -71,7 +72,8 @@ function renderDetailInner(){
     const pr=parallelOf(w),pl=a=>a.length?a.map(x=>`<button class="lnk" data-pw="${x.id}">${esc(x.no)}</button>`).join(' '):'無';
     if(renameOffer&&renameOffer.wid!==w.id)renameOffer=null;
     const ro=renameOffer;
-    box.innerHTML=`<div class="fields"><label for="wNo" style="grid-column:1/-1">線號（可以重複，同電位可用同一個號碼）<input id="wNo" maxlength="16" value="${esc(w.no)}" style="font-size:15px;font-weight:600"></label></div>
+    const rs=reviewOf(w);
+    box.innerHTML=`<label class="rv-chk st-${rs}"><input type="checkbox" id="wRev"${rs==='ok'?' checked':''}> 已審查確認${rs==='changed'?'（確認後改過，請重看）':''}</label><div class="fields"><label for="wNo" style="grid-column:1/-1">線號（可以重複，同電位可用同一個號碼）<input id="wNo" maxlength="16" value="${esc(w.no)}" style="font-size:15px;font-weight:600"></label></div>
     ${ro?`<div class="revert"><p class="note">同電位還有 ${ro.ids.length} 條線號是 ${esc(ro.from)}，要一起改成 ${esc(ro.to)} 嗎？</p><div class="row" style="justify-content:flex-start"><button class="tool" id="renAll">一起改</button><button class="tool" id="renNo">不用</button></div></div>`:''}<div class="big"><span class="sw" style="background:${swatch(c)}"></span> ${esc(c.n)}　${w.gauge} mm²　${KINDS[kind]}</div>
     <dl><dt>起點</dt><dd>${esc(epText(w.a))}</dd><dt>終點</dt><dd>${esc(epText(w.b))}</dd><dt>路徑</dt><dd>${w.direct?'不進線槽，直接拉線':w.wps.length?'經過中繼點'+(r.via.length?'：'+esc(r.via.join(' → ')):''):r.via.length?'自動：'+esc(r.via.join(' → ')):'自動：直接跨接'}${r.gland?' → '+esc(r.gland):''}</dd><dt>中繼點</dt><dd>${w.wps.length} 個</dd><dt>線號位置</dt><dd><select id="wLab" aria-label="線號位置">${LAB_AT.map(([k,n])=>`<option value="${k}"${w.lab==null&&(w.labAt||'start')===k?' selected':''}>${n}</option>`).join('')}${w.lab!=null?'<option value="" selected>拖曳過的位置</option>':''}</select></dd>${sameNo(w).length?`<dt>同號</dt><dd>${sameNo(w).length} 條：${pl(sameNo(w))}</dd>`:''}<dt>起點並線</dt><dd>${pl(pr.a)}</dd><dt>終點並線</dt><dd>${pl(pr.b)}</dd><dt>圖面線長</dt><dd>${(r.len/1000).toFixed(2)} m</dd></dl>
     ${r.warn?`<span class="flag">${esc(r.warn)}：請加中繼點或調整線槽</span>`:''}
@@ -83,6 +85,7 @@ function renderDetailInner(){
     <p class="note">${esc(stockMsg(w.gauge,w.color))}</p>`}
     <div class="row">${w.wps.length&&!w.cab?'<button class="tool" id="clearWp">清除中繼點，改回自動</button>':''}<button class="tool danger" id="delWire">刪除這條線</button></div>`;
     $('wLab').onchange=e=>{const v=e.target.value;if(!v)return;delete w.lab;if(v==='start')delete w.labAt;else w.labAt=v;commit();recompute();};
+    $('wRev').onchange=e=>{setReviewed(w,e.target.checked);commit();renderDetail();if(tab==='rev')renderList();};
     $('wNo').onchange=e=>{
       const v=e.target.value.trim();if(!v||v===w.no){e.target.value=w.no;return;}
       // 同電位還有同號的線：改完後問要不要一起改
@@ -246,7 +249,8 @@ function renderStats(){
 function updateHint(){
   if(typeof renderCabBar==='function')renderCabBar();
   let s,k;
-  if(mode==='view'){k='view';s='檢視模式：只能看，不能修改。點線或器具可看詳細資料，拖曳空白處平移；按 W 回到接線、M 回到擺放。';}
+  if(typeof noteAdd!=='undefined'&&noteAdd){k='note';s='放審查註記：在圖面上點一下要註記的位置；按 Esc 取消。';}
+  else if(mode==='view'){k='view';s='檢視模式：只能看，不能修改。點線或器具可看詳細資料，拖曳空白處平移；按 W 回到接線、M 回到擺放。';}
   else if(mode==='place'){k=picked||multi.length?'place-picked':'place';s=(k==='place-picked'?'拖曳可移動，方向鍵或右側按鈕可依輸入距離移動，按 R 可旋轉，導線會自動重算；拖進面板或現場區會跟著換位置。Delete 可刪除。':'拖曳器具、線槽或出線口來擺放；左側可新增器具。')+(typeof opPref==='function'&&opPref().drag==='old'?'Shift＋點或 Shift＋拖曳框選可多選，':'拖曳空白處框選（由左往右只選完全框住的，由右往左碰到就選），Shift＋點加入或移出，')+'Ctrl＋A 全選；Ctrl＋拖曳可複製，Ctrl＋C／Ctrl＋V 複製貼上。拖到 H-66 鋁軌上會自動對齊並靠齊相鄰器具，按住 Alt 不吸附。';}
   else if(cabPick&&cabHint()){k='wire-cab';s=cabHint();}
   else if(draft&&draft.pop){k='wire-pop';s='選好線號、線徑與顏色後按 Enter 建立，Esc 取消。';}

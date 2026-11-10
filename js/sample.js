@@ -107,7 +107,12 @@ function normalize(o){
   // 舊檔：自訂規格以前是打文字解析的，沒有定義；用那條電纜現在的芯線表登記成自訂規格，之後可以在規格視窗編輯
   cables.forEach(c=>{if(c.spec&&!isBuiltinSpec(c.spec)&&!cableSpecs.some(y=>y.name===c.spec)&&c.cores.length)cableSpecs.push({name:c.spec,cores:c.cores.map(k=>({...k}))});});
   migrateCables({wires,cables,cableSpecs});
-  return {state:{box,plate,door,doorMode,fields,...(o.warnMixedNo===true?{warnMixedNo:true}:{}),hinge:num(o.hinge,plate.h/2),fillLimit:Math.min(100,Math.max(5,num(o.fillLimit,50))),spare:Math.min(5000,Math.max(0,num(o.spare,0))),glands,tpls,devices,ducts,wires,cables,cableSpecs,nextNo},
+  // 審查：確認過的線（簽章）、圖上註記
+  const rvIn=o.review&&typeof o.review==='object'?o.review:{},rvOk={};
+  if(rvIn.ok&&typeof rvIn.ok==='object')Object.entries(rvIn.ok).forEach(([k,v])=>{if(safe(k)&&typeof v==='string'&&wires.some(w=>w.id===k))rvOk[k]=v.slice(0,300);});
+  const rvNotes=(Array.isArray(rvIn.notes)?rvIn.notes:[]).filter(n=>n&&safe(n.id)).slice(0,500).map(n=>({id:n.id,x:num(n.x,0),y:num(n.y,0),t:txt(n.t,300),st:['open','fixed','ok'].includes(n.st)?n.st:'open',at:num(n.at,0)}));
+  const review=Object.keys(rvOk).length||rvNotes.length?{review:{ok:rvOk,notes:rvNotes}}:{};
+  return {state:{box,plate,door,doorMode,fields,...review,...(o.warnMixedNo===true?{warnMixedNo:true}:{}),hinge:num(o.hinge,plate.h/2),fillLimit:Math.min(100,Math.max(5,num(o.fillLimit,50))),spare:Math.min(5000,Math.max(0,num(o.spare,0))),glands,tpls,devices,ducts,wires,cables,cableSpecs,nextNo},
     dropped:(o.devices.length-devices.length)+(o.ducts.length-ducts.length)+(o.wires.length-wires.length)};
 }
 

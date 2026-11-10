@@ -395,3 +395,29 @@ body{margin:0}
 .lib-c .lib-act{display:flex;gap:4px;padding-left:6px}
 .lib-c .lib-act .tool{padding:1px 7px;font-size:11.5px}
 .zh{fill:#fff;stroke:var(--accent);pointer-events:none}
+
+/* 配線審查 */
+.rv-bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin:4px 0 8px}
+.rv-bar span{display:block;height:100%;background:#159a4b}
+.rv-act{justify-content:flex-start;flex-wrap:wrap;gap:6px}
+.rv-h{font-size:13px;margin:12px 0 4px}
+.rv-note{border:1px solid var(--line);border-radius:6px;padding:6px;margin:6px 0}
+.rv-note.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.rv-nh{display:flex;gap:6px;align-items:center;margin-bottom:4px}
+.rv-nh select{flex:1}
+.rv-note textarea{width:100%;box-sizing:border-box;font:inherit;font-size:12.5px;resize:vertical}
+.rv-pin{min-width:34px;border-radius:12px;border:0;color:#fff;font-weight:700;cursor:pointer;padding:2px 6px}
+.rv-pin.st-open,.rv-mk.st-open circle{background:#d6202c;fill:#d6202c}
+.rv-pin.st-fixed,.rv-mk.st-fixed circle{background:#e07a10;fill:#e07a10}
+.rv-pin.st-ok,.rv-mk.st-ok circle{background:#159a4b;fill:#159a4b}
+.rv-mk circle{stroke:#fff;stroke-width:1.5px;vector-effect:non-scaling-stroke}
+.rv-mk.sel circle{stroke:var(--accent);stroke-width:3px}
+.rv-mk text{fill:#fff;font-weight:700;font-family:var(--sans)}
+.rv-f{margin:4px 0}
+.rv-w{display:flex;gap:6px;align-items:center;padding:3px 2px;font-size:12.5px;border-radius:4px}
+.rv-w.sel{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.rv-w .ep{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rv-w [data-wl]{font-weight:600;cursor:pointer}
+.rv-chk{display:flex;gap:6px;align-items:center;font-size:13px;margin:0 0 8px;padding:6px 8px;border:1px solid var(--line);border-radius:6px}
+.rv-chk.st-ok{border-color:#159a4b;color:#159a4b}
+.rv-chk.st-changed{border-color:#e07a10;color:#b85d00}

@@ -527,6 +527,7 @@ function computeIssues(){
     const byNet=new Map();S.wires.forEach(w=>{const n=nets.get(w.id);if(!byNet.has(n))byNet.set(n,new Set());byNet.get(n).add(w.no);});
     byNet.forEach((set,n)=>{if(set.size>1){const w=S.wires.find(x=>nets.get(x.id)===n);out.push({t:`同一電位有不同線號：${[...set].sort(natCmp).join('、')}`,k:'wire',id:w.id});}});
   }
+  if(typeof reviewIssues==='function')out.push(...reviewIssues());
   return out;
 }
 // 回傳第一個沿原路折回的轉折點（沒有就 null）
