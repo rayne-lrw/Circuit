@@ -16,6 +16,9 @@ function openEditor(tplId,dev,opt={}){
   ed.terms=(base?base.terms:[]).map(t=>{const o={...t,uid:edUid++,oid:copy?null:t.id};o.auto=edAuto(o)===t.side;return o;});
   const byId=new Map(ed.terms.map(t=>[t.id,t.uid]));
   ed.links=((base&&base.links)||[]).map(g=>g.map(id=>byId.get(id)).filter(Boolean)).filter(g=>g.length>1);
+  // 模擬動作：自訂器具用自己的；內建器具（或從內建複製來的）先帶入內建的動作資料
+  const sk=base&&(Array.isArray(base.sim)?null:SIMDEF[tplId]?tplId:base.src&&SIMDEF[base.src]?base.src:null);
+  ed.sim=JSON.parse(JSON.stringify(base?(Array.isArray(base.sim)?base.sim:sk?SIMDEF[sk]():[]):[]));
   ed.next=edNextNum();
   $('edTitle').textContent=copy?`複製器具：${base.n}`:base?`編輯器具：${base.n}`:'新增自訂器具';
   $('edSlotNote').hidden=!(base&&hasSlots(base));
@@ -31,9 +34,9 @@ function edNextNum(){let n=0;ed.terms.forEach(t=>{const m=String(t.id).match(new
 function edNewId(){let n=ed.next,id;do{id=ed.pfx+n;n++;}while(ed.terms.some(t=>t.id===id));ed.next=n;return id;}
 const edSnap=v=>ed.grid?Math.round(v/ed.grid)*ed.grid:Math.round(v*100)/100;
 const edSel=()=>ed.terms.filter(t=>ed.sel.has(t.uid));
-const edState=()=>JSON.stringify({shape:ed.shape,w:ed.w,h:ed.h,terms:ed.terms,links:ed.links});
+const edState=()=>JSON.stringify({shape:ed.shape,w:ed.w,h:ed.h,terms:ed.terms,links:ed.links,sim:ed.sim});
 function edPush(){ed.hist.push(edState());if(ed.hist.length>100)ed.hist.shift();ed.fut=[];}
-function edRestore(j){const o=JSON.parse(j);ed.shape=o.shape;ed.w=o.w;ed.h=o.h;ed.terms=o.terms;ed.links=o.links;ed.sel=new Set([...ed.sel].filter(u=>ed.terms.some(t=>t.uid===u)));}
+function edRestore(j){const o=JSON.parse(j);ed.shape=o.shape;ed.w=o.w;ed.h=o.h;ed.terms=o.terms;ed.links=o.links;ed.sim=o.sim||[];ed.sel=new Set([...ed.sel].filter(u=>ed.terms.some(t=>t.uid===u)));}
 function edUndo(){if(!ed.hist.length)return;ed.fut.push(edState());edRestore(ed.hist.pop());edAll();}
 function edRedo(){if(!ed.fut.length)return;ed.hist.push(edState());edRestore(ed.fut.pop());edAll();}
 function edAll(){edBar();edSide();drawEd();}
@@ -144,6 +147,7 @@ function edSide(){
       <div class="row" style="justify-content:flex-start;flex-wrap:wrap"><button class="tool" id="emGo">套用命名</button><select id="emSide" aria-label="出線方向"><option value="">出線方向…</option><option value="auto">自動</option>${Object.entries(ED_SIDE).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select><button class="tool" id="emLink" title="這幾個接點在器具內部相通">設為同電位</button></div></section>`;}
   else h+=`<section><p class="note">${ed.tool==='add'?'在畫布上點一下就會放一個接點，名稱自動往下編號。':'點一個接點可以改名稱、說明和出線方向；框選多個可以對齊、等距、依序命名、設為同電位。'}</p></section>`;
   if(ed.links.length)h+=`<section><div class="sub-h">同電位（器具內部相通）</div>${ed.links.map((g,i)=>`<div class="jrow"><span>${g.map(u=>ed.terms.find(t=>t.uid===u)).filter(Boolean).map(lab).join('、')}</span><button class="tool sm" data-elk="${i}">刪除</button></div>`).join('')}</section>`;
+  h+=simEdHtml();
   const circ=ed.shape==='circle';
   h+=`<section><div class="sub-h">器具</div><div class="fields">
       <label for="eName" style="grid-column:1/-1">名稱／型號<input id="eName" maxlength="40" value="${esc(ed.n)}"></label>
@@ -156,6 +160,7 @@ function edSide(){
       <label for="eNote" style="grid-column:1/-1">備註<input id="eNote" maxlength="120" value="${esc(ed.note)}"></label></div>
       <label class="check"><input type="checkbox" id="eOk"${ed.ok?' checked':''}>尺寸與接點已對照型錄或實物</label></section>`;
   $('edSide').innerHTML=h;
+  simEdBind();
   // 一排
   if(ed.row){const R=ed.row;$('erN').onchange=e=>R.n=Math.max(1,Math.min(120,Math.round(Number(e.target.value)||1)));$('erP').onchange=e=>R.pitch=Math.max(.5,Number(e.target.value)||7.5);
     $('erD').onchange=e=>{R.dir=e.target.value;R.edge=R.dir==='h'?'top':'left';edSide();};$('erE').onchange=e=>R.edge=e.target.value;
@@ -165,7 +170,7 @@ function edSide(){
       for(let i=0;i<R.n;i++){const t={uid:edUid++,id:edNewId(),x:+(hz?c0+R.pitch*i:fixed).toFixed(2),y:+(hz?fixed:c0+R.pitch*i).toFixed(2),side:e0,desc:'',auto:false,oid:null};t.auto=edAuto(t)===e0;add.push(t);}
       ed.terms.push(...add);ed.sel=new Set(add.map(t=>t.uid));ed.pitch=R.pitch;ed.row=null;ed.tool='select';edAll();};}
   if(n===1){const t=ts[0];
-    $('esId').onchange=e=>{const v=e.target.value.trim().slice(0,12);if(!v){e.target.value=t.id;return;}if(ed.terms.some(x=>x!==t&&x.id===v)){toast(`已經有接點叫 ${v}`);e.target.value=t.id;return;}edPush();t.id=v;drawEd();edBar();};
+    $('esId').onchange=e=>{const v=e.target.value.trim().slice(0,12);if(!v){e.target.value=t.id;return;}if(ed.terms.some(x=>x!==t&&x.id===v)){toast(`已經有接點叫 ${v}`);e.target.value=t.id;return;}edPush();const old=t.id;t.id=v;simRename(old,v);drawEd();edBar();edSide();};
     $('esSide').onchange=e=>{edPush();const v=e.target.value;if(v==='auto'){t.auto=true;t.side=edAuto(t);}else{t.auto=false;t.side=v;}drawEd();};
     $('esDesc').onchange=e=>{edPush();t.desc=e.target.value.slice(0,20);};
     const mv=(k)=>e=>{const v=Number(e.target.value);if(!Number.isFinite(v))return;edPush();t[k]=v;edReside(t);drawEd();edSide();};
@@ -208,7 +213,7 @@ $('edSave').onclick=()=>{
   const dup=ids.find((x,i)=>ids.indexOf(x)!==i);if(dup){toast(`接點名稱 ${dup} 重複，請改掉其中一個`);return;}
   const byU=new Map(ed.terms.map(t=>[t.uid,t.id]));
   const raw={b:ed.b,n:name,w:ed.w,h:ed.h,d:ed.d,pre:ed.pre,f:ed.f,sheet:ed.sheet==='outside'?'plate':ed.sheet,outside:ed.sheet==='outside',round:ed.shape==='circle',rx:ed.shape==='rounded'?Math.min(8,Math.min(ed.w,ed.h)/5):undefined,ok:ed.ok,note:ed.note,
-    links:ed.links.map(g=>g.map(u=>byU.get(u)).filter(Boolean)).filter(g=>g.length>1),
+    links:ed.links.map(g=>g.map(u=>byU.get(u)).filter(Boolean)).filter(g=>g.length>1),sim:ed.sim,
     terms:ed.terms.map(t=>({id:t.id,x:t.x,y:t.y,side:t.side,desc:t.desc||'',...(t.ls?{ls:t.ls}:{}),...(t.ox!=null?{ox:t.ox,oy:t.oy}:{})}))};
   const c=cleanTpl(raw);if(!c)return;
   const src=ed.srcId&&(S.tpls[ed.srcId]||TPL[ed.srcId]);
@@ -228,3 +233,42 @@ $('edSave').onclick=()=>{
   computeRoutes();commit();recompute();renderPalette();
   toast(S.wires.length<before?`器具已儲存，少了接點而移除 ${before-S.wires.length} 條線；可按復原`:'器具已儲存');
 };
+
+/* ---------- 模擬動作設定 ----------
+   每一列是一個動作元素（格式見 js/sim.js 開頭）；接點用下拉選，成組接點的子導線也會出現在下拉裡（例如 5521公.+）。 */
+const SIM_ED={grp:'成組接點（一個接點代表多條線）',pass:'一直導通',brk:'斷路器（模擬時可切換）',src:'DC 電源輸出',ac:'AC 電源（一直有電）',load:'負載（有電就動作）',coil:'線圈',sw:'接點（線圈或按鈕帶動）',pwr:'器具本身的電源',sens:'感測器輸出'};
+const SIM_GRP={'+,-':'＋／−（DC 接頭）','L,N,E':'L／N／E（AC 插頭）','L,N':'L／N','A,B':'A／B'};
+function simTermOpts(cur,blank){const ids=ed.terms.map(t=>t.id),g=new Map(ed.sim.filter(e=>e.k==='grp').map(e=>[e.t,e.sub]));
+  const list=ids.flatMap(id=>g.has(id)?g.get(id).map(s=>id+'.'+s):[id]);return (blank?`<option value=""${!cur?' selected':''}>（不需要）</option>`:'')+list.map(v=>`<option value="${esc(v)}"${v===cur?' selected':''}>${esc(v)}</option>`).join('')+(cur&&!list.includes(cur)?`<option value="${esc(cur)}" selected>${esc(cur)}（不存在）</option>`:'');}
+function simRename(o,n){const rp=v=>{if(v===o)return n;if(typeof v==='string'&&v.startsWith(o+'.'))return n+v.slice(o.length);return v;};
+  ed.sim.forEach(e=>{['a','b','p','n','out','to','com','t'].forEach(k=>{if(e[k]!=null)e[k]=rp(e[k]);});['in','ph','pts','ins','auto'].forEach(k=>{if(Array.isArray(e[k]))e[k]=e[k].map(rp);});if(Array.isArray(e.pairs))e.pairs=e.pairs.map(p=>p.map(rp));});}
+function simEdHtml(){
+  const sel=(i,f,cur,blank)=>`<select data-se="${i}" data-sf="${f}">${simTermOpts(cur,blank)}</select>`;
+  const rows=ed.sim.map((e,i)=>{let b='';
+    if(e.k==='grp')b=`<select data-se="${i}" data-sf="t">${ed.terms.map(t=>`<option${t.id===e.t?' selected':''}>${esc(t.id)}</option>`).join('')}</select><select data-se="${i}" data-sf="sub">${Object.entries(SIM_GRP).map(([k,v])=>`<option value="${k}"${e.sub.join(',')===k?' selected':''}>${v}</option>`).join('')}</select>`;
+    else if(['pass','brk','coil','pwr'].includes(e.k))b=sel(i,'a',e.a)+'↔'+sel(i,'b',e.b);
+    else if(e.k==='load')b=sel(i,'a',e.a)+'↔'+sel(i,'b',e.b)+`<input data-se="${i}" data-sf="name" maxlength="12" value="${esc(e.name||'')}" placeholder="名稱"><label class="check"><input type="checkbox" data-se="${i}" data-sf="polar"${e.polar?' checked':''}>有極性（前＋後−）</label>`;
+    else if(e.k==='src')b=`＋${sel(i,'p',e.p)} −${sel(i,'n',e.n)}<input data-se="${i}" data-sf="v" maxlength="8" value="${esc(e.v||'')}" placeholder="電壓" style="width:5em">輸入要有電：${sel(i,'in0',e.in&&e.in[0],true)}↔${sel(i,'in1',e.in&&e.in[1],true)}`;
+    else if(e.k==='ac')b=['相 1','相 2','相 3'].map((t,j)=>t+sel(i,'ph'+j,e.ph[j],j>0)).join(' ');
+    else if(e.k==='sw')b=sel(i,'a',e.a)+'↔'+sel(i,'b',e.b)+`<select data-se="${i}" data-sf="nc"><option value=""${!e.nc?' selected':''}>常開</option><option value="1"${e.nc?' selected':''}>常閉</option></select><select data-se="${i}" data-sf="by">${[['coil','這台的線圈'],['btn','按著按鈕'],['host','裝在哪台就跟哪台的線圈'],['latch','安全繼電器保持']].map(([k,v])=>`<option value="${k}"${e.by===k?' selected':''}>${v}</option>`).join('')}</select>${e.by==='btn'?`<input data-se="${i}" data-sf="btn" maxlength="8" value="${esc(e.btn||'按下')}" placeholder="按鈕名稱" style="width:6em">`:''}`;
+    else if(e.k==='sens')b=`輸出${sel(i,'out',e.out)}觸發時接到${sel(i,'to',e.to)}<input data-se="${i}" data-sf="btn" maxlength="8" value="${esc(e.btn||'觸發')}" style="width:5em">`;
+    else b=`<span class="note">內建動作（PLC、安全繼電器），這裡不能修改</span>`;
+    return `<div class="sim-er"><div class="sim-eh"><b>${esc(SIM_ED[e.k]||e.k)}</b><button class="tool sm" data-sdel="${i}">刪除</button></div><div class="sim-eb">${b}</div></div>`;}).join('');
+  return `<section><div class="sub-h">模擬動作（動作模擬用）</div>${rows||'<p class="note">沒有設定：模擬時這台只當導線，不會動作。</p>'}
+    <div class="row" style="justify-content:flex-start"><select id="simAdd"><option value="">新增動作…</option>${Object.entries(SIM_ED).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div>
+    <p class="note">感測器：先加「器具本身的電源」（棕↔藍），再加「感測器輸出」（PNP 觸發時接到棕、NPN 接到藍）。接頭類（例如 DC 5521）先設「成組接點」，下拉就會出現 接頭.＋、接頭.−。</p></section>`;
+}
+function simEdBind(){
+  const side=$('edSide');
+  const add=$('simAdd');if(add)add.onchange=()=>{const k=add.value;if(!k)return;const t=ed.terms.map(x=>x.id),a=t[0]||'',b=t[1]||t[0]||'';edPush();
+    const e=k==='grp'?{k,t:a,sub:['+','-']}:k==='src'?{k,p:a,n:b,v:'24V'}:k==='ac'?{k,ph:[a,b].filter(Boolean)}:k==='load'?{k,a,b,name:'負載'}:k==='sw'?{k,a,b,by:'coil'}:k==='sens'?{k,out:a,to:b,btn:'觸發'}:{k,a,b};
+    ed.sim.push(e);edSide();};
+  side.querySelectorAll('[data-sdel]').forEach(x=>x.onclick=()=>{edPush();ed.sim.splice(Number(x.dataset.sdel),1);edSide();});
+  side.querySelectorAll('[data-se]').forEach(x=>x.onchange=()=>{const e=ed.sim[Number(x.dataset.se)],f=x.dataset.sf,v=x.type==='checkbox'?x.checked:x.value;edPush();
+    if(f==='sub')e.sub=v.split(',');else if(f==='polar')e.polar=!!v;else if(f==='nc')e.nc=!!v;
+    else if(f==='in0'||f==='in1'){const a=e.in?[...e.in]:['',''];a[f==='in0'?0:1]=v;e.in=a[0]&&a[1]?a:(a[0]||a[1]?a:undefined);if(!e.in)delete e.in;}
+    else if(/^ph\d$/.test(f)){const a=[...(e.ph||[])];a[+f.slice(2)]=v;e.ph=a.filter(Boolean);}
+    else e[f]=v;
+    if(f==='by'&&v==='btn'&&!e.btn)e.btn='按下';if(f==='by'&&v!=='btn')delete e.btn;
+    edSide();});
+}

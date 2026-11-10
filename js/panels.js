@@ -61,6 +61,7 @@ function stockMsg(g,colorKey){
 const cableOptions=cur=>specOptions(cur);
 function renderDetail(){renderDetailInner();lockInputs($('detail'));}
 function renderDetailInner(){
+  if(mode==='sim'){simPanel($('detail'));return;}
   if(mode==='place'&&multi.length>1){multiDetail($('detail'));return;}
   const box=$('detail');
   if(!sel&&!picked&&selCab){const c=cabOf(selCab);if(c){cableDetail(box,c);return;}selCab=null;}
@@ -249,7 +250,8 @@ function renderStats(){
 function updateHint(){
   if(typeof renderCabBar==='function')renderCabBar();
   let s,k;
-  if(typeof noteAdd!=='undefined'&&noteAdd){k='note';s='放審查註記：在圖面上點一下要註記的位置；按 Esc 取消。';}
+  if(mode==='sim'){k='sim';s='模擬模式：按著按鈕、感測器才算按下；點斷路器切換 ON／OFF；右側可以切換 PLC 輸出、跑自動測試。拖曳空白處平移。';}
+  else if(typeof noteAdd!=='undefined'&&noteAdd){k='note';s='放審查註記：在圖面上點一下要註記的位置；按 Esc 取消。';}
   else if(mode==='view'){k='view';s='檢視模式：只能看，不能修改。點線或器具可看詳細資料，拖曳空白處平移；按 W 回到接線、M 回到擺放。';}
   else if(mode==='place'){k=picked||multi.length?'place-picked':'place';s=(k==='place-picked'?'拖曳可移動，方向鍵或右側按鈕可依輸入距離移動，按 R 可旋轉，導線會自動重算；拖進面板或現場區會跟著換位置。Delete 可刪除。':'拖曳器具、線槽或出線口來擺放；左側可新增器具。')+(typeof opPref==='function'&&opPref().drag==='old'?'Shift＋點或 Shift＋拖曳框選可多選，':'拖曳空白處框選（由左往右只選完全框住的，由右往左碰到就選），Shift＋點加入或移出，')+'Ctrl＋A 全選；Ctrl＋拖曳可複製，Ctrl＋C／Ctrl＋V 複製貼上。拖到 H-66 鋁軌上會自動對齊並靠齊相鄰器具，按住 Alt 不吸附。';}
   else if(cabPick&&cabHint()){k='wire-cab';s=cabHint();}
@@ -270,7 +272,7 @@ function helpAuto(k){if(k===helpKey)return;helpKey=k;if(!$('helpP').hidden)helpM
 
 /* 左欄（盤面設定、器具庫）：可收合成窄條。各模式記住自己的狀態，預設擺放展開、接線與檢視收合。
    收合或展開時圖面寬度會變，手動縮放過的畫面會補償平移，圖上的東西留在原本的螢幕位置 */
-function leftPrefs(){const d={wire:true,view:true,place:false};try{return Object.assign(d,JSON.parse(localStorage.getItem('wiring-sim-left')||'{}'));}catch(_){return d;}}
+function leftPrefs(){const d={wire:true,view:true,place:false,sim:true};try{return Object.assign(d,JSON.parse(localStorage.getItem('wiring-sim-left')||'{}'));}catch(_){return d;}}
 function setLeft(collapsed,save){
   const m=document.querySelector('main'),before=$('stage').getBoundingClientRect().left;
   m.classList.toggle('lc',!!collapsed);
@@ -281,11 +283,11 @@ function setLeft(collapsed,save){
 /* 檢視模式：只能看。會改到資料的按鈕停用，右側詳細資料的欄位反灰 */
 const VIEW_LOCK=['undo','redo','clearB','importB','setOpen','newTpl','sample'];
 function setMode(m){
-  if(m!=='wire'){cabPick=null;cabPickCore=null;}mode=m;$('mWire').setAttribute('aria-pressed',m==='wire');$('mPlace').setAttribute('aria-pressed',m==='place');$('mView').setAttribute('aria-pressed',m==='view');
+  if(m!=='wire'){cabPick=null;cabPickCore=null;}mode=m;$('mWire').setAttribute('aria-pressed',m==='wire');$('mPlace').setAttribute('aria-pressed',m==='place');$('mView').setAttribute('aria-pressed',m==='view');$('mSim').setAttribute('aria-pressed',m==='sim');if(m==='sim'&&!SIMST)simEnter();if(m!=='sim'&&SIMST)simLeave();
   draft=null;closePop();snap=null;hoverW=null;picked=null;multi=[];sel=m!=='place'?sel:null;$('tip').hidden=true;
-  document.body.classList.toggle('viewing',m==='view');$('viewTag').hidden=m!=='view';
-  VIEW_LOCK.forEach(id=>{const el=$(id);if(el)el.disabled=m==='view';});
-  if(m!=='view')syncUndo();
+  document.body.classList.toggle('viewing',m==='view'||m==='sim');document.body.classList.toggle('simming',m==='sim');$('viewTag').hidden=m!=='view';
+  VIEW_LOCK.forEach(id=>{const el=$(id);if(el)el.disabled=m==='view'||m==='sim';});
+  if(m!=='view'&&m!=='sim')syncUndo();
   try{localStorage.setItem('wiring-sim-mode',m);}catch(_){}
   setLeft(leftPrefs()[m]);
   applyView();renderWires();renderList();renderDetail();updateHint();

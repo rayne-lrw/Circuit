@@ -23,7 +23,7 @@ function showTip(id,sx,sy){
   if(!id){tip.hidden=true;return;}
   const w=S.wires.find(x=>x.id===id),r=ROUTES.get(id);if(!w||!r){tip.hidden=true;return;}
   const c=colorOf(w),kind=wireKind(w);
-  tip.innerHTML=`<b>${w.no}</b>　${esc(c.n)}　${w.gauge} mm²　${KINDS[kind]}<br>${esc(epText(w.a))} → ${esc(epText(w.b))}<br>${r.via.length?'經 '+esc(r.via.join(' → ')):'直接跨接'}${r.gland?' → '+esc(r.gland):''}　${(r.len/1000).toFixed(2)} m`+(w.ext&&w.ext.cable?`<br>電纜 ${esc(w.ext.cable)}　芯 ${esc(w.ext.core)}`:'')+(r.warn?`<br><span class="flag">${esc(r.warn)}</span>`:'');
+  tip.innerHTML=`<b>${w.no}</b>　${esc(c.n)}　${w.gauge} mm²　${KINDS[kind]}<br>${esc(epText(w.a))} → ${esc(epText(w.b))}<br>${r.via.length?'經 '+esc(r.via.join(' → ')):'直接跨接'}${r.gland?' → '+esc(r.gland):''}　${(r.len/1000).toFixed(2)} m`+(w.ext&&w.ext.cable?`<br>電纜 ${esc(w.ext.cable)}　芯 ${esc(w.ext.core)}`:'')+(r.warn?`<br><span class="flag">${esc(r.warn)}</span>`:'')+(mode==='sim'?simTip(w):'');
   tip.hidden=false;
   const st=$('stage').getBoundingClientRect();
   const tw=tip.offsetWidth,th=tip.offsetHeight;
@@ -60,6 +60,7 @@ function hoverUpdate(e){
 let act=null;
 svg.addEventListener('pointerdown',e=>{
   const p=toWorld(e);cursor=p;
+  if(mode==='sim'&&e.button===0&&!spaceDown){simPointerDown(e,p);return;}
   // 審查註記：放註記模式點一下就放；點到註記圓點選取它，可以拖曳移動
   if(e.button===0&&noteAdd){addNote(p);noteAdd=false;tab='rev';commit();renderList();renderOverlay();updateHint();return;}
   if(e.button===0){const n=noteHit(p);if(n){act={t:'note',n,ox:p.x-n.x,oy:p.y-n.y,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId};svg.setPointerCapture(e.pointerId);return;}}
@@ -132,6 +133,7 @@ function frame(f){framePend=f;if(!frameReq)frameReq=requestAnimationFrame(()=>{f
 svg.addEventListener('pointermove',e=>{
   if(!act){hoverUpdate(e);return;}
   const dx=e.clientX-act.sx,dy=e.clientY-act.sy;
+  if(act.t==='simpress') return;
   if(!act.moved&&Math.hypot(dx,dy)<4) return;
   if(!act.moved){act.moved=true;try{svg.setPointerCapture(act.id);}catch(_){}$('tip').hidden=true;}
   if(act.t==='note'){const p=toWorld(e);act.n.x=Math.round(p.x-act.ox);act.n.y=Math.round(p.y-act.oy);renderOverlay();return;}
@@ -198,6 +200,7 @@ svg.addEventListener('pointerup',e=>{
   const a=act;act=null;framePend=null;
   if(!a) return;
   if(railHit){railHit=null;renderWires();}
+  if(a.t==='simpress'){const i=a.key.indexOf('|');simPress(a.key.slice(0,i),a.key.slice(i+1),false);return;}
   if(a.t==='note'){noteSel=a.n.id;if(a.moved)commit();tab='rev';renderList();renderOverlay();return;}
   if(a.t==='box'){endBox(a);return;}
   if(a.t==='multi'){endMultiDrag(a);return;}
@@ -216,7 +219,7 @@ svg.addEventListener('pointerup',e=>{
   if(a.moved||a.btn!==0) return;
   if(mode==='wire') clickWire(e,a); else if(mode==='view') viewClick(a); else {picked=null;multi=[];sel=null;selCab=null;renderWires();renderDetail();updateHint();}
 });
-svg.addEventListener('pointercancel',()=>{const a=act;act=null;if(a&&a.t==='wp'){dragPrev=null;recompute();}
+svg.addEventListener('pointercancel',()=>{const a=act;act=null;if(a&&a.t==='simpress'){const i=a.key.indexOf('|');simPress(a.key.slice(0,i),a.key.slice(i+1),false);}if(a&&a.t==='wp'){dragPrev=null;recompute();}
   if(a&&a.t==='seg'&&a.moved){dragPrev=null;if(a.g.kind==='wire')a.g.w.wps=a.g.wps;else{if(a.g.wps.length)a.g.c.wps=a.g.wps;else delete a.g.c.wps;}recompute();}});
 svg.addEventListener('pointerenter',()=>{cursorIn=true;});
 svg.addEventListener('pointerleave',()=>{cursorIn=false;});
@@ -501,7 +504,7 @@ document.addEventListener('keydown',e=>{
   if(!$('askDlg').hidden){if(e.key==='Escape')askClose();return;}
   if(!$('specDlg').hidden){if(e.key==='Escape')specClose();return;}
   if(noteAdd&&e.key==='Escape'){noteAdd=false;renderList();updateHint();return;}
-  if(mode==='view'&&!typing){
+  if((mode==='view'||mode==='sim')&&!typing){
     const k=e.key.toLowerCase();
     if(e.key==='Escape'){sel=null;picked=null;selCab=null;renderList();renderWires();renderDetail();return;}
     if(!e.ctrlKey&&!e.metaKey&&!e.altKey){if(k==='w')setMode('wire');else if(k==='m')setMode('place');}
@@ -534,6 +537,7 @@ document.addEventListener('keydown',e=>{
 $('mWire').onclick=()=>setMode('wire');
 $('mPlace').onclick=()=>setMode('place');
 $('mView').onclick=()=>setMode('view');
+$('mSim').onclick=()=>setMode('sim');
 $('undo').onclick=()=>{if(!hist.u.length)return;hist.r.push(JSON.stringify(S));draft=null;closePop();restore(hist.u.pop());};
 $('redo').onclick=()=>{if(!hist.r.length)return;hist.u.push(JSON.stringify(S));draft=null;closePop();restore(hist.r.pop());};
 $('bundle').onclick=e=>{bundle=!bundle;e.currentTarget.setAttribute('aria-pressed',bundle);computeRoutes();renderWires();};

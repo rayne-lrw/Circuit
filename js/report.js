@@ -196,6 +196,7 @@ function buildPrint(){
   const d=new Date(),p=n=>String(n).padStart(2,'0'),date=`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
   let tot=0;ROUTES.forEach(r=>{tot+=r.len;});
   const meta=`${date}　${S.devices.length} 器具　${S.wires.length} 線　圖面總長 ${(tot/1000).toFixed(1)} m`;
+  if(printSimOnly&&simTest){$('print').innerHTML=`<section class="pg"><div class="ph"><b>${simTest.k==='Y'?'Y 輸出逐點測試':'輸入逐點測試'}</b><span>${esc(meta)}</span></div>${simTest.note?`<p class="pnote">${esc(simTest.note)}</p>`:''}${tableHtml(simTest.head,simTest.rows,[])}</section>`;return;}
   if(printReviewOnly){ // 審查報告：全圖（含註記圓點）＋問題清單、註記、未確認的線
     const bo=boxOrigin(),dr=useDoor()?sheetRect('door'):{x:bo.x,y:bo.y,w:S.box.w,h:S.box.h},fr=sheetRect('field');
     const x0=Math.min(0,bo.x,fr.x)-16,y0=Math.min(0,bo.y,dr.y,fr.y)-20,x1=Math.max(S.plate.w,dr.x+dr.w,fr.x+fr.w)+6,y1=Math.max(bo.y+S.box.h+30,fr.y+fr.h)+6;

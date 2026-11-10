@@ -46,6 +46,8 @@ function cleanTpl(t){
     terms:t.terms.filter(x=>x&&x.id!=null).slice(0,200).map(x=>{const SD=['top','bottom','left','right'],r={id:ss(x.id,12),x:num(x.x,0),y:num(x.y,0),side:SD.includes(x.side)?x.side:'top',desc:ss(x.desc,20)};if(SD.includes(x.ls))r.ls=x.ls;if(Number.isFinite(Number(x.ox))&&x.ox!=null){r.ox=num(x.ox,0);r.oy=num(x.oy,0);}return r;})};
   // 同電位組：接點要存在、至少兩個
   const ids=new Set(o.terms.map(x=>x.id));o.links=Array.isArray(t.links)?t.links.filter(Array.isArray).map(g=>[...new Set(g.map(x=>ss(x,12)).filter(x=>ids.has(x)))]).filter(g=>g.length>1).slice(0,40):[];if(!o.links.length)o.links=null;
+  // 模擬動作資料（js/sim.js 的 simClean 檢查）
+  if(Array.isArray(t.sim)&&typeof simClean==='function'){const sm=simClean(t.sim,ids);if(sm)o.sim=sm;}
   return o;
 }
 const cleanSpec=v=>{const s=String(v==null?'':v).slice(0,60);return /^E\d{5}$/.test(s)?'':s;};

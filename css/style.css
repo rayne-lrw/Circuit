@@ -421,3 +421,34 @@ body{margin:0}
 .rv-chk{display:flex;gap:6px;align-items:center;font-size:13px;margin:0 0 8px;padding:6px 8px;border:1px solid var(--line);border-radius:6px}
 .rv-chk.st-ok{border-color:#159a4b;color:#159a4b}
 .rv-chk.st-changed{border-color:#e07a10;color:#b85d00}
+
+/* 動作模擬 */
+#wires.simon .wire:not(.live){--wo:.18}
+.sim-glow{fill:none;stroke-width:5px;stroke-opacity:.38;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;pointer-events:none}
+.sim-cur{fill:none;stroke-width:1.6px;stroke-dasharray:6 6;stroke-linecap:round;vector-effect:non-scaling-stroke;pointer-events:none;animation:simflow .8s linear infinite;filter:brightness(1.4)}
+@keyframes simflow{to{stroke-dashoffset:-12}}
+@media (prefers-reduced-motion:reduce){.sim-cur{animation:none}}
+.sim-dev{fill:none;stroke-width:2px;vector-effect:non-scaling-stroke;pointer-events:none}
+.sim-dev.on{stroke:#19c25a;fill:#19c25a;fill-opacity:.1}
+.sim-dev.press{stroke:#2b8cff;fill:#2b8cff;fill-opacity:.15}
+.sim-dev.rev{stroke:#ff8a00;stroke-dasharray:4 3}
+.sim-dev.brkoff{stroke:#888;stroke-dasharray:3 3}
+.sim-lab{font-size:6px;font-weight:700;font-family:var(--sans);paint-order:stroke;stroke:#fff;stroke-width:2px;pointer-events:none}
+.sim-lab.rev{fill:#d96a00}.sim-lab.off{fill:#666}
+.sim-io{stroke:#fff;stroke-width:.8px;pointer-events:none}.sim-io.x{fill:#19c25a}.sim-io.y{fill:#ff8a00}
+.simming #svg [data-dev]{cursor:pointer}
+.sim-chips{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 6px}
+.sim-chip{font:inherit;font-size:12px;padding:2px 7px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none}
+span.sim-chip{cursor:default}
+.sim-chip.on{background:#19c25a;border-color:#19c25a;color:#fff}
+.sim-chip.y.on{background:#ff8a00;border-color:#ff8a00}
+.sim-chip.op.on{background:#2b8cff;border-color:#2b8cff}
+.sim-bad{color:#c00000;font-weight:600;font-size:12.5px;margin:4px 0}
+.sim-warn{color:#b85d00;font-size:12.5px;margin:4px 0}
+.sim-test{border:1px solid var(--line);border-radius:6px;padding:6px;margin-top:6px}
+.sim-tbl{width:100%;border-collapse:collapse;font-size:12px;margin-top:4px}
+.sim-tbl th,.sim-tbl td{border-bottom:1px solid var(--line);text-align:left;padding:3px 4px;vertical-align:top}
+.sim-er{border:1px solid var(--line);border-radius:6px;padding:5px 6px;margin:4px 0}
+.sim-eh{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;margin-bottom:3px}
+.sim-eb{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:12px}
+.sim-eb select,.sim-eb input:not([type=checkbox]){font:inherit;font-size:12px;max-width:9em}
