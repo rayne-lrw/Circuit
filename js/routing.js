@@ -160,16 +160,25 @@ function slideJog(pts,side,ok){
     if((h&&(b.x-a.x)*(c.x-b.x)<=0)||(w&&(b.y-a.y)*(c.y-b.y)<=0)||(Math.abs(a.x-b.x)<.01&&Math.abs(a.y-b.y)<.01)){r.splice(i,1);i--;}}
   return ok(r)?r:pts; // 推上去會穿過器具或箱體（原本的橫移是在避開東西）：維持原樣
 }
+// pts[0] 是出線口外面那一點：一出來就沿著箱壁橫走（貼在箱子邊線上）時，先往外走一段再轉彎；ok 檢查新路線沒有穿過器具或箱體
+function standoff(pts,side,ok){
+  const n={top:[0,-1],bottom:[0,1],left:[-1,0],right:[1,0]}[side];if(!n||pts.length<3)return pts;
+  const v=n[1]!==0,k=v?'y':'x',sg=v?n[1]:n[0],a=pts[0],b=pts[1],c=pts[2];
+  if(Math.abs(a[k]-b[k])>.01||Math.abs(a.x-b.x)+Math.abs(a.y-b.y)<.05)return pts; // 第一段不是沿箱壁
+  const room=(c[k]-a[k])*sg;if(!(room>6))return pts;
+  for(const s of [40,25,15,8]){if(s>room-2)continue;const val=a[k]+s*sg,r=simplify([a,{...a,[k]:val},{...b,[k]:val},...pts.slice(2)]);if(ok(r))return r;}
+  return pts;
+}
 function routeLeg(A,B,J,noDuct){
+  // 箱外直接拉：會穿過箱體就繞過去；出線口正外面的小折角推到下一個轉角，貼著箱壁橫走的先往外走一段
+  const fieldDirect=()=>{let d=directPts(A,B);if(crossBox(d)){const q=avoidBox(A,B);if(q)d=q;}
+    const okp=p=>!crossBox(p)&&clean(p,A,B,true);
+    if(A.gout)d=standoff(slideJog(d,A.gout,okp),A.gout,okp);if(B.gout)d=standoff(slideJog(d.slice().reverse(),B.gout,okp),B.gout,okp).reverse();
+    return d;};
   // 兩點都在箱外：直接連，會穿過箱體就繞過去（箱外沒有線槽）
   // 箱外有線槽時才找線槽走；但一端是使用者放的中繼點（不在線槽裡）時，照中繼點直接連（中繼點就是使用者指定的路線）
   const fieldDucts=A.sheet==='field'&&S.ducts.some(d=>d.sheet==='field')&&!((A.wp&&!A.bo&&!A.inDuct)||(B.wp&&!B.bo&&!B.inDuct));
-  if(A.sheet==='field'&&B.sheet==='field'&&!(A.dev&&B.dev&&A.dev===B.dev)&&!fieldDucts){let d=directPts(A,B);
-    if(crossBox(d)){const q=avoidBox(A,B);if(q)d=q;}
-    // 出線口正外面的小折角（同一個出線口多條線錯開造成）：推到下一個轉角合併，不在出線口正上方小折一下
-    const okp=p=>!crossBox(p)&&clean(p,A,B,true);
-    if(A.gout)d=slideJog(d,A.gout,okp);if(B.gout)d=slideJog(d.slice().reverse(),B.gout,okp).reverse();
-    return {direct:true,pts:d};}
+  if(A.sheet==='field'&&B.sheet==='field'&&!(A.dev&&B.dev&&A.dev===B.dev)&&!fieldDucts)return {direct:true,pts:fieldDirect()};
   // 線圈二極體到線圈的自動短線：直接轉一個彎接過去，不照接點方向繞
   if(A.dev&&B.dev&&(tplOf(devOf(A.dev)).coil||tplOf(devOf(B.dev)).coil)&&famIds(A.dev).includes(B.dev)) return {direct:true,pts:Math.abs(A.x-B.x)<.01||Math.abs(A.y-B.y)<.01?[A,B]:[A,{x:A.x,y:B.y},B]};
   if(A.dev&&B.dev&&A.sheet===B.sheet&&famIds(A.dev).includes(B.dev)&&!A.stub&&!B.stub) return {direct:true,pts:directPts(A,B)};
@@ -199,11 +208,11 @@ function routeLeg(A,B,J,noDuct){
     const cost=a.cost+b.cost+p.cost;
     if(!best||cost<best.cost) best={cost,ducts:p.ducts,blocked:a.blocked||b.blocked};
   }
-  if(!best){let d=directPts(A,B);if(A.sheet==='field'&&crossBox(d)){const q=avoidBox(A,B);if(q)d=q;}return {direct:true,pts:d,warn:A.sheet==='plate'?'無線槽可走':null};} // 面板與現場本來就不一定有線槽
+  if(!best){if(A.sheet==='field')return {direct:true,pts:fieldDirect(),warn:null};return {direct:true,pts:directPts(A,B),warn:A.sheet==='plate'?'無線槽可走':null};} // 面板與現場本來就不一定有線槽
   // 箱外：線槽只是順路才走。走線槽比直接拉遠很多（超過 1.3 倍再加 50 mm），或要穿過器具才進得了線槽，就直接拉；箱外不發穿過器具的警告
   if(A.sheet==='field'){
     const len=p=>p.reduce((s,q,i)=>i?s+Math.abs(q.x-p[i-1].x)+Math.abs(q.y-p[i-1].y):0,0);
-    let d=directPts(A,B);if(crossBox(d)){const q=avoidBox(A,B);if(q)d=q;}
+    const d=fieldDirect();
     const viaD=len(realize('_',[A,B],[{ducts:best.ducts}],(_,x)=>center(x)).pts);
     if(best.blocked||viaD>len(d)*1.3+50) return {direct:true,pts:d};
     return {ducts:best.ducts,warn:null};
@@ -326,7 +335,7 @@ function gates(from,to,ctr,fieldP,glandId){
     const i=ctr.g++,k=(i%24)*2.2,sp=((i%8)-3.5)*1.1,by=boxBottom();
     const o=boxOrigin(),W=S.box.w,H=S.box.h,fp=(fieldP.dev&&stubOf(fieldP))||fieldP;
     // 箱底出線口、對方在箱子下方：照原本的走法（往下出去）
-    if((!g||(g.side||'bottom')==='bottom')&&fp.y>by){
+    if(!g&&fp.y>by){ // 沒有出線口（舊檔）：照原本的走法往下出去
       const gx=g?g.x:S.plate.w/2;
       return [{x:gx+sp,y:by,sheet:'plate',must:true,side:'bottom',midY:by+12+k,gland:g?g.id:null}];
     }
