@@ -190,6 +190,14 @@ function routeLeg(A,B,J,noDuct){
     if(!best||cost<best.cost) best={cost,ducts:p.ducts,blocked:a.blocked||b.blocked};
   }
   if(!best){let d=directPts(A,B);if(A.sheet==='field'&&crossBox(d)){const q=avoidBox(A,B);if(q)d=q;}return {direct:true,pts:d,warn:A.sheet==='plate'?'無線槽可走':null};} // 面板與現場本來就不一定有線槽
+  // 箱外：線槽只是順路才走。走線槽比直接拉遠很多（超過 1.3 倍再加 50 mm），或要穿過器具才進得了線槽，就直接拉；箱外不發穿過器具的警告
+  if(A.sheet==='field'){
+    const len=p=>p.reduce((s,q,i)=>i?s+Math.abs(q.x-p[i-1].x)+Math.abs(q.y-p[i-1].y):0,0);
+    let d=directPts(A,B);if(crossBox(d)){const q=avoidBox(A,B);if(q)d=q;}
+    const viaD=len(realize('_',[A,B],[{ducts:best.ducts}],(_,x)=>center(x)).pts);
+    if(best.blocked||viaD>len(d)*1.3+50) return {direct:true,pts:d};
+    return {ducts:best.ducts,warn:null};
+  }
   return {ducts:best.ducts,warn:best.blocked?'穿過其他器具':null};
 }
 function realize(wid,anchors,legs,lane0){

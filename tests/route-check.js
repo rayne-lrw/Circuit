@@ -165,7 +165,7 @@ const SCENARIOS=[
       const c=newCable('CJ'+i,'CSA細纜 0.5mm²*3C 棕藍黑');c.gland='GJ';attachCore(makeCoreWire({d:id,t:'黑'},{d:'X1',t:(10+i)+'A'},'CJ'+i+'a'),c);nos.push('CJ'+i+'a');});
     return {state:st,expectClean:[],expectNoJog:nos};
   }},
-  {name:'箱外線槽（走線架）',build:()=>{
+  {name:'箱外線槽（走線架）',build:arg=>{
     const st=normalize(sampleState()).state;S=st;const o=boxOrigin();
     const z=st.fields[0],dy=(o.y-120-z.h)-z.y;st.devices.filter(d=>d.sheet==='field').forEach(d=>d.y+=dy);z.y+=dy;
     const fd=new Set(st.devices.filter(d=>d.sheet==='field').map(d=>d.id));st.devices=st.devices.filter(d=>!fd.has(d.id));st.wires=st.wires.filter(w=>!fd.has(w.a.d)&&!fd.has(w.b.d));st.cables=st.cables.filter(c=>st.wires.some(w=>w.cab===c.id));
@@ -175,6 +175,14 @@ const SCENARIOS=[
     const nos=[];[0,1,2].forEach(i=>{const id='PK'+i;st.devices.push({id,tag:id,tpl:'pzg101',x:z.x+40+i*70,y:z.y+z.h-60,sheet:'field',rot:180});
       st.wires.push({id:'fk'+i,no:'FK'+i,a:{d:id,t:'黑'},b:{d:'X1',t:(10+i)+'A'},wps:[],gauge:.75,color:'black'});nos.push('FK'+i);});
     const exp={};nos.forEach(n=>exp[n]='GK');
+    if(arg==='far'){
+      // 線槽只放在左邊一小段；右邊遠處的感測器走右邊的出線口，不可以為了線槽繞過去
+      st.ducts=st.ducts.filter(d=>d.id!=='DF');st.ducts.push({id:'DF',x:o.x+20,y:o.y-90,w:200,h:40,dp:60,sheet:'field'});
+      st.glands.push({id:'GR',side:'top',x:o.x+S.box.w-60,y:o.y,spec:'M25'});
+      const far=[];[0,1].forEach(i=>{const id='PR'+i;st.devices.push({id,tag:id,tpl:'pzg101',x:o.x+S.box.w-160+i*70,y:z.y+z.h-60,sheet:'field',rot:180});
+        st.wires.push({id:'fr'+i,no:'FR'+i,a:{d:id,t:'黑'},b:{d:'X1',t:(14+i)+'A'},wps:[],gauge:.75,color:'black',gland:'GR'});far.push('FR'+i);});
+      return {state:st,expectClean:far,expectFieldDuct:{duct:'DF',wires:[],avoid:far}};
+    }
     return {state:st,expectClean:nos,expectGland:exp,expectFieldDuct:{duct:'DF',wires:nos}};
   }},
   {name:'出線口進出（現場區在箱子上方）',build:()=>{
@@ -314,6 +322,7 @@ function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,exp
   Object.keys(expectVia||{}).filter(k=>k.startsWith('cab:')).forEach(k=>{const c=S.cables.find(x=>x.no===k.slice(4)),R=c&&CABROUTES.get(c.id),v=R?R.via.join('>'):'無',want=expectVia[k].join('>');res.push({no:k,ok:v===want,msg:`外皮經過的線槽應為 ${want}，實際 ${v}`});});
   // 箱外線槽：指定的線要經過那條線槽，而且線槽不可以被當成超出底板
   if(expectFieldDuct){const F=expectFieldDuct;F.wires.forEach(no=>{const w=S.wires.find(x=>x.no===no),r=w&&ROUTES.get(w.id);res.push({no:'箱外線槽 '+no,ok:!!(r&&r.via.includes(F.duct)),msg:`應經過箱外線槽 ${F.duct}，實際 ${r?r.via.join('>')||'無':'沒有路徑'}`});});
+    (F.avoid||[]).forEach(no=>{const w=S.wires.find(x=>x.no===no),r=w&&ROUTES.get(w.id);res.push({no:'不繞去線槽 '+no,ok:!!(r&&!r.via.includes(F.duct)),msg:`離線槽很遠，不應該繞去 ${F.duct}（實際 ${r?r.via.join('>'):'無'}）`});});
     const bad=ISSUES.filter(i=>i.k==='duct'&&i.id===F.duct);res.push({no:'箱外線槽 '+F.duct+' 檢查',ok:!bad.length,msg:bad.map(i=>i.t).join('；')});}
   // 電纜外皮不可穿過現場端的器具（剝線點在器具某一側，外皮從另一側過來要繞過去）
   (S.cables||[]).forEach(c=>{const R=CABROUTES.get(c.id);if(!R)return;
@@ -341,6 +350,7 @@ function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,exp
     bad.forEach(x=>console.log(`    ${x.no}：${x.msg}`));
   };
   for(const sc of SCENARIOS) await run(sc.name,sc.build.toString());
+  { const sc=SCENARIOS.find(x=>x.name.startsWith('箱外線槽'));await run('箱外線槽只收順路的線（遠的不繞過去）',sc.build.toString(),'far'); }
   { const sc=SCENARIOS.find(x=>x.name.startsWith('出線口在器具正上方'));await run('電纜：拉芯線時放的中繼點改放到外皮上',sc.build.toString(),'cab'); }
   for(const e of extra) await run(e.name,(j=>({state:normalize(JSON.parse(j)).state,expectClean:[]})).toString(),e.file);
   if(errs.length){console.log('頁面錯誤：',errs);fail++;}
