@@ -166,7 +166,9 @@ function standoff(pts,side,ok){
   const v=n[1]!==0,k=v?'y':'x',sg=v?n[1]:n[0],a=pts[0],b=pts[1],c=pts[2];
   if(Math.abs(a[k]-b[k])>.01||Math.abs(a.x-b.x)+Math.abs(a.y-b.y)<.05)return pts; // 第一段不是沿箱壁
   const room=(c[k]-a[k])*sg;if(!(room>6))return pts;
-  for(const s of [40,25,15,8]){if(s>room-2)continue;const val=a[k]+s*sg,r=simplify([a,{...a,[k]:val},{...b,[k]:val},...pts.slice(2)]);if(ok(r))return r;}
+  // 轉彎的位置：先試路上經過的箱外線槽（自動幹線）中間，再從遠到近試（在靠近器具的地方轉，不在箱子和現場中間的空隙轉）
+  const o=v?'x':'y',ds=S.ducts.filter(d=>d.sheet==='field'&&a[o]>=d[o]&&a[o]<=d[o]+(v?d.w:d.h)).map(d=>((v?d.y+d.h/2:d.x+d.w/2)-a[k])*sg).filter(x=>x>4&&x<room-2);
+  for(const s of [...ds,room-12,room*.75,room/2,40,25,15,8]){if(s>room-2||s<4)continue;const val=a[k]+s*sg,r=simplify([a,{...a,[k]:val},{...b,[k]:val},...pts.slice(2)]);if(ok(r))return r;}
   return pts;
 }
 function routeLeg(A,B,J,noDuct){
