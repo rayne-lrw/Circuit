@@ -277,16 +277,19 @@ function applyWireClasses(){
   const focus=listHover||sel,g=$('wires');
   // 電纜的選取外框：只改選取有變的那幾條（外框顏色寫在線上，選取色用 CSS 蓋過去）
   g.querySelectorAll('.cab').forEach(e=>{const on=e.dataset.cab===selCab;if(e.classList.contains('on')===on)return;e.classList.toggle('on',on);const o=e.querySelector('.cab-o');if(o)o.setAttribute('stroke-width',+o.dataset.sw+(on?3:1.2));});
-  const key=focus+'|'+JSON.stringify(filt);
+  // 選取電纜（沒有選單條線）時也一樣讓其他線變淡，只留這條電纜的外皮和芯線
+  const fc=!focus&&selCab||null;
+  const key=focus+'|'+fc+'|'+JSON.stringify(filt);
   if(g.dataset.k===key){renderOverlay();return;}
   g.dataset.k=key;
-  g.classList.toggle('focus',!!focus);
+  g.classList.toggle('focus',!!(focus||fc));
   // 點選或在清單上停留時，兩端接點上的並線一起淡淡亮起
   const fw=(listHover||sel)&&S.wires.find(x=>x.id===(listHover||sel)),rel=new Set();
   if(fw){const pr=parallelOf(fw);[...pr.a,...pr.b].forEach(x=>rel.add(x.id));}
   g.querySelectorAll('.wire').forEach(el=>{
     const id=el.dataset.wid,w=S.wires.find(x=>x.id===id);
     el.classList.toggle('on',id===focus);
+    el.classList.toggle('cc',!!fc&&!!w&&w.cab===fc);
     el.classList.toggle('rel',rel.has(id)&&id!==focus);
     el.classList.toggle('off',w?!passes(w):false);
   });

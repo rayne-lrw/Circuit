@@ -265,6 +265,7 @@ text.sub{font-family:var(--sans);font-size:4.4px}
 #wires.focus .wire.rel:not(.on){--wo:.5}
 .wire.off{--wo:.05;pointer-events:none}
 #wires.focus .wire.off:not(.on){--wo:.03}
+#wires.focus .wire.cc{--wo:1}
 .wire .vis,.wire .warnline{stroke-opacity:var(--wo,1)}
 .wire .wn{fill-opacity:var(--wo,1);stroke-opacity:var(--wo,1)}
 .wire.on .wn{display:block}
