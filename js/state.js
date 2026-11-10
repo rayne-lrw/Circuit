@@ -61,8 +61,26 @@ function sheetRect(s){
 const inR=(p,r)=>p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h;
 /* 現場區可以有好幾個、可移動：S.fields=[{id,name,x,y,w,h}] */
 const zoneAt=p=>(S.fields||[]).find(z=>inR(p,z))||null;
-function zoneOf(d){
-  const t=tplOf(d),c={x:d.x+t.w/2,y:d.y+t.h/2},z=zoneAt(c);if(z) return z;
+/* 現場器具、箱外線槽屬於哪個現場區記在 o.zone（存檔）：拖現場區只帶走屬於它的東西，框重疊、蓋到別區也不會搶走。
+   歸屬只在這些時候改：單獨拖器具（或線槽）放進另一區、在現場區右側按「收進這一區」「歸到所在的現場區」。
+   舊檔或新放的器具沒有記錄時，照所在位置（不在任何框裡就找最近的一區）補上 */
+const objCenter=o=>{const t=o.tpl?tplOf(o):o;return {x:o.x+t.w/2,y:o.y+t.h/2};};
+function zoneOf(d){const z=d.zone&&(S.fields||[]).find(x=>x.id===d.zone);return z||geoZone(d);}
+function syncZones(){
+  const has=id=>(S.fields||[]).some(z=>z.id===id);
+  [...S.devices,...S.ducts].forEach(o=>{if(o.sheet!=='field'){delete o.zone;return;}if(!o.zone||!has(o.zone)){const z=geoZone(o);if(z)o.zone=z.id;}});
+}
+// 單獨拖放的器具或線槽：放下時在哪個框裡就歸那一區（不在任何框裡就維持原本的區）
+// 放在兩個框重疊的地方：原本那一區也蓋得到就不換，否則歸最上面（後畫）的那一區
+function zoneDrop(o){if(!o||o.sheet!=='field')return;const c=objCenter(o),zs=(S.fields||[]).filter(z=>inR(c,z));if(!zs.length||zs.some(z=>z.id===o.zone))return;o.zone=zs[zs.length-1].id;}
+// 框裡但不屬於這區的；屬於這區但在框外的（器具和箱外線槽）
+const zoneObjs=()=>[...S.devices,...S.ducts].filter(o=>o.sheet==='field');
+// 線槽要整條在框裡才算（長線槽中心點剛好落在別的框裡，不要被收走）
+const inZoneRect=(o,z)=>o.tpl?inR(objCenter(o),z):o.x>=z.x&&o.y>=z.y&&o.x+o.w<=z.x+z.w&&o.y+o.h<=z.y+z.h;
+const zoneForeign=z=>zoneObjs().filter(o=>zoneOf(o)!==z&&inZoneRect(o,z));
+const zoneAway=z=>zoneObjs().filter(o=>zoneOf(o)===z&&!inR(objCenter(o),z));
+function geoZone(d){
+  const c=objCenter(d),z=zoneAt(c);if(z) return z;
   let best=null,bd=Infinity;
   (S.fields||[]).forEach(z=>{const dx=Math.max(z.x-c.x,0,c.x-z.x-z.w),dy=Math.max(z.y-c.y,0,c.y-z.y-z.h),q=dx*dx+dy*dy;if(q<bd){bd=q;best=z;}});
   return best;
@@ -73,12 +91,12 @@ function zoneCarry(z){
   // 只帶走屬於這一區的東西：區內器具；整條都在框裡的箱外線槽；接到區內器具的線和電纜在框裡的中繼點、剝線點
   // （剛新增或拖過別區的框可能蓋到其他區的線，那些不能跟著走）
   const out=S.devices.filter(d=>inZone(z,d)),ids=new Set(out.map(d=>d.id)),mine=w=>ids.has(w.a.d)||ids.has(w.b.d);
-  S.ducts.forEach(d=>{if(d.sheet==='field'&&d.x>=z.x&&d.y>=z.y&&d.x+d.w<=z.x+z.w&&d.y+d.h<=z.y+z.h)out.push(d);});
+  S.ducts.forEach(d=>{if(d.sheet==='field'&&zoneOf(d)===z)out.push(d);});
   S.wires.forEach(w=>{if(mine(w))(w.wps||[]).forEach(p=>{if(inR(p,z))out.push(p);});});
   (S.cables||[]).forEach(c=>{if(!S.wires.some(w=>w.cab===c.id&&mine(w)))return;(c.wps||[]).forEach(p=>{if(inR(p,z))out.push(p);});['a','b'].forEach(k=>{const p=c.bo&&c.bo[k];if(p&&inR(p,z))out.push(p);});});
   return out;
 }
-const inZone=(z,d)=>{if(d.sheet!=='field')return false;const t=tplOf(d);return inR({x:d.x+t.w/2,y:d.y+t.h/2},z);};
+const inZone=(z,d)=>d.sheet==='field'&&zoneOf(d)===z;
 /* 面板模式：door 門板（比箱體小會警告、做關門碰撞檢查）、console 獨立操作台（不檢查）、none 不使用 */
 const useDoor=()=>S.doorMode!=='none';
 const isDoorPanel=()=>!S.doorMode||S.doorMode==='door';

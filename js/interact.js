@@ -206,6 +206,7 @@ svg.addEventListener('pointerup',e=>{
   if((a.t==='zone'&&!a.copy||a.t==='zres')&&a.moved&&zoneBlocked(a.t==='zone'?a.obj:a.z)){
     if(a.t==='zone'){(a.mounted||[]).forEach(m=>{m.d.x=a.x0+m.dx;m.d.y=a.y0+m.dy;});a.obj.x=a.x0;a.obj.y=a.y0;}else Object.assign(a.z,a.r0);
     toast('現場區不能放在電控箱或面板上，已退回原位');recompute();return;}
+  if(a.t==='drag'&&a.moved){zoneDrop(a.obj);(a.mounted||[]).forEach(m=>zoneDrop(m.d));}
   if(a.t==='drag'||a.t==='wp'||a.t==='gland'||a.t==='zone'||a.t==='zres'){ if(a.moved){commit();} recompute(); return; }
   if(a.moved||a.btn!==0) return;
   if(mode==='wire') clickWire(e,a); else if(mode==='view') viewClick(a); else {picked=null;multi=[];sel=null;selCab=null;renderWires();renderDetail();updateHint();}
@@ -313,6 +314,8 @@ function pasteClip(c,dx,dy){
   const extras=c.extras.map(e=>{const d=sh(snapCopy(e));d.id=d.tag=newDevId(d);idm[e.id]=d.id;S.devices.push(d);return d;});
   // 正面附件改接到複本的接觸器；只複製附件本身時先拆開
   [main,...extras].forEach(d=>{if(d&&d.on){if(idm[d.on])d.on=idm[d.on];else delete d.on;}});
+  // 複製現場區：複本的器具歸複本那一區；其他複製照貼上的位置歸區
+  if(c.k==='zone')extras.forEach(d=>{if(d.sheet==='field')d.zone=main.id;});else [main,...extras].forEach(zoneDrop);
   return {k:c.k,main,extras};
 }
 function dropClip(r){

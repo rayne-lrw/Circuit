@@ -252,6 +252,9 @@ function renderWires(){
   if(picked){
     const b=pickedBox(); if(b) t+=`<rect class="picked" x="${b.x-2}" y="${b.y-2}" width="${b.w+4}" height="${b.h+4}" rx="3"/>`;
     // 現場框：四角、四邊的改大小拖曳點
+    // 選取現場區：屬於這一區的器具、線槽框起來（拖這一區會一起帶走的），框裡但屬於別區的用灰色虛線
+    if(picked.k==='zone'){const z=S.fields.find(x=>x.id===picked.id);if(z){const bx=o=>o.tpl?rectOf('dev',o):o;
+      zoneObjs().forEach(o=>{const mine=zoneOf(o)===z,fo=!mine&&inZoneRect(o,z);if(!mine&&!fo)return;const b=bx(o);t+=`<rect class="${mine?'zmem':'zfor'}" x="${b.x-3}" y="${b.y-3}" width="${b.w+6}" height="${b.h+6}" rx="3"/>`;});}}
     if(picked.k==='zone'&&mode==='place'){const z=S.fields.find(x=>x.id===picked.id),k=view.k,s=7/k;if(z)Object.values(zoneHandles(z)).forEach(([x,y])=>t+=`<rect class="zh" x="${x-s/2}" y="${y-s/2}" width="${s}" height="${s}" style="stroke-width:${1.5/k}"/>`);}
   }
   $('top').innerHTML=t;

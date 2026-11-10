@@ -65,7 +65,7 @@ function moveMulti(p){
 }
 function endMultiDrag(a){
   if(a.copied&&!a.moved){dropMulti(a.copied);multi=[];recompute();return;} // Ctrl＋點一下沒拖：不複製
-  if(a.moved)commit();recompute();
+  if(a.moved){moveSet().forEach(s=>{if(s.k==='dev'||s.k==='duct')zoneDrop(s.o);});commit();}recompute();
 }
 function shiftSel(dx,dy){applyShift(baseOf(moveSet()),dx,dy);commit();recompute();}
 

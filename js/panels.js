@@ -141,12 +141,18 @@ function renderDetailInner(){
       <label for="zRoute" style="grid-column:1/-1">走線方式<select id="zRoute">${[['auto','自動幹線（程式自動整線）'],['duct','照我放的箱外線槽'],['direct','直接拉']].map(([v,t])=>`<option value="${v}"${zoneRoute(z)===v?' selected':''}>${t}</option>`).join('')}</select></label></div>
       <p class="note" style="margin-top:4px">${zoneRoute(z)==='auto'?(TRUNKS.some(d=>d.zone===z.id)?'虛線框是自動幹線：外線沿它排好再進出線口，不用自己放線槽，也不算材料。':'放不下自動幹線（現場區和箱子要在上下或左右分開，器具和邊框或箱子之間要留空間），目前直接拉。'):zoneRoute(z)==='duct'?'外線照你放的箱外線槽走（只走順路的），沒有線槽就直接拉。':'外線從器具直接拉到出線口，這一區的箱外線槽不拿來走線。'}</p>
       ${moveHtml(false)}
+      ${(()=>{const fo=zoneForeign(z),aw=zoneAway(z),nm=a=>a.map(o=>esc(o.tag||o.id)).join('、');let h='';
+        if(fo.length)h+=`<p class="note" style="margin-top:6px">框裡有 ${fo.length} 個不屬於這一區的東西（${nm(fo)}），拖這一區時不會帶走。</p><div class="row"><button class="tool" id="zTake">收進這一區</button></div>`;
+        if(aw.length){const go=aw.filter(o=>zoneAt(objCenter(o)));h+=`<p class="note" style="margin-top:6px">有 ${aw.length} 個屬於這一區的東西在框外（${nm(aw)}），拖這一區時仍會一起帶走。</p>${go.length?`<div class="row"><button class="tool" id="zFree">歸到所在的現場區（${go.length} 個）</button></div>`:''}`;}
+        return h;})()}
       ${zoneBlocked(z)?'<p class="note" style="color:#c00000">這個現場區壓在電控箱或面板上，圖面上會被底板器具擋住、不好拖。</p><div class="row"><button class="tool primary" id="zOut">移到箱子外面</button></div>':''}
       <div class="row"><button class="tool danger" id="delPicked">刪除現場區</button></div>`;
       $('zName').onchange=e=>{z.name=e.target.value.trim().slice(0,20)||z.id;commit();recompute();};
+      if($('zTake'))$('zTake').onclick=()=>{const fo=zoneForeign(z);fo.forEach(o=>o.zone=z.id);commit();recompute();toast(`已把 ${fo.length} 個收進${z.name}`);};
+      if($('zFree'))$('zFree').onclick=()=>{const go=zoneAway(z).filter(o=>zoneAt(objCenter(o)));go.forEach(o=>o.zone=zoneAt(objCenter(o)).id);commit();recompute();toast(`已把 ${go.length} 個歸到所在的現場區`);};
       if($('zOut'))$('zOut').onclick=()=>{const r=freeZoneSpot(z.w,z.h,z),dx=r.x-z.x,dy=r.y-z.y;zoneCarry(z).forEach(o=>{o.x=r1(o.x+dx);o.y=r1(o.y+dy);});z.x=r.x;z.y=r.y;commit();recompute();toast(`已把${z.name}移到箱子外面`);};
       $('zRoute').onchange=e=>{z.route=e.target.value;commit();recompute();renderDetail();};
-      const mvz=(dx,dy)=>{devs.forEach(d=>{d.x=r1(d.x+dx);d.y=r1(d.y+dy);});z.x=r1(z.x+dx);z.y=r1(z.y+dy);};
+      const mvz=(dx,dy)=>{zoneCarry(z).forEach(o=>{o.x=r1(o.x+dx);o.y=r1(o.y+dy);});z.x=r1(z.x+dx);z.y=r1(z.y+dy);};
       $('zx').onchange=e=>{const v=Number(e.target.value);if(e.target.value===''||!isFinite(v))return;mvz(bo.x+v-z.x,0);commit();recompute();};
       $('zy').onchange=e=>{const v=Number(e.target.value);if(e.target.value===''||!isFinite(v))return;mvz(0,bo.y+S.box.h+v-z.y);commit();recompute();};
       ['w','h'].forEach(f=>{$('z'+f).onchange=e=>{const v=Number(e.target.value);if(!(v>=50))return;z[f]=Math.round(v);commit();recompute();};});

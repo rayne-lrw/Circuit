@@ -541,8 +541,6 @@ let BOHINT={}; // 上次發現剝線點折返後調整用的目標，下次直�
    direct：直接拉，這一區的箱外線槽不拿來走線 */
 let TRUNKS=[];
 const zoneRoute=z=>z&&z.route||'duct';
-function zoneNear(r){const c={x:r.x+r.w/2,y:r.y+r.h/2};let best=null,bd=Infinity;
-  (S.fields||[]).forEach(z=>{const dx=Math.max(z.x-c.x,0,c.x-z.x-z.w),dy=Math.max(z.y-c.y,0,c.y-z.y-z.h),q=dx*dx+dy*dy;if(q<bd){bd=q;best=z;}});return best;}
 function zoneTrunks(){
   const out=[],BX={...boxOrigin(),w:S.box.w,h:S.box.h};
   for(const z of S.fields||[]){if(zoneRoute(z)!=='auto')continue;
@@ -570,12 +568,12 @@ function zoneTrunks(){
 // 算路徑時暫時把自動幹線加進線槽清單，「直接拉」的現場區拿掉那一區的箱外線槽；算完還原
 function withTrunks(fn){
   if(S.ducts._v)return fn();
-  const real=S.ducts,v=zoneTrunks(),ds=[...real.filter(d=>!(d.sheet==='field'&&zoneRoute(zoneNear(d))==='direct')),...v];ds._v=1;
+  const real=S.ducts,v=zoneTrunks(),ds=[...real.filter(d=>!(d.sheet==='field'&&zoneRoute(zoneOf(d))==='direct')),...v];ds._v=1;
   S.ducts=ds;try{return fn();}finally{S.ducts=real;}
 }
 function computeRoutes(hint){withTrunks(()=>{TRUNKS=S.ducts.filter(d=>d.virtual);computeRoutes0(hint);});}
 function computeRoutes0(hint){hint=hint&&hint.retry?hint:BOHINT;const sigs={};
-  ROUTES.clear();DUCTUSE.clear();ROUTES_MANUAL.clear();CABROUTES.clear();fixBatteries();syncCoilWires();syncCables();bundleSel=sel;
+  ROUTES.clear();DUCTUSE.clear();ROUTES_MANUAL.clear();CABROUTES.clear();fixBatteries();syncCoilWires();syncCables();syncZones();bundleSel=sel;
   const J=junctions();
   const use=new Map();
   S.wires=S.wires.filter(w=>{const a=devOf(w.a.d),b=devOf(w.b.d);return a&&b&&termOf(a,w.a.t)&&termOf(b,w.b.t);});
