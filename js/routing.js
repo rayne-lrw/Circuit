@@ -292,6 +292,12 @@ function unfold(pts,fixed){
     if(hit<0)break;pts=simplify([...pts.slice(0,hit),...pts.slice(hit+1)]);}
   return pts;
 }
+const plen=p=>p.reduce((s,q,i)=>i?s+Math.abs(q.x-p[i-1].x)+Math.abs(q.y-p[i-1].y):s,0);
+// T 是芯線尾段（從接點走到剝線點，最後一點是剝線點），nx 是外皮離開剝線點的下一點。尾段最後一小段（5 mm 內）和外皮方向相反時，把它前面那一橫段平移到剝線點上；回傳新的尾段，不用改就回傳 null
+function joinFix(T,nx){const n=T.length;if(n<4)return null;const u=T[n-3],a=T[n-2],b=T[n-1];
+  const vt=Math.abs(a.x-b.x)<.01&&Math.abs(b.x-nx.x)<.01,hz=Math.abs(a.y-b.y)<.01&&Math.abs(b.y-nx.y)<.01;if(!vt&&!hz)return null;
+  const k=vt?'y':'x';if((b[k]-a[k])*(nx[k]-b[k])>=0||Math.abs(a[k]-b[k])>5||Math.abs(u[k]-a[k])>.01)return null;
+  return simplify([...T.slice(0,n-3),{...u,[k]:b[k]},{...a,[k]:b[k]},b]);}
 function simplify(pts){
   const o=[];
   for(const p of pts){
@@ -691,7 +697,11 @@ function computeRoutes(hint){hint=hint&&hint.retry?hint:BOHINT;const sigs={};
     CABROUTES.set(c.id,{...S0,a:A.bo?{x:A.x,y:A.y,auto:A.auto}:null,b:B.bo?{x:B.x,y:B.y,auto:B.auto}:null});
     const none={pts:[],len:0,via:[],warn:null}; // 接頭那一端沒有芯線段
     tails.forEach(({w,ja,jb})=>{
-      const ra=ja?FIN.get(ja.id):none,rb=jb?FIN.get(jb.id):none,parts=[ra,S0,rb],via=[];
+      let ra=ja?FIN.get(ja.id):none,rb=jb?FIN.get(jb.id):none;
+      // 芯線尾段的線道和剝線點差幾 mm（手動剝線點不在線道上）：芯線到剝線點前會先跑過頭再折回來，把尾段最後那一橫段移到剝線點的位置
+      const S=S0.pts;if(S.length>=2){const fa=joinFix(ra.pts,S[1]),fb=joinFix(rb.pts.slice().reverse(),S[S.length-2]);
+        if(fa)ra={...ra,pts:fa,len:plen(fa)};if(fb){const t=fb.reverse();rb={...rb,pts:t,len:plen(t)};}}
+      const parts=[ra,S0,rb],via=[];
       parts.forEach(p=>p.via.forEach(id=>{if(via[via.length-1]!==id)via.push(id);}));
       const warn=(parts.find(p=>p.warn)||{}).warn||null;
       ROUTES.set(w.id,{pts:simplify([...ra.pts,...S0.pts,...rb.pts]),len:ra.len+S0.len+rb.len,via,warn,gland:S0.gland,cab:c.id,parts:[ra.pts,S0.pts,rb.pts],tails:[ra.pts,rb.pts]});
