@@ -16,24 +16,24 @@ const DESC=raw=>{const id=String(raw).replace(/\(\d+\)$/,'');return /^X/.test(id
 // 同名端子（手冊上同名、內部相通）：第二個起改名「名稱(2)」並設為器具內部同電位
 function dedup(list){const seen=new Map(),links=[];list.forEach(t=>{const id=t[0],c=(seen.get(id)||0)+1;seen.set(id,c);if(c>1){t[0]=id+'('+c+')';let g=links.find(g=>g[0]===id);if(!g){g=[id];links.push(g);}g.push(t[0]);}});return links;}
 // 橫式端子台（CPU、電源內置 I/O）：上方兩排、下方兩排，每排上下錯開半格
-function hTerms(W,H,R){
+function hTerms(W,H,R,desc=DESC){
   const rows={tu:tok(R.tu,'X'),tl:tok(R.tl,'X'),bu:tok(R.bu,'Y'),bl:tok(R.bl,'Y')},n=Math.max(...Object.values(rows).map(a=>a.length)),m=10,p=(W-2*m)/(n-.5),T=[];
-  const put=(a,y,side,sh)=>a.forEach((id,i)=>{if(id&&id!=='|')T.push([id,+(m+sh+p*i).toFixed(2),y,side,DESC(id)]);});
+  const put=(a,y,side,sh)=>a.forEach((id,i)=>{if(id&&id!=='|')T.push([id,+(m+sh+p*i).toFixed(2),y,side,desc(id)]);});
   put(rows.tu,5,'top',p/2);put(rows.tl,11,'top',0);put(rows.bu,H-11,'bottom',p/2);put(rows.bl,H-5,'bottom',0);
   return {T,links:dedup(T)};
 }
 // 直式端子台（增設 I/O）：左右兩排錯開，接點文字在右邊；出線先往左偏，中線以上往上、以下往下（和 FX5-16EX/ES 一樣）
-function vTerms(L,R){
+function vTerms(L,R,desc=DESC){
   const T=[...L.map(([id,k])=>[id,29,+(7.1+7.15*k).toFixed(2)]),...R.map(([id,k])=>[id,36,+(7.1+7.15*(k+.5)).toFixed(2)])].filter(t=>t[0]&&t[0]!=='.');
   const up=T.filter(t=>t[2]<45).sort((a,b)=>a[2]-b[2]),dn=T.filter(t=>t[2]>=45).sort((a,b)=>b[2]-a[2]),ex=new Map();
   up.forEach((t,i)=>ex.set(t[0],21-i*1.3));dn.forEach((t,i)=>ex.set(t[0],21-i*1.3));
-  const out=T.map(([id,x,y])=>[id,x,y,y<45?'top':'bottom',DESC(id),{ox:+(ex.get(id)-x).toFixed(2),oy:0,ls:'right'}]);
+  const out=T.map(([id,x,y])=>[id,x,y,y<45?'top':'bottom',desc(id),{ox:+(ex.get(id)-x).toFixed(2),oy:0,ls:'right'}]);
   return {T:out,links:dedup(out)};
 }
 // 連接器／彈簧夾端子：每組兩欄針腳，由上往下；多組連接器左右排（FX5UC 64、96 點）
-function pinTerms(W,groups){
+function pinTerms(W,groups,desc=DESC){
   const T=[],pp=2.6;
-  groups.forEach(g=>g.cols.forEach((col,ci)=>col.forEach((id,ri)=>{if(id&&id!=='.')T.push([id,+(g.x+ci*pp).toFixed(2),+(g.y+ri*pp).toFixed(2),'right',DESC(id)]);})));
+  groups.forEach(g=>g.cols.forEach((col,ci)=>col.forEach((id,ri)=>{if(id&&id!=='.')T.push([id,+(g.x+ci*pp).toFixed(2),+(g.y+ri*pp).toFixed(2),'right',desc(id)]);})));
   return {T,links:dedup(T)};
 }
 // 動作資料：電源、DC24V 供給電源、PLC 輸入（依輸入共點分組）、PLC 輸出（依輸出共點分組）
@@ -200,4 +200,6 @@ def('fx5-422-bd-got',null,C4,MIT,'FX5-422-BD-GOT RS-422 擴充板（接 GOT）',
   {ser:'FX5 擴充板',front:true,hostCat:C4,at:bdAt(),note:'拖到 FX5U／FX5UJ／FX5S 上會自動裝在正面；'+NOTE});VER['fx5-422-bd-got']=[2,SRC];
 // 原本的 FX5-232-BD 也可以裝到新的 CPU 上
 if(TPL['fx5-232bd'])TPL['fx5-232bd'].at={...bdAt(),...TPL['fx5-232bd'].at};
+// 給 devices-fx3.js 共用
+self.FXLIB={oct,tok,DESC,dedup,hTerms,vTerms,pinTerms,simOf};
 })();
