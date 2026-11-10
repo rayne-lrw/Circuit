@@ -145,6 +145,16 @@ const SCENARIOS=[
     st.wires.push({id:'f1',no:'F1',a:{d:'A',t:'P'},b:{d:'B',t:'P'},wps:[],gauge:.75,color:'black'},{id:'f2',no:'F2',a:{d:'C',t:'P'},b:{d:'D',t:'P'},wps:[],gauge:.75,color:'black'},{id:'f3',no:'F3',a:{d:'E',t:'P'},b:{d:'F',t:'P'},wps:[],gauge:.75,color:'black'});
     return {state:st,expectClean:['F1','F2','F3'],expectPrev:['F1','F2','F3'],expectShort:['F1','F2','F3']};
   }},
+  {name:'外線在箱子旁邊（不在現場區）放中繼點',build:()=>{
+    const st=normalize(sampleState()).state;S=st;const o=boxOrigin();
+    const z=st.fields[0],dy=(o.y-40-z.h)-z.y;st.devices.filter(d=>d.sheet==='field').forEach(d=>d.y+=dy);z.y+=dy;
+    st.glands=[{id:'GT',side:'top',x:o.x+300,y:o.y,spec:'M25'}];
+    const m=st.devices.filter(d=>d.sheet==='field').sort((a,b)=>a.x-b.x)[0];
+    // 中繼點在箱子左邊外側（不在現場區）、和箱子右邊外側
+    st.wires.push({id:'sw1',no:'SW1',a:{d:m.id,t:tplOf(m).terms[0].id},b:{d:'X1',t:'14A'},wps:[{x:o.x-30,y:o.y+60}],gauge:.75,color:'black',gland:'GT'});
+    st.wires.push({id:'sw2',no:'SW2',a:{d:'X1',t:'15A'},b:{d:m.id,t:tplOf(m).terms[1].id},wps:[{x:o.x+S.box.w+30,y:o.y-30}],gauge:.75,color:'black',gland:'GT'});
+    return {state:st,expectClean:[],expectGland:{SW1:'GT',SW2:'GT'}};
+  }},
   {name:'出線口進出（現場區在箱子上方）',build:()=>{
     const st=normalize(sampleState()).state;S=st;const o=boxOrigin();
     // 現場區搬到箱子上方（和你的專案一樣），區內器具一起搬

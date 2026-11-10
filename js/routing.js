@@ -131,7 +131,19 @@ function clean(pts,A,B,loose){
   }
   return true;
 }
+// 箱外（現場區、箱子旁邊）的線段不可以穿過箱體：直角線會穿過時，改走另一個方向的直角，或沿箱子外側（離箱壁 12 mm）繞過去，取最短的
+function crossBox(pts){const o=boxOrigin(),x0=o.x+.5,x1=o.x+S.box.w-.5,y0=o.y+.5,y1=o.y+S.box.h-.5;
+  for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i];if(Math.max(a.x,b.x)>x0&&Math.min(a.x,b.x)<x1&&Math.max(a.y,b.y)>y0&&Math.min(a.y,b.y)<y1)return true;}return false;}
+function avoidBox(A,B){
+  const o=boxOrigin(),m=12,L=o.x-m,R=o.x+S.box.w+m,T=o.y-m,D=o.y+S.box.h+m,len=p=>p.reduce((s,q,i)=>i?s+Math.abs(q.x-p[i-1].x)+Math.abs(q.y-p[i-1].y):0,0);
+  const c=[[A,{x:A.x,y:B.y},B],[A,{x:B.x,y:A.y},B],...[T,D].map(Y=>[A,{x:A.x,y:Y},{x:B.x,y:Y},B]),...[L,R].map(X=>[A,{x:X,y:A.y},{x:X,y:B.y},B]),
+    // 兩點在箱子的對角兩側：繞過一個角
+    ...[[L,T],[R,T],[L,D],[R,D]].flatMap(([X,Y])=>[[A,{x:A.x,y:Y},{x:X,y:Y},{x:X,y:B.y},B],[A,{x:X,y:A.y},{x:X,y:Y},{x:B.x,y:Y},B]])];
+  return c.filter(p=>!crossBox(p)).sort((a,b)=>len(a)-len(b))[0]||null;
+}
 function routeLeg(A,B,J,noDuct){
+  // 兩點都在箱外：直接連，會穿過箱體就繞過去（箱外沒有線槽）
+  if(A.sheet==='field'&&B.sheet==='field'&&!(A.dev&&B.dev&&A.dev===B.dev)){let d=directPts(A,B);if(crossBox(d)){const q=avoidBox(A,B);if(q)d=q;}return {direct:true,pts:d};}
   // 線圈二極體到線圈的自動短線：直接轉一個彎接過去，不照接點方向繞
   if(A.dev&&B.dev&&(tplOf(devOf(A.dev)).coil||tplOf(devOf(B.dev)).coil)&&famIds(A.dev).includes(B.dev)) return {direct:true,pts:Math.abs(A.x-B.x)<.01||Math.abs(A.y-B.y)<.01?[A,B]:[A,{x:A.x,y:B.y},B]};
   if(A.dev&&B.dev&&A.sheet===B.sheet&&famIds(A.dev).includes(B.dev)&&!A.stub&&!B.stub) return {direct:true,pts:directPts(A,B)};
@@ -330,7 +342,10 @@ function buildAnchors(ea,eb,wps,ctr,glandId){
   const fieldP=sa==='field'?ea:eb;
   // 同一組器具（主體與正面附件、伺服電池）之間的線直接在器具前面連，不拉出線點
   const fam=ea.dev&&eb.dev&&ea.sheet===eb.sheet&&famIds(ea.dev).includes(eb.dev);
-  const w0=wps.length?wpAnchor(wps[0]):null,w1=wps.length?wpAnchor(wps[wps.length-1]):null;
+  // 外線（一端在現場或箱外）：中繼點在箱子外面就算箱外的點（排在出線口之前），即使不在現場區裡
+  const ext=chain.includes('field'),BX={...boxOrigin(),w:S.box.w,h:S.box.h};
+  const wpA=p=>{const a=wpAnchor(p);if(ext&&a.sheet==='plate'&&!inR(p,BX)){a.sheet='field';a.inDuct=null;}return a;};
+  const w0=wps.length?wpA(wps[0]):null,w1=wps.length?wpA(wps[wps.length-1]):null;
   const out=[ea];let qa=fam?null:(backStub(ea,w0)||stubOf(ea)),qb=fam?null:(backStub(eb,w1)||stubOf(eb));
   // 兩個接點面對面、距離近到兩邊的出線點會交錯（例如兩台小器具並排）：出線點都改到兩點正中間，直接連過去，不會誤以為要繞到對方背面
   if(qa&&qb&&!wps.length&&sa===sb&&ea.dev!==eb.dev&&qa.stub&&qb.stub){
@@ -349,8 +364,13 @@ function buildAnchors(ea,eb,wps,ctr,glandId){
   if(fam&&!wps.length){out.push(eb);out.local=true;return out;}
   if(qa) out.push(qa);
   chain.forEach((sh,i)=>{
-    wps.forEach(p=>{const a=wpAnchor(p);if(a.sheet===sh)out.push(a);});
-    if(i<chain.length-1) gates(sh,chain[i+1],ctr,fieldP,glandId).forEach(x=>out.push(x));
+    wps.forEach(p=>{const a=wpA(p);if(a.sheet===sh)out.push(a);});
+    if(i<chain.length-1){
+      // 有箱外的中繼點：沿箱子外圍繞到出線口要從離出線口最近的那個中繼點算起（不然中繼點到出線口那段會穿過箱子）
+      const fw=wps.map(wpA).filter(a=>a.sheet==='field'),near=sh==='field'?fw[fw.length-1]:chain[i+1]==='field'?fw[0]:null;
+      const gid=glandId||(fieldP.dev&&devOf(fieldP.dev)&&devOf(fieldP.dev).gland)||null;
+      gates(sh,chain[i+1],ctr,near?{x:near.x,y:near.y,sheet:'field'}:fieldP,gid).forEach(x=>out.push(x));
+    }
   });
   if(qb) out.push(qb);
   out.push(eb);
