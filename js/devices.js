@@ -78,7 +78,7 @@ const SENS3=[['棕',10,8,'top','+24V'],['藍',25,8,'top','0V'],['黑',40,8,'top'
 const LOOK={dark:['#2f3437','#f1f2ee'],mid:['#54595b','#f1f2ee'],gray:['#a9adaa','#15181a'],light:['#e3e1d6','#23211a'],blue:['#2c3f4e','#eef3f5'],red:['#7a2a2a','#fff3f1'],steel:['#8e9794','#10140f']};
 /* ---------- 器具庫：[inv, 分類, 廠牌, 名稱, 寬, 高, 深, 字首, 外殼, 接點, 其他] 尺寸為參考值 ---------- */
 const TPL={};
-function def(id,inv,cat,b,n,w,h,d,pre,look,terms,x={}){TPL[id]={inv:[].concat(inv||[]),cat,b,n,w,h,d,pre,f:LOOK[look][0],i:LOOK[look][1],t:terms,sheet:x.sheet||'plate',gen:x.gen||null,cnt:x.cnt||null,cntLabel:x.cntLabel||null,noOv:!!x.noOv,round:!!x.round,legacy:!!x.legacy,front:!!x.front,jumper:!!x.jumper,tagAt:x.tagAt||null,links:x.links||null,userLinks:!!x.userLinks,sym:x.sym||null,model:!!x.model,coil:!!x.coil,vlab:x.vlab||null,hostCat:x.hostCat||null,at:x.at||null,deco:x.deco||null,bus:!!x.bus,attach:x.attach||(x.front?'front':null),outside:!!x.outside,note:x.note||''};}
+function def(id,inv,cat,b,n,w,h,d,pre,look,terms,x={}){TPL[id]={inv:[].concat(inv||[]),cat,b,n,w,h,d,pre,f:LOOK[look][0],i:LOOK[look][1],t:terms,sheet:x.sheet||'plate',gen:x.gen||null,cnt:x.cnt||null,cntLabel:x.cntLabel||null,noOv:!!x.noOv,round:!!x.round,legacy:!!x.legacy,front:!!x.front,jumper:!!x.jumper,tagAt:x.tagAt||null,links:x.links||null,userLinks:!!x.userLinks,sym:x.sym||null,model:!!x.model,coil:!!x.coil,vlab:x.vlab||null,hostCat:x.hostCat||null,at:x.at||null,deco:x.deco||null,bus:!!x.bus,attach:x.attach||(x.front?'front':null),outside:!!x.outside,rx:x.rx||0,note:x.note||''};}
 const C1='斷路器',C2='電磁接觸器',C3='繼電器／計時',C4='PLC',C5='伺服驅動',C6='電源／濾波',C7='端子台／接地',C8='網路／插座',C9='其他元件',D1='面板：按鈕與顯示',F1='現場：馬達',F2='現場：感測器',F3='現場：接線盒與其他';
 def('fuji-bw50',null,C1,'FUJI','BW50EAG 3P50A',75,100,84,'Q','dark',[...pole(['1','3','5'],[12.5,37.5,62.5],10,'top','電源側'),...pole(['2','4','6'],[12.5,37.5,62.5],90,'bottom','負載側')]);
 [['3P40A',3],['3P16A',3],['3P4A',3],['2P4A',2],['1P6A',1],['1P4A',1],['1P2A',1],['1P1A',1]].forEach(([r,p])=>def('ic60-'+r,null,C1,'施耐德','iC60N '+r,18*p,85,78.5,'Q','light',brk(p,85)));
@@ -237,6 +237,11 @@ termDesc('cu11',{L1:'主接點',L2:'主接點',L3:'主接點',T1:'主接點',T2:
 termDesc('pnoz',{A1:'電源 +24V',A2:'電源 0V','13':'安全接點 NO','14':'安全接點 NO','23':'安全接點 NO','24':'安全接點 NO','33':'安全接點 NO','34':'安全接點 NO','41':'輔助接點 NC','42':'輔助接點 NC',S52:'重置迴路',S34:'重置迴路'});
 // 日光燈：通用的燈具符號，畫圖時不分電壓、瓦數；兩個接點，本體畫燈的符號（圓圈打叉）；預設放在箱外
 def('lamp',null,C9,'','日光燈',50,46,0,'EL','light',[['L/+',17,6,'top','電源'],['N/−',33,6,'top','電源']],{outside:true,tagAt:{x:25,y:39},deco:[{k:'lamp',x:25,y:21,r:7}],note:'通用燈具，不分電壓、瓦數'});
+// 雷射一組：插座 → 變壓電源（5521 公頭出線）→ 5521 母座轉端子 →（＋經過繼電器，−直接）→ 5525 公頭轉端子 → 雷射燈（5525 母座出線）
+def('laser-ps',null,F3,'','雷射變壓電源 AC 110／220V → DC 3V',30,50,30,'P','mid',[['AC',15,4,'top','AC 輸入插頭（插在插座上）'],['5521公',15,45.5,'bottom','DC 3V 輸出 5521 公頭']],{sheet:'field',rx:6,note:'輸入電壓 110V／220V 可切換；尺寸為示意'});
+def('dc5521f-tb',null,F3,'','5521 母座轉端子',30,30,20,'TF','mid',[['5521母',4,15,'left','5521 母座（接 5521 公頭）'],['V+',26.5,9.5,'right','＋'],['V-',26.5,20.5,'right','−']],{sheet:'field',note:'尺寸為示意'});
+def('dc5525m-tb',null,F3,'','5525 公頭轉端子',30,30,20,'TF','mid',[['5525公',4,15,'left','5525 公頭（插 5525 母座）'],['V+',26.5,9.5,'right','＋'],['V-',26.5,20.5,'right','−']],{sheet:'field',note:'尺寸為示意'});
+def('laser-dot',null,F3,'','雷射燈（5525 母座出線）',30,30,30,'LA','mid',[['5525母',4,15,'left','DC 電源 5525 母座']],{sheet:'field',note:'尺寸為示意'});
 // 伺服驅動器上的兩個接地點在機殼內相通（同電位）：建線沿用線號、網路檢查都當成同一點
 TPL.j4700.links=[['PE','PE2']];TPL.j4200.links=[['PE','PE2']];TPL.je40.links=[['E','PE']];
 // THS-62 吊掛式按鈕盒：上下、左右兩組各自互鎖，兩組的共通線（型錄 1）內部相通，所以只有一個 COM。
