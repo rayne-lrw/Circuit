@@ -567,7 +567,7 @@ function computeRoutes(hint){hint=hint&&hint.retry?hint:BOHINT;const sigs={};
     const tgt=(mine,other)=>!mine.length?null:fieldOf(mine)===fieldOf(other)?(other.length?{...cen(other),ends:other}:null):glandNear(cen(fieldOf(mine)?mine:other));
     // 記住的調整目標只在兩端接點都沒動時才沿用（簽章不同就作廢）
     const sig=[...ea,...eb].map(e=>Math.round(e.x)+','+Math.round(e.y)).join(';'),hintFor=k=>{const h=hint[k];return h&&h.sig===sig?h:null;};sigs[c.id]=sig;
-    const side=(k,ends)=>{if(P[k])return endpoint(P[k],0);const o=c.bo&&c.bo[k];const p=o?{x:o.x,y:o.y,sheet:sheetAt(o)}:autoBO(ends,ends[0].sheet,hintFor(c.id+'|'+k)||((c.wps||[]).length?(k==='a'?c.wps[0]:c.wps[c.wps.length-1]):null)||(k==='a'?tgt(ea,eb):tgt(eb,ea)));return {x:p.x,y:p.y,sheet:p.sheet,inDuct:locate(p,p.sheet),wp:true,bo:true,auto:!o,...(!o&&p.dev&&p.side?{boDev:p.dev,boSide:p.side}:{})};};
+    const side=(k,ends)=>{if(P[k])return endpoint(P[k],0);const o=c.bo&&c.bo[k];const p=o?{x:o.x,y:o.y,sheet:sheetAt(o)}:autoBO(ends,ends[0].sheet,hintFor(c.id+'|'+k)||((c.wps||[]).length?{...(k==='a'?c.wps[0]:c.wps[c.wps.length-1]),uw:1}:null)||(k==='a'?tgt(ea,eb):tgt(eb,ea)));return {x:p.x,y:p.y,sheet:p.sheet,inDuct:locate(p,p.sheet),wp:true,bo:true,auto:!o,...(!o&&p.dev&&p.side?{boDev:p.dev,boSide:p.side}:{})};};
     const A=side('a',ea),B=side('b',eb);
     // 外皮可以加中繼點、可以不進線槽；電纜本來就能走線槽外，穿過其他器具不警告
     const cg=c.gland||([...cw.map(w=>devOf(w.b.d)),P.b&&devOf(P.b.d)].find(d=>d&&d.gland)||{}).gland; // 電纜：指定的出線口，其次是現場設備的預設出線口
@@ -654,7 +654,10 @@ function computeRoutes(hint){hint=hint&&hint.retry?hint:BOHINT;const sigs={};
   }
   // 剝線點在線槽裡：移到外皮在那條線槽實際走的線道上，芯線直接走到外皮的線道會合（不會先走到中心線、外皮再橫移到自己的線道）
   cabJobs.forEach(({A,B,sh,tails})=>{
-    [[A,'a'],[B,'b']].forEach(([P,k])=>{if(!P.bo||!P.auto||!P.inDuct)return;const L=lanes.get(sh.id+'|'+P.inDuct.id);if(L==null)return;
+    [[A,'a'],[B,'b']].forEach(([P,k])=>{if(!P.bo||!P.auto||!P.inDuct)return;
+      // 同一條線槽裡有使用者放的中繼點：外皮在這條線槽照中繼點的位置走，剝線點也對齊那裡
+      const uw=sh.anchors.find(a=>a.wp&&!a.bo&&a.inDuct===P.inDuct&&S.ducts.filter(d=>d.sheet===a.sheet&&inR(a,d)).length===1);
+      const L=uw?(axis(P.inDuct)==='h'?uw.y:uw.x):lanes.get(sh.id+'|'+P.inDuct.id);if(L==null)return;
       const h=axis(P.inDuct)==='h';if(h)P.y=L;else P.x=L;
       tails.forEach(({ja,jb})=>{const j=k==='a'?ja:jb;if(!j)return;const q=k==='a'?j.anchors[j.anchors.length-1]:j.anchors[0];if(h)q.y=L;else q.x=L;});});
   });
@@ -703,7 +706,8 @@ function computeRoutes(hint){hint=hint&&hint.retry?hint:BOHINT;const sigs={};
       // 同一個調整已經試過（上次就是用這個目標）就不再重算，免得修不掉的折返每次都多算一輪
       const key=c.id+'|'+k,old=BOHINT[key];if(bad&&!(old&&old.sig===sigs[c.id]&&Math.abs(old.x-q.x)<.5&&Math.abs(old.y-q.y)<.5)){nh[key]={x:q.x,y:q.y,sig:sigs[c.id]};n++;}});
       // 兩端都有折返：只調整 B 端，A 端留著當基準（兩端同時往對方靠會互換位置，折返還在）
-      if(nh[c.id+'|a']&&nh[c.id+'|b']&&nh[c.id+'|a']!==BOHINT[c.id+'|a']){delete nh[c.id+'|a'];n--;}});
+      // 外皮只有兩個點（兩端直接相連）時，調整的目標就是另一個剝線點，會把外皮縮成 0 或兩端互換：這種情況不重算；外皮中間有轉角時兩端各自調整
+      if(R0.pts.length<=2)['a','b'].forEach(k=>{if(nh[c.id+'|'+k]&&nh[c.id+'|'+k]!==BOHINT[c.id+'|'+k]){delete nh[c.id+'|'+k];n--;}});});
     if(n){BOHINT={...nh};delete BOHINT.retry;computeRoutes(nh);return;}}
   ISSUES=computeIssues();
 }

@@ -192,6 +192,16 @@ const SCENARIOS=[
     }
     return {state:st,expectClean:nos,expectGland:exp,expectFieldDuct:{duct:'DF',wires:nos}};
   }},
+  {name:'箱內電纜在一端附近放中繼點（外皮不可縮到很短）',build:()=>{
+    // 下排器具接到上排器具的箱內電纜，中繼點放在下方線槽；兩端剝線點都是自動：外皮要從下方一路走到上方，不可以兩個剝線點都擠在中繼點旁邊
+    const st=normalize({box:{w:700,h:600,d:300,back:20},plate:{w:640,h:540},door:{w:700,h:600},
+      devices:[{id:'L',tag:'L',tpl:'ic60-3P16A',x:200,y:380,sheet:'plate'},{id:'U',tag:'U',tpl:'ic60-3P16A',x:200,y:90,sheet:'plate'}],
+      ducts:[{id:'T',x:20,y:20,w:600,h:40,dp:60},{id:'M',x:20,y:250,w:600,h:40,dp:60},{id:'B',x:20,y:480,w:600,h:40,dp:60},{id:'R',x:580,y:60,w:40,h:420,dp:60}],glands:[],wires:[]}).state;S=st;
+    const c=newCable('CI','CSA細纜 0.5mm²*2C 棕藍');
+    [['2','1'],['4','3']].forEach(([a,b],i)=>{const w={id:'ci'+i,no:'CI'+i,a:{d:'L',t:a},b:{d:'U',t:b},wps:[],gauge:.5,color:'black'};st.wires.push(w);attachCore(w,c,i?'藍':'棕');});
+    c.wps=[{x:350,y:500}];
+    return {state:st,expectClean:[],expectSheath:{CI:300}};
+  }},
   {name:'出線口進出（現場區在箱子上方）',build:()=>{
     const st=normalize(sampleState()).state;S=st;const o=boxOrigin();
     // 現場區搬到箱子上方（和你的專案一樣），區內器具一起搬
@@ -222,7 +232,7 @@ const SCENARIOS=[
   }},
 ];
 
-function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,expectGland,expectWall,expectPlug,expectPrev,expectShort,expectNoJog,expectFieldDuct){
+function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,expectGland,expectWall,expectPlug,expectPrev,expectShort,expectNoJog,expectFieldDuct,expectSheath){
   const res=[];
   const fam=id=>famIds(id);
   const crosses=(w,pts)=>{
@@ -332,6 +342,9 @@ function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,exp
   if(expectFieldDuct){const F=expectFieldDuct;F.wires.forEach(no=>{const w=S.wires.find(x=>x.no===no),r=w&&ROUTES.get(w.id);res.push({no:'箱外線槽 '+no,ok:!!(r&&r.via.includes(F.duct)),msg:`應經過箱外線槽 ${F.duct}，實際 ${r?r.via.join('>')||'無':'沒有路徑'}`});});
     (F.avoid||[]).forEach(no=>{const w=S.wires.find(x=>x.no===no),r=w&&ROUTES.get(w.id);res.push({no:'不繞去線槽 '+no,ok:!!(r&&!r.via.includes(F.duct)),msg:`離線槽很遠，不應該繞去 ${F.duct}（實際 ${r?r.via.join('>'):'無'}）`});});
     const bad=ISSUES.filter(i=>i.k==='duct'&&i.id===F.duct);res.push({no:'箱外線槽 '+F.duct+' 檢查',ok:!bad.length,msg:bad.map(i=>i.t).join('；')});}
+  // 外皮長度不可以縮到很短，而且電纜不可以有折返提示
+  Object.entries(expectSheath||{}).forEach(([no,min])=>{const c=S.cables.find(x=>x.no===no),R=c&&CABROUTES.get(c.id),iss=ISSUES.filter(i=>i.id===(c&&c.id)&&i.t.includes('折返'));
+    res.push({no:'外皮 '+no,ok:!!R&&R.len>=min&&!iss.length,msg:`外皮長 ${R?Math.round(R.len):0} mm（應至少 ${min}）${iss.length?'；'+iss.map(i=>i.t).join('、'):''}`});});
   // 電纜外皮不可穿過現場端的器具（剝線點在器具某一側，外皮從另一側過來要繞過去）
   (S.cables||[]).forEach(c=>{const R=CABROUTES.get(c.id);if(!R)return;
     const devs=[...new Set(coresOf(c).map(w=>w.b.d))].map(devOf).filter(d=>d&&d.sheet==='field');
@@ -351,7 +364,7 @@ function checkInPage(expectClean,expectVia,expectCable,expectBack,expectCoil,exp
     const out=await p.evaluate(([src,arg,chk])=>{
       const sc=new Function('arg','return ('+src+')(arg)')(arg);
       S=sc.state;resetUi();computeRoutes();
-      return new Function('expectClean','expectVia','expectCable','expectBack','expectCoil','expectGland','expectWall','expectPlug','expectPrev','expectShort','expectNoJog','expectFieldDuct','return ('+chk+')(expectClean,expectVia,expectCable,expectBack,expectCoil,expectGland,expectWall,expectPlug,expectPrev,expectShort,expectNoJog,expectFieldDuct)')(sc.expectClean,sc.expectVia,sc.expectCable,sc.expectBack,sc.expectCoil,sc.expectGland,sc.expectWall,sc.expectPlug,sc.expectPrev,sc.expectShort,sc.expectNoJog,sc.expectFieldDuct);
+      return new Function('expectClean','expectVia','expectCable','expectBack','expectCoil','expectGland','expectWall','expectPlug','expectPrev','expectShort','expectNoJog','expectFieldDuct','expectSheath','return ('+chk+')(expectClean,expectVia,expectCable,expectBack,expectCoil,expectGland,expectWall,expectPlug,expectPrev,expectShort,expectNoJog,expectFieldDuct,expectSheath)')(sc.expectClean,sc.expectVia,sc.expectCable,sc.expectBack,sc.expectCoil,sc.expectGland,sc.expectWall,sc.expectPlug,sc.expectPrev,sc.expectShort,sc.expectNoJog,sc.expectFieldDuct,sc.expectSheath);
     },[fnSrc,arg,checkInPage.toString()]);
     const bad=out.filter(x=>!x.ok);total+=out.length;fail+=bad.length;
     console.log(`${bad.length?'✗':'✓'} ${name}：${out.length} 條線，${bad.length} 條失敗`);

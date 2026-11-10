@@ -172,7 +172,8 @@ function autoBO(ends,sheet,target){
     // 點本身已經在線槽裡（例如出線點落在線槽內）：直接用那條線槽上的位置，不往外找
     const exAt=q=>{const d=locate(q,sheet);return d?[{duct:d,along:axis(d)==='h'?q.x:q.y,cost:0}]:exits(q);};
     const pex=ps.map(p=>tab(exAt(p))),tex=tab(!target?[]:target.ends?target.ends.flatMap(e=>exAt(stubOf(e)||e)):exAt({x:target.x,y:target.y,sheet}));
-    const cost=q=>{const c=cd(q);if(!c)return Infinity;return pex.reduce((s,ex)=>s+net(ex,c),0)+(target&&tex.length?ps.length*net(tex,c):0);};
+    // 兩端都在箱內（target 帶著另一端芯線）：剝線點以這一端芯線最短為主，另一端只決定往哪邊靠（0.15）；一端在箱外：芯線包在外皮裡走的距離打九折：同樣的總長，寧可多包在外皮裡（剝線點靠近這一端的接點），不會把外皮縮到很短、芯線各自拉長
+    const cost=q=>{const c=cd(q);if(!c)return Infinity;return pex.reduce((s,ex)=>s+net(ex,c),0)+(target&&tex.length?ps.length*(target.ends||target.uw?.15:.9)*net(tex,c):0);};
     const q=cand.reduce((b,x)=>cost(x)<cost(b)?x:b);
     return {x:q.x,y:q.y,sheet};
   }
