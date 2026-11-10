@@ -113,6 +113,12 @@ node tests/tpl-data-check.js [系列]
 器具庫資料檢查：每個內建器具的接點在外框內、名稱不重複、不重疊，動作資料指到的接點都存在，PLC 的 X、Y 都分到共點。
 
 ```
+node tests/plc-sim-check.js [器具 id 片段]
+```
+
+PLC 實際模擬檢查：每一種有輸入輸出動作資料的內建器具都真的接上電源和線跑模擬；每個 X 接到共點的另一極要 ON、拔掉共點要 OFF；每個 Y 逐點接一顆繼電器線圈，ON 時要吸合、OFF 時不吸合、不能短路。
+
+```
 node tests/tpl-check.js
 ```
 
