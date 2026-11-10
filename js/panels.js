@@ -7,7 +7,7 @@ function libButton(id,t){
 }
 function renderPalette(){
   const q=$('libQ').value.trim().toLowerCase();
-  const match=t=>!q||[t.n,t.b].join(' ').toLowerCase().includes(q);
+  const match=t=>!q||[t.n,t.b,t.ser||''].join(' ').toLowerCase().includes(q);
   const custom=S.tpls||{},cats={},all=[...Object.entries(TPL).filter(([id,t])=>!t.legacy&&!custom[id]),...Object.entries(custom)];
   all.forEach(([id,t])=>{if(match(t))(cats[t.cat]=cats[t.cat]||[]).push([id,t]);});
   const order=['自訂器具',C1,C2,C3,C4,C5,C6,C7,C8,C9,D1,F1,F2,F3];
@@ -16,7 +16,7 @@ function renderPalette(){
   const cus=([id,t])=>custom[id]&&mode!=='view'?`<div class="lib-c">${libButton(id,t)}<span class="lib-act"><button class="tool sm" data-tpl-ed="${id}" title="編輯這個器具（已放的會一起更新）">編輯</button><button class="tool sm" data-tpl-cp="${id}" title="複製成新器具">複製</button><button class="tool sm danger" data-tpl-del="${id}" title="${TPL[id]?'換回原廠':'刪除'}">${TPL[id]?'換回原廠':'刪除'}</button></span></div>`:libButton(id,t);
   // 沒有器具在用的自訂器具：可以一次清掉
   const unused=Object.keys(custom).filter(id=>!S.devices.some(d=>d.tpl===id));
-  order.forEach(c=>{if(cats[c]) h+=`<div class="brand"><h2>${c}${c==='自訂器具'&&unused.length&&mode!=='view'?` <button class="tool sm" id="cusClean" title="列出沒有器具在用的自訂器具，勾選後刪除">清理沒用到的（${unused.length}）</button>`:''}</h2>${c==='自訂器具'?'<p class="note cus-note">自訂器具的尺寸、接點、動作是自己設定的，程式不會核對。</p>':''}${cats[c].map(e=>cus(e)).join('')}</div>`;});
+  order.forEach(c=>{if(cats[c]) h+=`<div class="brand"><h2>${c}${c==='自訂器具'&&unused.length&&mode!=='view'?` <button class="tool sm" id="cusClean" title="列出沒有器具在用的自訂器具，勾選後刪除">清理沒用到的（${unused.length}）</button>`:''}</h2>${c==='自訂器具'?'<p class="note cus-note">自訂器具的尺寸、接點、動作是自己設定的，程式不會核對。</p>':''}${serGroups(cats[c],cus,!!q)}</div>`;});
   const ductRows=DUCTINV.filter(([n,m])=>!q||(n+m).toLowerCase().includes(q)).map(([n,m,w,d])=>`<button class="lib" data-duct-add="h" data-dw="${w}" data-dd="${d}"><span class="nm">${n} 水平</span><small>寬 ${w}</small><span class="bd">${m}</span></button><button class="lib" data-duct-add="v" data-dw="${w}" data-dd="${d}"><span class="nm">${n} 垂直</span><small>寬 ${w}</small><span class="bd">${m}</span></button>`).join('');
   if(ductRows) h+=`<div class="brand"><h2>線槽</h2>${ductRows}</div>`;
   const glandRows=GLANDINV.filter(n=>!q||n.toLowerCase().includes(q)).map(n=>`<button class="lib" data-gland-add="${esc(n)}"><span class="nm">${esc(n)}</span><small>出線口</small></button>`).join('');
@@ -306,4 +306,11 @@ function aliasHtml(d,t){
   const ids=[...new Set(t.terms.map(x=>x.id))],n=d.alias?Object.keys(d.alias).length:0;
   return `<details class="alias"${n?' open':''}><summary>接點別名${n?`（已改 ${n} 個）`:''}</summary><p class="note">只改顯示名稱，線、尺寸、模擬動作都不變；空白就是原本的名稱。端子台請用片上標籤。</p>
   <div class="alias-g">${ids.map(id=>{const td=t.terms.find(x=>x.id===id);return `<label title="${esc(td.desc||'')}"><span>${esc(id)}</span><input data-alias="${esc(id)}" maxlength="12" value="${esc((d.alias&&d.alias[id])||'')}" placeholder="${esc(id)}"></label>`;}).join('')}</div></details>`;
+}
+
+// 器具庫：同一分類裡，有系列的器具收進「廠牌 系列（數量）」群組，展開才列出；搜尋時自動展開。沒有系列的照原本列出
+function serGroups(list,cus,open){
+  const plain=list.filter(([,t])=>!t.ser),by=new Map();
+  list.filter(([,t])=>t.ser).forEach(e=>{const k=(e[1].b?e[1].b+' ':'')+e[1].ser;if(!by.has(k))by.set(k,[]);by.get(k).push(e);});
+  return plain.map(e=>cus(e)).join('')+[...by].map(([k,es])=>`<details class="ser"${open||es.length<=3?' open':''}><summary>${esc(k)}<small>${es.length}</small></summary>${es.sort((a,b)=>natCmp(a[1].n,b[1].n)).map(e=>cus(e)).join('')}</details>`).join('');
 }

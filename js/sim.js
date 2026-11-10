@@ -40,7 +40,7 @@ sd(['pyf14a','ly4n'],()=>MY4);
 sd('pnoz',()=>[{k:'pwr',a:'A1',b:'A2'},{k:'pnoz',ins:['S11','S12','S21','S22'],auto:['S34','S12'],btn:'重置'},...pairs([['13','14'],['23','24'],['33','34']],(a,b)=>({k:'sw',a,b,by:'latch'})),{k:'sw',a:'41',b:'42',nc:true,by:'latch'}]);
 // PLC
 const FX5Y=[['Y0','COM0'],['Y1','COM0'],['Y2','COM0'],['Y3','COM0'],['Y4','COM1'],['Y5','COM1'],['Y6','COM1'],['Y7','COM1'],['Y10','COM2'],['Y11','COM2'],['Y12','COM2'],['Y13','COM2'],['Y14','COM3'],['Y15','COM3'],['Y16','COM3'],['Y17','COM3']];
-sd('fx5u32',()=>[{k:'pwr',a:'L',b:'N'},{k:'plcX',com:'S/S',pts:['X0','X1','X2','X3','X4','X5','X6','X7','X10','X11','X12','X13','X14','X15','X16','X17']},{k:'plcY',pairs:FX5Y}]);
+sd('fx5u32',()=>[{k:'pwr',a:'L',b:'N'},{k:'src',p:'24V',n:'0V',v:'24V',in:['L','N']},{k:'plcX',cpu:true,com:'S/S',pts:['X0','X1','X2','X3','X4','X5','X6','X7','X10','X11','X12','X13','X14','X15','X16','X17']},{k:'plcY',cpu:true,pairs:FX5Y}]);
 sd('fx516ex',()=>[{k:'plcX',com:'S/S',pts:['0','1','2','3','4','5','6','7','10','11','12','13','14','15','16','17']}]);
 sd('fx540ssc',()=>[{k:'load',a:'24V',b:'0V',name:'電源'}]);
 // 伺服驅動器（黑盒子）：只看主電源、控制電源有沒有電
@@ -112,6 +112,8 @@ function simRun(){
     if(e.in)r.inK=e.in.map(t=>tk(d,t));if(e.ph)r.phK=e.ph.map(t=>tk(d,t));if(e.pts)r.ptsK=e.pts.map(t=>[t,tk(d,t)]);if(e.pairs)r.pairsK=e.pairs.map(([y,c])=>[y,tk(d,y),tk(d,c)]);
     if(e.ins)r.insK=e.ins.map(t=>tk(d,t));if(e.auto)r.autoK=e.auto.map(t=>tk(d,t));els.push(r);}));
   const pressed=(d,btn)=>st.press.has(d.id+'|'+btn);
+  // 有自己電源接點的器具（PLC CPU、感測器）要有電才動作；增設模組沒有電源接點，跟著 CPU 走，不另外判斷
+  const pwrDev=new Set(els.filter(e=>e.k==='pwr').map(e=>e.d.id));
   let coil={...st.coil},latch={...st.latch},powered={},sensOn={},res=null,unstable=false;const seen=new Set();
   for(let it=0;it<40;it++){
     // 1. 目前狀態下導通的接點
@@ -123,7 +125,7 @@ function simRun(){
       else if(e.k==='sw'){const act=e.by==='coil'?coil[e.d.id]:e.by==='host'?coil[e.d.on]:e.by==='latch'?latch[e.d.id]:e.by==='btn'?pressed(e.d,e.btn):false;on=e.nc?!act:!!act;}
       else if(e.k==='sens')on=!!(sensOn[e.d.id+'|'+e.out]);
       if(on){u(e.aK||e.outK,e.bK||e.toK);conducting.push(e);}
-      if(e.k==='plcY')e.pairsK.forEach(([y,yk,ck])=>{if(powered[e.d.id]&&st.y.has(e.d.id+'|'+y)){u(yk,ck);conducting.push({k:'plcY',d:e.d,aK:yk,bK:ck,y});}});});
+      if(e.k==='plcY')e.pairsK.forEach(([y,yk,ck])=>{if((powered[e.d.id]||!pwrDev.has(e.d.id))&&st.y.has(e.d.id+'|'+y)){u(yk,ck);conducting.push({k:'plcY',d:e.d,aK:yk,bK:ck,y});}});});
     // 2. 電位：AC 電源一直有電；DC 電源要輸入有電才輸出（可能一層接一層，算到不再變）
     const lab=new Map(),add=(k,l)=>{const r=f(k);if(!lab.has(r))lab.set(r,new Set());lab.get(r).add(l);};
     els.filter(e=>e.k==='ac').forEach(e=>{e.phK.forEach((k,i)=>add(k,`A|${e.d.id}|${e.ph[i]}`));if(e.nK)add(e.nK,`A|${e.d.id}|N`);});
@@ -151,8 +153,8 @@ function simRun(){
     by.forEach((ps,g)=>{if(g[0]==='D'&&ps.has('+')&&ps.has('-'))shorts.push(r);else if(g[0]==='A'&&[...ps].filter(p=>p!=='N').length>1)shorts.push(r);});});
   const shortSet=new Set(shorts);
   // PLC 輸入
-  const X=[];els.filter(e=>e.k==='plcX').forEach(e=>e.ptsK.forEach(([t,k])=>X.push({d:e.d,t,name:e.d.tpl==='fx5u32'?t:`${e.d.tag}·${t}`,on:feed(lab,f,k,e.comK).on})));
-  const Y=[];els.filter(e=>e.k==='plcY').forEach(e=>e.pairsK.forEach(([y])=>{if(termOf(e.d,y))Y.push({d:e.d,y,name:e.d.tpl==='fx5u32'?y:`${e.d.tag}·${y}`,on:st.y.has(e.d.id+'|'+y),wired:S.wires.some(w=>(w.a.d===e.d.id&&w.a.t===y)||(w.b.d===e.d.id&&w.b.t===y))});}));
+  const X=[];els.filter(e=>e.k==='plcX').forEach(e=>e.ptsK.forEach(([t,k])=>X.push({d:e.d,t,name:e.cpu?t:`${e.d.tag}·${t}`,on:feed(lab,f,k,e.comK).on})));
+  const Y=[];els.filter(e=>e.k==='plcY').forEach(e=>e.pairsK.forEach(([y])=>{if(termOf(e.d,y))Y.push({d:e.d,y,name:e.cpu?y:`${e.d.tag}·${y}`,on:st.y.has(e.d.id+'|'+y),wired:S.wires.some(w=>(w.a.d===e.d.id&&w.a.t===y)||(w.b.d===e.d.id&&w.b.t===y))});}));
   // 每條線：電位、有沒有電流
   const wires={};S.wires.forEach(w=>{const wk=wireKeys.get(w.id);if(!wk||!wk.keys.length){wires[w.id]={pot:'none'};return;}
     const ls=new Set();wk.keys.forEach(k=>labOf(k).forEach(l=>ls.add(l)));wires[w.id]={pot:potOf(ls),ls:[...ls],short:wk.keys.some(k=>shortSet.has(f(k)))};});
@@ -201,8 +203,8 @@ function simClean(sim,ids){
     else if(e.k==='load'){const a=T(e.a),b=T(e.b);if(a&&b&&a!==b)r={k:'load',a,b,name:ss(e.name,12)||'負載',...(e.polar?{polar:true}:{})};}
     else if(e.k==='src'){const p=T(e.p),n=T(e.n),i=Array.isArray(e.in)?e.in.map(T):null;if(p&&n&&p!==n)r={k:'src',p,n,v:ss(e.v,8)||'DC',...(i&&i[0]&&i[1]?{in:i}:{})};}
     else if(e.k==='ac'){const ph=(Array.isArray(e.ph)?e.ph:[]).map(T).filter(Boolean).slice(0,3);if(ph.length)r={k:'ac',ph,...(T(e.n)?{n:T(e.n)}:{})};}
-    else if(e.k==='plcX'){const com=T(e.com),pts=(Array.isArray(e.pts)?e.pts:[]).map(T).filter(Boolean).slice(0,64);if(com&&pts.length)r={k:'plcX',com,pts};}
-    else if(e.k==='plcY'){const pr=(Array.isArray(e.pairs)?e.pairs:[]).filter(Array.isArray).map(([y,c])=>[T(y),T(c)]).filter(([y,c])=>y&&c).slice(0,64);if(pr.length)r={k:'plcY',pairs:pr};}
+    else if(e.k==='plcX'){const com=T(e.com),pts=(Array.isArray(e.pts)?e.pts:[]).map(T).filter(Boolean).slice(0,64);if(com&&pts.length)r={k:'plcX',com,pts,...(e.cpu?{cpu:true}:{})};}
+    else if(e.k==='plcY'){const pr=(Array.isArray(e.pairs)?e.pairs:[]).filter(Array.isArray).map(([y,c])=>[T(y),T(c)]).filter(([y,c])=>y&&c).slice(0,64);if(pr.length)r={k:'plcY',pairs:pr,...(e.cpu?{cpu:true}:{})};}
     else if(e.k==='pnoz'){const ins=(Array.isArray(e.ins)?e.ins:[]).map(T).filter(Boolean),au=Array.isArray(e.auto)?e.auto.map(T):null;if(ins.length>=2)r={k:'pnoz',ins,...(au&&au[0]&&au[1]?{auto:au}:{}),btn:ss(e.btn,8)||'重置'};}
     else if(e.k==='sw'){const a=T(e.a),b=T(e.b),by=['coil','btn','host','latch'].includes(e.by)?e.by:'coil';if(a&&b&&a!==b)r={k:'sw',a,b,by,...(e.nc?{nc:true}:{}),...(by==='btn'?{btn:ss(e.btn,8)||'按下'}:{})};}
     else if(e.k==='sens'){const out=T(e.out),to=T(e.to);if(out&&to&&out!==to)r={k:'sens',out,to,btn:ss(e.btn,8)||'觸發'};}
