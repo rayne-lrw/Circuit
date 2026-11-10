@@ -209,7 +209,7 @@ function renderWires(){
     const cc=cabColor(c); // 使用者指定的外皮顏色；沒指定用預設黑色
     const d=pathD(r.pts),sw=cabStroke(c),ext=cabExt(c);
     let m=null,ml=-1;for(let i=1;i<r.pts.length;i++){const a=r.pts[i-1],b=r.pts[i],L=Math.abs(a.x-b.x)+Math.abs(a.y-b.y);if(L>ml){ml=L;m={a,b};}}
-    h+=`<g class="cab${selCab===c.id?' on':''}" data-cab="${c.id}"><path class="cab-o" d="${d}" stroke-width="${sw+1.2}"${cc?` style="stroke:${cc.k}"`:''}/><path class="cab-v${ext?' ext':''}" d="${d}" stroke-width="${sw}"${cc?` style="stroke:${cc.c}"`:''}/><path class="hit" d="${d}"/>`;
+    h+=`<g class="cab${selCab===c.id?' on':''}" data-cab="${c.id}"><path class="cab-o" d="${d}" data-sw="${sw}" stroke-width="${sw+(selCab===c.id?3:1.2)}"${cc?` style="stroke:${cc.k}"`:''}/><path class="cab-v${ext?' ext':''}" d="${d}" stroke-width="${sw}"${cc?` style="stroke:${cc.c}"`:''}/><path class="hit" d="${d}"/>`;
     if(m&&ml>20){const v=Math.abs(m.a.x-m.b.x)<.01,tx=(m.a.x+m.b.x)/2,ty=(m.a.y+m.b.y)/2;h+=`<text class="cab-t" x="${tx}" y="${ty}" style="fill:${cc?cc.k:'#f5f5ee'}" text-anchor="middle" dominant-baseline="central"${v?` transform="rotate(-90 ${tx} ${ty})"`:''}>${esc(c.no)}</text>`;}
     // 剝線點放在最上層，才不會被芯線擋住拖不到
     ['a','b'].forEach(k=>{const p=r[k];if(!p)return;boH+=`<rect class="bo${p.auto?'':' set'}" data-bo="${c.id}|${k}" data-on="${selCab===c.id?1:0}" x="${p.x-2.2}" y="${p.y-2.2}" width="4.4" height="4.4" rx=".8"><title>${esc(c.no)} ${k==='a'?'A':'B'} 端剝線點${p.auto?'（自動）':''}，可拖曳</title></rect>`;});
@@ -275,6 +275,8 @@ function applyWireClasses(){
   // 滑鼠只是經過（沒有點選）：不改任何導線的樣式，只在最上層畫一條高亮線。
   // 改所有導線的透明度、搬動元素會讓整張圖重畫，畫面放大時重畫量很大，容易閃黑。
   const focus=listHover||sel,g=$('wires');
+  // 電纜的選取外框：只改選取有變的那幾條（外框顏色寫在線上，選取色用 CSS 蓋過去）
+  g.querySelectorAll('.cab').forEach(e=>{const on=e.dataset.cab===selCab;if(e.classList.contains('on')===on)return;e.classList.toggle('on',on);const o=e.querySelector('.cab-o');if(o)o.setAttribute('stroke-width',+o.dataset.sw+(on?3:1.2));});
   const key=focus+'|'+JSON.stringify(filt);
   if(g.dataset.k===key){renderOverlay();return;}
   g.dataset.k=key;
