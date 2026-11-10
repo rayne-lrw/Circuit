@@ -85,7 +85,7 @@ svg.addEventListener('pointerdown',e=>{
       const src=zg?S.fields.find(z=>z.id===zg.dataset.zone):gg?S.glands.find(x=>x.id===gg.dataset.gland):dg?devOf(dg.dataset.dev):S.ducts.find(d=>d.id===cg.dataset.duct);
       const r=pasteClip(makeClip(k,src),0,0),obj=r.main;
       picked={k,id:obj.id};sel=null;
-      act={t:k==='zone'?'zone':k==='gland'?'gland':'drag',obj,ox:p.x-obj.x,oy:p.y-obj.y,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId,copy:r,src:{k,id:src.id}};
+      act={t:k==='zone'?'zone':k==='gland'?'gland':'drag',obj,x0:obj.x,y0:obj.y,ox:p.x-obj.x,oy:p.y-obj.y,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId,copy:r,src:{k,id:src.id}};
       if(k==='zone'||r.extras.length) act.mounted=r.extras.map(d=>({d,dx:d.x-obj.x,dy:d.y-obj.y}));
       computeRoutes();renderBoard();
       svg.setPointerCapture(e.pointerId);renderWires();renderDetail();updateHint();return;
@@ -93,7 +93,7 @@ svg.addEventListener('pointerdown',e=>{
     if(zg){
       const obj=S.fields.find(z=>z.id===zg.dataset.zone);
       picked={k:'zone',id:obj.id};sel=null;
-      act={t:'zone',obj,ox:p.x-obj.x,oy:p.y-obj.y,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId,mounted:zoneCarry(obj).map(d=>({d,dx:d.x-obj.x,dy:d.y-obj.y}))};
+      act={t:'zone',obj,x0:obj.x,y0:obj.y,ox:p.x-obj.x,oy:p.y-obj.y,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId,mounted:zoneCarry(obj).map(d=>({d,dx:d.x-obj.x,dy:d.y-obj.y}))};
       svg.setPointerCapture(e.pointerId);renderWires();renderDetail();updateHint();return;
     }
     if(gg){
@@ -181,6 +181,15 @@ svg.addEventListener('pointermove',e=>{
     if(act.pan){view.x=act.vx+dx;view.y=act.vy+dy;view.manual=true;applyView();}
   }
 });
+// 找一個空的地方放現場區：箱子下方、上方、左邊、右邊依序找，不壓到箱子、面板和其他現場區（skip 是要搬的那一區本身）
+function freeZoneSpot(W,H,skip){
+  const o=boxOrigin(),BX={x:o.x,y:o.y,w:S.box.w,h:S.box.h},Z=S.fields.filter(z=>z!==skip),busy=[BX,...(useDoor()?[sheetRect('door')]:[]),...Z].map(r=>({x:r.x-30,y:r.y-30,w:r.w+60,h:r.h+60}));
+  const free=r=>!busy.some(b=>overlap(r,b));
+  const lowest=Math.max(BX.y+BX.h,...Z.map(z=>z.y+z.h)),highest=Math.min(BX.y,...Z.map(z=>z.y)),leftest=Math.min(BX.x,...Z.map(z=>z.x)),rightest=Math.max(...busy.map(b=>b.x+b.w-30));
+  const cand=[{x:BX.x,y:BX.y+BX.h+90},{x:BX.x,y:BX.y-90-H},{x:BX.x-90-W,y:BX.y},{x:BX.x+BX.w+90,y:BX.y},{x:BX.x,y:lowest+90},{x:BX.x,y:highest-90-H},{x:leftest-90-W,y:BX.y},{x:rightest+90,y:BX.y}].map(c=>({...c,w:W,h:H}));
+  const r=cand.find(free)||cand[4];return {x:Math.round(r.x/10)*10,y:Math.round(r.y/10)*10};
+}
+const zoneBlocked=z=>{const o=boxOrigin();return overlap(z,{x:o.x,y:o.y,w:S.box.w,h:S.box.h})||(useDoor()&&overlap(z,sheetRect('door')));};
 svg.addEventListener('pointerup',e=>{
   const a=act;act=null;framePend=null;
   if(!a) return;
@@ -193,6 +202,10 @@ svg.addEventListener('pointerup',e=>{
   if(a.t==='wp'&&!a.moved&&noteTap(e)&&tryDouble(toWorld(e))) return;
   if(a.t==='lab'){if(a.moved){commit();renderWires();renderDetail();}return;}
   if(a.t==='bo'){if(a.moved)commit();else selectCable(a.cid);recompute();return;}
+  // 現場區放到箱子或面板上：退回原位（蓋在箱子上會被底板器具擋住，之後點不到也拖不走）
+  if((a.t==='zone'&&!a.copy||a.t==='zres')&&a.moved&&zoneBlocked(a.t==='zone'?a.obj:a.z)){
+    if(a.t==='zone'){(a.mounted||[]).forEach(m=>{m.d.x=a.x0+m.dx;m.d.y=a.y0+m.dy;});a.obj.x=a.x0;a.obj.y=a.y0;}else Object.assign(a.z,a.r0);
+    toast('現場區不能放在電控箱或面板上，已退回原位');recompute();return;}
   if(a.t==='drag'||a.t==='wp'||a.t==='gland'||a.t==='zone'||a.t==='zres'){ if(a.moved){commit();} recompute(); return; }
   if(a.moved||a.btn!==0) return;
   if(mode==='wire') clickWire(e,a); else if(mode==='view') viewClick(a); else {picked=null;multi=[];sel=null;selCab=null;renderWires();renderDetail();updateHint();}
@@ -693,14 +706,8 @@ $('palette').addEventListener('click',e=>{
     setMode('place');picked={k:'duct',id:'D'+i};
   }else if(b.dataset.zoneAdd!==undefined){
     let i=1;while(S.fields.some(z=>z.id==='Z'+i))i++;
-    // 放在空的地方：箱子下方、上方、左邊、右邊依序找，不壓到箱子、面板和其他現場區
-    const o=boxOrigin(),BX={x:o.x,y:o.y,w:S.box.w,h:S.box.h},busy=[BX,...(useDoor()?[sheetRect('door')]:[]),...S.fields].map(r=>({x:r.x-30,y:r.y-30,w:r.w+60,h:r.h+60}));
-    const W=Math.min(600,S.box.w),H=FIELD_H,free=r=>!busy.some(b=>overlap(r,b));
-    const lowest=Math.max(BX.y+BX.h,...S.fields.map(z=>z.y+z.h)),highest=Math.min(BX.y,...S.fields.map(z=>z.y)),leftest=Math.min(BX.x,...S.fields.map(z=>z.x)),rightest=Math.max(BX.x+BX.w,...busy.map(b=>b.x+b.w-30));
-    const cand=[{x:BX.x,y:BX.y+BX.h+90,w:W,h:H},{x:BX.x,y:BX.y-90-H,w:W,h:H},{x:BX.x-90-W,y:BX.y,w:W,h:H},{x:BX.x+BX.w+90,y:BX.y,w:W,h:H},
-      {x:BX.x,y:lowest+90,w:W,h:H},{x:BX.x,y:highest-90-H,w:W,h:H},{x:leftest-90-W,y:BX.y,w:W,h:H},{x:rightest+90,y:BX.y,w:W,h:H}];
-    const r=cand.find(free)||cand[4];
-    S.fields.push({id:'Z'+i,name:'現場 '+i,x:Math.round(r.x/10)*10,y:Math.round(r.y/10)*10,w:W,h:H,route:'auto'});
+    const W=Math.min(600,S.box.w),r=freeZoneSpot(W,FIELD_H);
+    S.fields.push({id:'Z'+i,name:'現場 '+i,x:r.x,y:r.y,w:W,h:FIELD_H,route:'auto'});
     setMode('place');picked={k:'zone',id:'Z'+i};
   }else if(b.dataset.glandAdd){
     let i=1;while(S.glands.some(g=>g.id==='G'+i))i++;
