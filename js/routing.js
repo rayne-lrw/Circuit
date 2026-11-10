@@ -141,9 +141,24 @@ function avoidBox(A,B){
     ...[[L,T],[R,T],[L,D],[R,D]].flatMap(([X,Y])=>[[A,{x:A.x,y:Y},{x:X,y:Y},{x:X,y:B.y},B],[A,{x:X,y:A.y},{x:X,y:Y},{x:B.x,y:Y},B]])];
   return c.filter(p=>!crossBox(p)).sort((a,b)=>len(a)-len(b))[0]||null;
 }
+// pts[0] 是出線口外面那一點：第一段是很短的橫移、第二段沿出線口方向，就把橫移推到第二段的盡頭；推完如果在同一條線上來回，拿掉中間那點
+function slideJog(pts,side,ok){
+  if(pts.length<3)return pts;const v=side==='top'||side==='bottom',G=pts[0],P1=pts[1],P2=pts[2];
+  const jog=v?(Math.abs(G.y-P1.y)<.01&&Math.abs(G.x-P1.x)>.05&&Math.abs(G.x-P1.x)<25&&Math.abs(P1.x-P2.x)<.01):(Math.abs(G.x-P1.x)<.01&&Math.abs(G.y-P1.y)>.05&&Math.abs(G.y-P1.y)<25&&Math.abs(P1.y-P2.y)<.01);
+  if(!jog)return pts;
+  let r=[G,v?{x:G.x,y:P2.y}:{x:P2.x,y:G.y},...pts.slice(2)];
+  for(let i=1;i<r.length-1;i++){const a=r[i-1],b=r[i],c=r[i+1],h=Math.abs(a.y-b.y)<.01&&Math.abs(b.y-c.y)<.01,w=Math.abs(a.x-b.x)<.01&&Math.abs(b.x-c.x)<.01;
+    if((h&&(b.x-a.x)*(c.x-b.x)<=0)||(w&&(b.y-a.y)*(c.y-b.y)<=0)||(Math.abs(a.x-b.x)<.01&&Math.abs(a.y-b.y)<.01)){r.splice(i,1);i--;}}
+  return ok(r)?r:pts; // 推上去會穿過器具或箱體（原本的橫移是在避開東西）：維持原樣
+}
 function routeLeg(A,B,J,noDuct){
   // 兩點都在箱外：直接連，會穿過箱體就繞過去（箱外沒有線槽）
-  if(A.sheet==='field'&&B.sheet==='field'&&!(A.dev&&B.dev&&A.dev===B.dev)){let d=directPts(A,B);if(crossBox(d)){const q=avoidBox(A,B);if(q)d=q;}return {direct:true,pts:d};}
+  if(A.sheet==='field'&&B.sheet==='field'&&!(A.dev&&B.dev&&A.dev===B.dev)){let d=directPts(A,B);
+    if(crossBox(d)){const q=avoidBox(A,B);if(q)d=q;}
+    // 出線口正外面的小折角（同一個出線口多條線錯開造成）：推到下一個轉角合併，不在出線口正上方小折一下
+    const okp=p=>!crossBox(p)&&clean(p,A,B,true);
+    if(A.gout)d=slideJog(d,A.gout,okp);if(B.gout)d=slideJog(d.slice().reverse(),B.gout,okp).reverse();
+    return {direct:true,pts:d};}
   // 線圈二極體到線圈的自動短線：直接轉一個彎接過去，不照接點方向繞
   if(A.dev&&B.dev&&(tplOf(devOf(A.dev)).coil||tplOf(devOf(B.dev)).coil)&&famIds(A.dev).includes(B.dev)) return {direct:true,pts:Math.abs(A.x-B.x)<.01||Math.abs(A.y-B.y)<.01?[A,B]:[A,{x:A.x,y:B.y},B]};
   if(A.dev&&B.dev&&A.sheet===B.sheet&&famIds(A.dev).includes(B.dev)&&!A.stub&&!B.stub) return {direct:true,pts:directPts(A,B)};
@@ -286,7 +301,7 @@ function gates(from,to,ctr,fieldP,glandId){
     const m=12+k;
     if(beyond[P.side]){
       const far=(fp.x-a.x)*P.nx+(fp.y-a.y)*P.ny,ext=far<=0?m:Math.min(m,Math.max(.5,far));
-      const pts=[a,{x:a.x+P.nx*ext,y:a.y+P.ny*ext,sheet:'field',side:null}];
+      const pts=[a,{x:a.x+P.nx*ext,y:a.y+P.ny*ext,sheet:'field',side:null,gout:P.side}];
       return from==='field'?pts.reverse():pts;
     }
     // 對方在別的面：出去後沿著箱體外圍（離箱壁 m）繞到對方那一面，不穿過箱體、不貼著箱壁
