@@ -176,7 +176,7 @@ function adapter(name,W,txt,rows,map,type){
   const all=[...links,...groups],merged=[];all.forEach(g=>{const m=merged.find(h=>h.some(x=>g.includes(x)));if(m)g.forEach(x=>{if(!m.includes(x))m.push(x);});else merged.push([...g]);});
   def(id,null,C4,MIT,`${name} 連接器／端子排轉換模組（${txt}）`,W,78.5,52,'TB','light',T,{ser:'Q 連接器轉端子台',links:merged.filter(g=>g.length>1),
     note:`${type==='40'?'40 針連接器（牛角插座）':'37 針 D-sub 連接器'}轉螺絲端子；選取後右側「接排線」可以自動接到 I/O 模組的連接器；針腳與端子的對應依手冊連接圖；${NOTE}`});
-  TPL[id].adp={type,pins:Object.fromEntries(pinIds.map(p=>[type==='40'?p:p.slice(1),p]))};ver(id);
+  TPL[id].adpc={'1':{type,pins:Object.fromEntries(pinIds.map(p=>[type==='40'?p:p.slice(1),p]))}};ver(id);
 }
 const B40=n=>`B${String(n).padStart(2,'0')}`,A40=n=>`A${String(n).padStart(2,'0')}`;
 const hexs=a=>[...Array(16).keys()].map(i=>(a+i).toString(16).toUpperCase());

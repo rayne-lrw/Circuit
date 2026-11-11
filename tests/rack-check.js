@@ -94,15 +94,15 @@ const {chromium}=require('playwright'),path=require('path');
     // 排線轉接座：A6TBXY36 接 QX42 連接器 1
     recompute();picked={k:'dev',id:'A1'};renderDetail();
     const btns=[...document.querySelectorAll('#detail [data-ribbon]')].map(b=>b.dataset.ribbon);
-    ok(btns.includes('MX|1')&&btns.includes('MX|2')&&btns.includes('EX2|1'),'A6TBXY36 列出可接的 40 針連接器（QX42 兩個、QY41P）');
+    ok(btns.includes('MX|1|1')&&btns.includes('MX|2|1')&&btns.includes('EX2|1|1'),'A6TBXY36 列出可接的 40 針連接器（QX42 兩個、QY41P）');
     ok(!btns.some(b=>b.startsWith('A2')),'不列 D-sub 的轉接座');
-    document.querySelector('#detail [data-ribbon="MX|1"]').click();
+    document.querySelector('#detail [data-ribbon="MX|1|1"]').click();
     const rc=S.cables.find(c=>c.ribbon),rw=rc&&coresOf(rc);
     ok(rc&&rw.length===34,'接排線：建立一條排線，34 芯（32 點＋2 個 COM 針腳）');
     ok(rw&&rw.every(w=>w.a.d==='MX'&&w.b.d==='A1'),'每一芯從 QX42 針腳接到 A6TBXY36 針腳');
     ok(rw&&rw.some(w=>w.no==='X05'),'排線芯線的線號用實際位址（X05）');
     const n3=normalize(JSON.parse(JSON.stringify(S))).state;ok(n3.cables.some(c=>c.ribbon)&&n3.wires.filter(w=>w.cab===rc.id).length===34,'排線存檔讀回');
-    document.querySelector('#detail [data-ribbon="MX|1"]')&&document.querySelector('#detail [data-ribbon="MX|1"]').click();
+    document.querySelector('#detail [data-ribbon="MX|1|1"]')&&document.querySelector('#detail [data-ribbon="MX|1|1"]').click();
     ok(S.cables.filter(c=>c.ribbon).length===1,'同一組不會重複接排線');
     // 模擬穿過轉接座：24V → 轉接座端子 5，0V… QX42 正公共端：COM1 接 +24V，X 接 0V 就 ON
     let kk=0;const W2=(a,at,bb,bt)=>S.wires.push({id:'v'+(++kk),no:'V'+kk,a:{d:a,t:at},b:{d:bb,t:bt},wps:[],gauge:.75,color:'black'});
@@ -112,7 +112,7 @@ const {chromium}=require('playwright'),path=require('path');
     ok(!r2.X.some(x=>x.name==='X06'&&x.on),'沒接的 X06 是 OFF');
     // D-sub 轉接座接 QY81P
     const yp=put('MY2','qy81p','M',4);recompute();picked={k:'dev',id:'A2'};renderDetail();
-    const b2=document.querySelector('#detail [data-ribbon="MY2|1"]');ok(!!b2,'A6TBX36-E 列出 QY81P（37 針 D-sub）');
+    const b2=document.querySelector('#detail [data-ribbon="MY2|1|1"]');ok(!!b2,'A6TBX36-E 列出 QY81P（37 針 D-sub）');
     // 電源模組模擬：AC 進來就有電；Q62P 另外有 24V 輸出；Q63P 是直流輸入（極性）
     S=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:860,h:660},door:{w:900,h:700},ducts:[],glands:[],wires:[],
       devices:[D2('PWR','field-power',0,-300,{sheet:'field'}),D2('PS','drl120',600,400),D2('B1','q35b',20,20),D2('B2','q65b',20,200),D2('KA','my2n-24',400,400)]}).state;resetUi();
