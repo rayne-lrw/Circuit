@@ -13,7 +13,7 @@
    - `node tests/route-check.js [使用者專案檔.json …]`
    - `node tests/layout-check.js`、`spec-check.js`、`fuzz-check.js`、`zone-check.js`、`review-check.js`、`sim-check.js`、`tpl-check.js`、`tpl-data-check.js`、`plc-sim-check.js`、`rack-check.js`、`place-check.js`
    - `node tests/smoke-check.js [使用者專案檔.json]`
-   - 已知：使用者的 proj4（11 條）、proj6（7 條）在 route-check 本來就有失敗，不是新問題。
+   - 使用者專案檔只用最新的一份（使用者會上傳）；舊的不留。
 3. 在工作分支 commit（中文訊息），fast-forward 合併到 main，兩個分支都推上去。不開 PR。
 
 ## 使用者資料
