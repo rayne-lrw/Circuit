@@ -153,8 +153,8 @@ function simRun(){
     by.forEach((ps,g)=>{if(g[0]==='D'&&ps.has('+')&&ps.has('-'))shorts.push(r);else if(g[0]==='A'&&[...ps].filter(p=>p!=='N').length>1)shorts.push(r);});});
   const shortSet=new Set(shorts);
   // PLC 輸入
-  const X=[];els.filter(e=>e.k==='plcX').forEach(e=>e.ptsK.forEach(([t,k])=>X.push({d:e.d,t,name:e.cpu?t:`${e.d.tag}·${t}`,on:feed(lab,f,k,e.comK).on})));
-  const Y=[];els.filter(e=>e.k==='plcY').forEach(e=>e.pairsK.forEach(([y])=>{if(termOf(e.d,y))Y.push({d:e.d,y,name:e.cpu?y:`${e.d.tag}·${y}`,on:st.y.has(e.d.id+'|'+y),wired:S.wires.some(w=>(w.a.d===e.d.id&&w.a.t===y)||(w.b.d===e.d.id&&w.b.t===y))});}));
+  const X=[];els.filter(e=>e.k==='plcX').forEach(e=>e.ptsK.forEach(([t,k])=>X.push({d:e.d,t,name:qName(e.d,t)||(e.cpu?t:`${e.d.tag}·${t}`),on:feed(lab,f,k,e.comK).on})));
+  const Y=[];els.filter(e=>e.k==='plcY').forEach(e=>e.pairsK.forEach(([y])=>{if(termOf(e.d,y))Y.push({d:e.d,y,name:qName(e.d,y)||(e.cpu?y:`${e.d.tag}·${y}`),on:st.y.has(e.d.id+'|'+y),wired:S.wires.some(w=>(w.a.d===e.d.id&&w.a.t===y)||(w.b.d===e.d.id&&w.b.t===y))});}));
   // 每條線：電位、有沒有電流
   const wires={};S.wires.forEach(w=>{const wk=wireKeys.get(w.id);if(!wk||!wk.keys.length){wires[w.id]={pot:'none'};return;}
     const ls=new Set();wk.keys.forEach(k=>labOf(k).forEach(l=>ls.add(l)));wires[w.id]={pot:potOf(ls),ls:[...ls],short:wk.keys.some(k=>shortSet.has(f(k)))};});

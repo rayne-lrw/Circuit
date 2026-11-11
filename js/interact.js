@@ -400,7 +400,8 @@ function hostSnap(o,x,y){
   const t=tplOf(o),c={x:x+t.w/2,y:y+t.h/2},below=attachOf(o)==='below';
   // 掛在下方的附件：拖到驅動器上或驅動器正下方都算
   const h=S.devices.find(d=>{if(!hostOk(d,o))return false;const R=rectOf('dev',d);return inR(c,below?{x:R.x,y:R.y,w:R.w,h:R.h+t.h+12}:R);});
-  if(!h){delete o.on;return null;}
+  if(!h){delete o.on;delete o.rack;return null;}
+  if(t.rackKind){const i=rackPick(h,o,c.x);if(i==null){delete o.on;delete o.rack;return null;}o.rack=i;}
   placeOn(o,h);o.on=h.id;return h.id;
 }
 function shiftAll(list,dx,dy,sheet){list.forEach(d=>{d.x=r1(d.x+dx);d.y=r1(d.y+dy);d.sheet=sheet;});}
@@ -711,6 +712,8 @@ $('palette').addEventListener('click',e=>{
     const c=base.outside?(freeOut?vc:{x:BR.x+BR.w/2,y:BR.y-t.h/2-20}):inR(vc,R)?vc:{x:R.x+R.w/2,y:R.y+R.h/2}; // 畫面中央在該區域內就放在畫面中央；箱外器具預設放在箱子上方
     d.x=Math.round((c.x-t.w/2)/5)*5;d.y=Math.round((c.y-t.h/2)/5)*5;
     S.devices.push(d);
+    // 插槽模組：選取中的是基板（或基板上的模組）就直接裝到第一個空槽
+    if(t.rackKind){const h=pd&&(tplOf(pd).rack?pd:pd.on&&devOf(pd.on));const i=h&&h.sheet===d.sheet?rackPick(h,d,h.x):null;if(i!=null){d.on=h.id;d.rack=i;placeOn(d,h);}}
     setMode('place');picked={k:'dev',id};
   }else if(b.dataset.ductAdd){
     let i=1;while(S.ducts.some(d=>d.id==='D'+i))i++;

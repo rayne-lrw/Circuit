@@ -113,7 +113,7 @@ function renderDetailInner(){
       const d=devOf(picked.id),t=tplOf(d),n=S.wires.filter(w=>w.a.d===d.id||w.b.d===d.id).length;
       if(swapOffer&&swapOffer.id!==d.id)swapOffer=null;
       const so=swapOffer,sw=so&&devOf(so.other);
-      box.innerHTML=`<div class="fields"><label for="dTag" style="grid-column:1/-1">器具編號<input id="dTag" maxlength="16" value="${esc(d.tag)}" style="font-size:15px;font-weight:600"></label></div>${sw?`<div class="revert"><p class="note">${esc(so.to)} 已經是另一台器具（${esc(tplOf(sw).b)} ${esc(tplOf(sw).n)}）的編號，要把兩台的編號互換嗎？（${esc(d.tag)} ↔ ${esc(so.to)}）</p><div class="row" style="justify-content:flex-start"><button class="tool" id="swapGo">互換</button><button class="tool" id="swapNo">取消</button></div></div>`:''}<dl><dt>器具</dt><dd>${esc(t.b)} ${esc(t.n)}</dd><dt>尺寸</dt><dd>${+t.w.toFixed(1)} × ${+t.h.toFixed(1)} × ${t.d} mm</dd><dt>核對</dt><dd>尺寸 ${esc(verText(d.tpl,t))}；接點${t.ok?'已對照':TERM_OK.has(d.tpl)?'依照片或外型圖':'未核對'}</dd>${d.rot?`<dt>旋轉</dt><dd>${d.rot}°</dd>`:''}<dt>位置</dt><dd>${d.sheet==='door'?doorShort():d.sheet==='field'?esc(devRef(d).name||'現場'):'底板'}　X ${d.x}　Y ${d.y}</dd><dt>接線</dt><dd>${n} 條</dd>${d.on&&devOf(d.on)?`<dt>裝在</dt><dd>${esc(devOf(d.on).tag)} ${t.attach==='below'&&!batFront(d,devOf(d.on))?'下方':'正面'}　<button class="tool" id="detachAux" style="padding:2px 8px">拆下</button></dd>`:t.attach?`<dt>安裝</dt><dd style="font-family:var(--sans)">拖到${t.attach==='below'?'伺服驅動器':'電磁接觸器'}上就會裝上去</dd>`:''}${riders(d).length?`<dt>正面附件</dt><dd>${riders(d).map(r=>esc(r.tag)).join(' ')}</dd>`:''}${t.noOv?`<dt>軌上器具</dt><dd>${mountedOn(d).map(x=>esc(x.tag)).join(' ')||'無'}</dd>`:''}${gapsOf(d)}${t.note?`<dt>備註</dt><dd>${esc(t.note)}</dd>`:''}</dl>
+      box.innerHTML=`<div class="fields"><label for="dTag" style="grid-column:1/-1">器具編號<input id="dTag" maxlength="16" value="${esc(d.tag)}" style="font-size:15px;font-weight:600"></label></div>${sw?`<div class="revert"><p class="note">${esc(so.to)} 已經是另一台器具（${esc(tplOf(sw).b)} ${esc(tplOf(sw).n)}）的編號，要把兩台的編號互換嗎？（${esc(d.tag)} ↔ ${esc(so.to)}）</p><div class="row" style="justify-content:flex-start"><button class="tool" id="swapGo">互換</button><button class="tool" id="swapNo">取消</button></div></div>`:''}<dl><dt>器具</dt><dd>${esc(t.b)} ${esc(t.n)}</dd><dt>尺寸</dt><dd>${+t.w.toFixed(1)} × ${+t.h.toFixed(1)} × ${t.d} mm</dd><dt>核對</dt><dd>尺寸 ${esc(verText(d.tpl,t))}；接點${t.ok?'已對照':TERM_OK.has(d.tpl)?'依照片或外型圖':'未核對'}</dd>${d.rot?`<dt>旋轉</dt><dd>${d.rot}°</dd>`:''}<dt>位置</dt><dd>${d.sheet==='door'?doorShort():d.sheet==='field'?esc(devRef(d).name||'現場'):'底板'}　X ${d.x}　Y ${d.y}</dd><dt>接線</dt><dd>${n} 條</dd>${d.on&&devOf(d.on)?`<dt>裝在</dt><dd>${esc(devOf(d.on).tag)} ${t.attach==='below'&&!batFront(d,devOf(d.on))?'下方':'正面'}　<button class="tool" id="detachAux" style="padding:2px 8px">拆下</button></dd>`:t.attach?`<dt>安裝</dt><dd style="font-family:var(--sans)">拖到${t.attach==='below'?'伺服驅動器':'電磁接觸器'}上就會裝上去</dd>`:''}${riders(d).length?`<dt>${t.rack?'裝的模組':'正面附件'}</dt><dd>${riders(d).map(r=>esc(r.tag)).join(' ')}</dd>`:''}${t.noOv?`<dt>軌上器具</dt><dd>${mountedOn(d).map(x=>esc(x.tag)).join(' ')||'無'}</dd>`:''}${gapsOf(d)}${t.note?`<dt>備註</dt><dd>${esc(t.note)}</dd>`:''}</dl>
       ${t.model?`<div class="fields"><label for="dModel" style="grid-column:1/-1">型號（材料表照這個列，空白就寫「二極體」）<input id="dModel" maxlength="30" value="${esc(d.model||'')}" placeholder="例如 1N4007"></label></div>`:''}
       ${(d.sheet==='field'||outBox({dev:d.id,sheet:d.sheet}))&&S.glands.length?`<div class="fields"><label for="dGland" style="grid-column:1/-1">預設出線口（接到這台的外線、電纜都走這個）<select id="dGland"><option value="">自動選最近</option>${S.glands.map(g=>`<option value="${g.id}"${d.gland===g.id?' selected':''}>${esc(g.id)}　${esc(g.spec)}</option>`).join('')}</select></label></div>`:''}
       ${t.sym==='diode'?`<label class="check"><input type="checkbox" id="dShowNo"${d.hideNo?'':' checked'}>顯示接到這個二極體的線號</label>`:''}
@@ -121,6 +121,7 @@ function renderDetailInner(){
       ${t.gen?`<div class="fields"><label for="dCount">${esc(t.cntLabel)}<input id="dCount" type="number" min="1" value="${d.count||t.cnt}"></label></div>`:''}
       ${t.userLinks?linkHtml(d):''}${hasSlots(t)?slotHtml(d)+(t.jumper?jumperHtml(d):''):slotSource(d)?`<div class="revert"><p class="note">這組端子台之前用「編輯器具」改過，變成了自訂器具，所以不能每片填端子號，也不能改片數。換回 WAGO 端子台後，原本改的編號會變成每片的端子號，接好的線都會保留。</p><button class="tool" id="slotRevert">換回 ${esc(TPL[slotSource(d)].n)}</button></div>`:''}
       ${t.terms.length>1&&!hasSlots(t)?`<label class="check"><input type="checkbox" id="dBus"${busOf(d)?' checked':''}>全部接點本來就同電位（接地銅板、共點排）</label>`:''}
+      ${t.rack?rackHtml(d):''}${t.rackKind?rackInfo(d):''}
       ${!hasSlots(t)&&!t.sym&&t.terms.length?aliasHtml(d,t):''}
       ${S.tpls&&S.tpls[d.tpl]?'<p class="note cus-note">自訂器具（未核對）：尺寸、接點、動作都是自己設定的，程式不會核對；模擬只照「模擬動作」的設定計算。</p>':''}
       <div class="fields"><label for="dX">X（距${d.sheet==='door'?doorShort():d.sheet==='field'?esc(devRef(d).name||'現場區'):'底板'}左緣）<input id="dX" type="number" step="1" value="${r1(d.x-devRef(d).x)}"></label><label for="dY">Y（距上緣）<input id="dY" type="number" step="1" value="${r1(d.y-devRef(d).y)}"></label></div>${moveHtml(false)}
@@ -137,6 +138,8 @@ function renderDetailInner(){
       ['X','Y'].forEach(c=>{$('d'+c).onchange=e=>{const v=Number(e.target.value);if(e.target.value===''||!isFinite(v))return;const R=devRef(d),mt=carried(d),ox=d.x,oy=d.y;if(c==='X')d.x=r1(R.x+v);else d.y=r1(R.y+v);shiftAll(mt,d.x-ox,d.y-oy,d.sheet);const h=d.on&&devOf(d.on);if(h&&!inR({x:d.x+t.w/2,y:d.y+t.h/2},rectOf('dev',h)))delete d.on;commit();recompute();};});
       if($('dBus'))$('dBus').onchange=e=>{const v=e.target.checked,def=!!(t.bus||BUS_RE.test(t.n||''));if(v===def)delete d.bus;else d.bus=v;commit();recompute();};
       document.querySelectorAll('#detail [data-alias]').forEach(x=>x.onchange=()=>{const k=x.dataset.alias,v=x.value.trim().slice(0,12);d.alias=d.alias||{};if(v&&v!==k)d.alias[k]=v;else delete d.alias[k];if(!Object.keys(d.alias).length)delete d.alias;commit();recompute();});
+      document.querySelectorAll('#detail [data-rack-add]').forEach(x=>x.onchange=()=>{const id=x.value;if(!id)return;rackAdd(d,Number(x.dataset.rackAdd),id);});
+      document.querySelectorAll('#detail [data-rack-pick]').forEach(x=>x.onclick=()=>{sel=null;picked={k:'dev',id:x.dataset.rackPick};recompute();});
       if($('dModel'))$('dModel').onchange=e=>{const v=e.target.value.trim().slice(0,30);if(v)d.model=v;else delete d.model;commit();recompute();};
       if($('dGland'))$('dGland').onchange=e=>{if(e.target.value)d.gland=e.target.value;else delete d.gland;commit();recompute();};
       if($('dShowNo'))$('dShowNo').onchange=e=>{if(e.target.checked)delete d.hideNo;else d.hideNo=true;commit();recompute();};
@@ -313,4 +316,34 @@ function serGroups(list,cus,open){
   const plain=list.filter(([,t])=>!t.ser),by=new Map();
   list.filter(([,t])=>t.ser).forEach(e=>{const k=(e[1].b?e[1].b+' ':'')+e[1].ser;if(!by.has(k))by.set(k,[]);by.get(k).push(e);});
   return plain.map(e=>cus(e)).join('')+[...by].map(([k,es])=>`<details class="ser"${open||es.length<=3?' open':''}><summary>${esc(k)}<small>${es.length}</small></summary>${es.sort((a,b)=>natCmp(a[1].n,b[1].n)).map(e=>cus(e)).join('')}</details>`).join('');
+}
+
+/* ---------- 底座插槽：基板的槽位表、模組的槽位與位址 ---------- */
+// 能裝在某種槽的器具（內建＋自訂），依名稱排序
+const rackTpls=k=>Object.keys({...TPL,...(S.tpls||{})}).filter(id=>{const t=resolveTpl(id);return t&&t.rackKind===k;}).sort((a,b)=>resolveTpl(a).n.localeCompare(resolveTpl(b).n));
+function rackHtml(d){
+  const t=tplOf(d),use=rackUse(d);
+  const rows=t.rack.map((s,i)=>{const m=use.get(i);
+    if(m&&m.rack!==i)return '';
+    const mt=m&&tplOf(m),a=m&&qAddr(m),n=m?rackN(mt):1;
+    const nm=`${rackName(t,i)}${n>1?'～'+rackName(t,i+n-1):''}`;
+    const addr=s.k==='io'?(a?`${qHex(a.start)}～${qHex(a.start+a.n-1)}`:`${qHex(qAddrAt(d,i))}～${qHex(qAddrAt(d,i)+15)}`):'';
+    const body=m?`<button class="tool rack-mod" data-rack-pick="${m.id}">${esc(m.tag)}　${esc(mt.n)}</button>`
+      :`<select data-rack-add="${i}" aria-label="${esc(nm)} 槽裝模組"><option value="">空槽（選模組裝上）</option>${rackTpls(s.k).map(id=>`<option value="${id}">${esc(resolveTpl(id).n)}</option>`).join('')}</select>`;
+    return `<tr><th>${esc(nm)}</th><td>${body}</td><td class="mono">${addr}</td></tr>`;}).join('');
+  return `<div class="sub-h">槽位（I/O 位址依槽位自動編號，空槽算 16 點）</div><table class="rack-tb"><thead><tr><th>槽</th><th>模組</th><th>位址</th></tr></thead><tbody>${rows}</tbody></table><p class="note">從器具庫把模組拖到基板上會自動吸到最近的空槽；選取基板時點器具庫的模組會裝到第一個空槽。</p>`;
+}
+// 空槽的起始位址（給槽位表顯示）
+function qAddrAt(h,i){const R=tplOf(h).rack||[],use=rackUse(h);let a=0;for(let j=0;j<i;j++){if(!R[j]||R[j].k!=='io')continue;const m=use.get(j);if(!m)a+=16;else if(m.rack===j)a+=tplOf(m).qpts||16*rackN(tplOf(m));}return a;}
+function rackInfo(d){
+  const h=d.on&&devOf(d.on);if(!h||d.rack==null)return `<p class="note">${esc(RACK_KIND[tplOf(d).rackKind])}模組：拖到基板上會裝進${esc(RACK_KIND[tplOf(d).rackKind])}槽${tplOf(d).rackKind==='io'?'，位址依槽位自動編號':''}。</p>`;
+  const a=qAddr(d);
+  return `<dl><dt>裝在</dt><dd>${esc(h.tag)} 的 ${esc(rackName(tplOf(h),d.rack))}${tplOf(d).rackKind==='io'?' 槽':' 槽位'}</dd>${a?`<dt>位址</dt><dd class="mono">${qHex(a.start)}～${qHex(a.start+a.n-1)}</dd>`:''}</dl>`;
+}
+function rackAdd(h,i,id){
+  const base=resolveTpl(id);let k=1;while(tagUsed(base.pre+k))k++;
+  const d={id:base.pre+k,tag:base.pre+k,tpl:id,sheet:h.sheet,x:h.x,y:h.y,on:h.id,rack:i};
+  if(h.zone)d.zone=h.zone;
+  if(!rackFit(h,d,i)){toast('這一槽放不下這個模組');renderDetail();return;}
+  S.devices.push(d);placeOn(d,h);commit();recompute();renderDetail();toast(`已把 ${d.tag} 裝到 ${h.tag} 的 ${rackName(tplOf(h),i)} 槽`);
 }

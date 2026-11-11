@@ -110,7 +110,7 @@ const wireKind=w=>{const a=devOf(w.a.d),b=devOf(w.b.d);if(!a||!b)return 'in';if(
 const SLOT_RE=/^(\d+)([A-D])$/;
 const hasSlots=t=>!!(t&&t.gen&&t.cntLabel==='片數');
 // 接點顯示名稱：接點別名（使用者依公司習慣改的名稱，器具還是原本的）優先，端子台用片上標籤
-function termLabel(d,t){if(d&&d.alias&&d.alias[t])return d.alias[t];if(!d||!d.labels)return t;const m=SLOT_RE.exec(t);return (m&&d.labels[m[1]-1])||t;}
+function termLabel(d,t){if(d&&d.alias&&d.alias[t])return d.alias[t];if(d&&d.rack!=null&&typeof qName==='function'){const q=qName(d,t);if(q)return q;}if(!d||!d.labels)return t;const m=SLOT_RE.exec(t);return (m&&d.labels[m[1]-1])||t;}
 /* 出線口：可裝在箱體四面。side=bottom/top 用 x 定位，left/right 用 y 定位 */
 const GSIDE={bottom:'箱底',top:'箱頂',left:'左側',right:'右側'};
 function glandPt(g){
@@ -155,7 +155,27 @@ function syncCoilWires(){
   });
   S.wires=S.wires.filter(w=>w.auto!=='coil'||(devOf(w.a.d)&&tplOf(devOf(w.a.d)).coil&&devOf(w.a.d).on===w.b.d));
 }
-function hostOk(h,o){if(!h||h===o||h.on||h.sheet!==o.sheet)return false;const t=tplOf(h);if(t.attach||t.noOv)return false;const ot=tplOf(o);if(ot.coil)return !!coilOf(h);if(ot.at&&!ot.at[h.tpl])return false;return attachOf(o)==='below'?t.cat===C5:t.cat===(ot.hostCat||C2);}
+/* ---------- 底座插槽（三菱 Q 系列）：基板 t.rack=[{k:'pwr'|'cpu'|'io',x,w}]，模組 t.rackKind 是能裝的槽種類，d.rack 記住裝在第幾槽 ---------- */
+const RACK_KIND={pwr:'電源',cpu:'CPU',io:'I/O'};
+const rackN=t=>t.rackKind==='io'?Math.max(1,Math.round(t.w/27.4)):1;
+// 基板上每一槽被哪一台模組佔用（寬的模組佔好幾槽）
+function rackUse(h,except){const m=new Map();riders(h).forEach(r=>{if(r===except||r.rack==null)return;for(let i=0;i<rackN(tplOf(r));i++)m.set(r.rack+i,r);});return m;}
+function rackFit(h,o,i){const R=tplOf(h).rack,ot=tplOf(o),n=rackN(ot),use=rackUse(h,o);if(!R||!ot.rackKind)return false;for(let k=0;k<n;k++){const s=R[i+k];if(!s||s.k!==ot.rackKind||use.has(i+k))return false;}return true;}
+// 離指標最近、種類對、還空著的槽
+function rackPick(h,o,cx){const R=tplOf(h).rack||[],w=tplOf(o).w;let best=null;R.forEach((s,i)=>{if(!rackFit(h,o,i))return;const dd=Math.abs(h.x+s.x+w/2-cx);if(!best||dd<best.d)best={i,d:dd};});return best?best.i:null;}
+// 槽的顯示名稱：電源、CPU、I/O 槽從 0 開始編號
+function rackName(t,i){const R=t.rack,s=R&&R[i];if(!s)return '';if(s.k!=='io')return RACK_KIND[s.k];return String(R.slice(0,i).filter(x=>x.k==='io').length);}
+// I/O 位址：從 0 槽開始，每槽依裝的模組點數佔位址（空槽算 16 點）；回傳 {start,n}
+function qAddr(d){
+  if(!d||d.rack==null||!d.on)return null;const t=tplOf(d);if(t.rackKind!=='io')return null;const h=devOf(d.on);if(!h)return null;
+  const R=tplOf(h).rack||[],use=rackUse(h);let a=0;
+  for(let i=0;i<d.rack;i++){if(!R[i]||R[i].k!=='io')continue;const m=use.get(i);if(!m)a+=16;else if(m.rack===i)a+=tplOf(m).qpts||16*rackN(tplOf(m));}
+  return {start:a,n:t.qpts||16*rackN(t)};
+}
+const qHex=v=>v.toString(16).toUpperCase().padStart(2,'0');
+// 模組的接點 X00～X0F 換成依槽位算出的實際位址（沒裝在基板上就回傳 null）
+function qName(d,t){const m=/^([XY])([0-9A-F]+)$/.exec(t);if(!m)return null;const a=qAddr(d);return a?m[1]+qHex(a.start+parseInt(m[2],16)):null;}
+function hostOk(h,o){if(!h||h===o||h.on||h.sheet!==o.sheet)return false;const t=tplOf(h);if(t.attach||t.noOv)return false;const ot=tplOf(o);if(ot.rackKind)return !!t.rack&&rackPick(h,o,h.x)!=null;if(ot.coil)return !!coilOf(h);if(ot.at&&!ot.at[h.tpl])return false;return attachOf(o)==='below'?t.cat===C5:t.cat===(ot.hostCat||C2);}
 // 伺服電池的安裝位置：預設掛在下方距左緣 6 mm（MR-J4-200B 外型圖）；
 // MR-J4-700B 依外型圖直立裝在正面右側區塊中間（CN1A、CN1B 左邊），露出 21×69.3 那一面；
 // MR-JE-40B 依外型圖裝在正面電池座（CN4 下方、CN1A／CN1B 左邊）
@@ -184,10 +204,14 @@ function placeOn(r,h){
       if(!best||cost<best.cost)best={rot,x,y,cost};
     }
     r.rot=best.rot;r.x=r1(h.x+best.x);r.y=r1(h.y+best.y);
+  }else if(tplOf(r).rackKind){
+    // 插槽模組：沒有指定槽或那一槽不能裝，就裝到第一個能裝的槽
+    if(r.rack==null||!rackFit(h,r,r.rack)){const i=rackPick(h,r,h.x);if(i!=null)r.rack=i;}
+    const s=(ht.rack||[])[r.rack];if(s){r.x=r1(h.x+s.x);r.y=r1(h.y+(ht.h-tplOf(r).h)/2);}
   }else{const t=tplOf(r),a=t.at&&t.at[h.tpl];if(a){r.x=r1(h.x+a.x);r.y=r1(h.y+a.y);}else{r.x=r1(h.x+(ht.w-t.w)/2);r.y=r1(h.y+(ht.h-t.h)/2);}} // 指定位置的附件（例如 PLC 擴充板）照位置裝，其他置中
 }
 const famIds=id=>{const d=devOf(id);if(!d)return [id];return [d.id,...(d.on?[d.on]:[]),...riders(d).map(r=>r.id)];};
-const effDepth=d=>tplOf(d).d+Math.max(0,...riders(d).filter(r=>attachOf(r)==='front').map(r=>tplOf(r).d));
+const effDepth=d=>Math.max(tplOf(d).d+Math.max(0,...riders(d).filter(r=>attachOf(r)==='front').map(r=>tplOf(r).d)),...riders(d).filter(r=>attachOf(r)==='slot').map(r=>tplOf(r).d)); // 插槽模組的深度是從底板量起的整體深度
 /* 器具編號：d.tag 是顯示用、可以改；d.id 是內部識別，導線用它接，改編號不影響接線 */
 const tagOf=id=>{const d=devOf(id);return d?d.tag:id;};
 // 新器具配編號時避開所有編號與內部識別碼；改編號時只看編號（內部識別碼使用者看不到）
