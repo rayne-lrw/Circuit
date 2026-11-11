@@ -7,7 +7,7 @@
 // 接地線色：黃綠或綠都可以
 // 接地接點：名稱 PE、PE2、FG、E、⏚，或說明裡有「接地」
 const EARTH_ID=/^(PE\d*|FG\d*|E|⏚)$/i;
-const isEarthTerm=t=>!!t&&(EARTH_ID.test(t.id)||/接地/.test(t.desc||''));
+const isEarthTerm=t=>!!t&&((EARTH_ID.test(t.id)&&!/^信號/.test(t.desc||''))||/接地/.test(t.desc||'')); // 轉接座的端子 E 是信號（16 進位第 14 點），不是接地
 const termOfEnd=e=>{const d=devOf(e.d);return d?termOf(d,e.t):null;};
 const earthEnd=e=>isEarthTerm(termOfEnd(e));
 // 整台都是接地點（接地排）：空著的孔不提示

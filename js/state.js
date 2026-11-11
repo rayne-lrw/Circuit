@@ -156,7 +156,7 @@ function syncCoilWires(){
   S.wires=S.wires.filter(w=>w.auto!=='coil'||(devOf(w.a.d)&&tplOf(devOf(w.a.d)).coil&&devOf(w.a.d).on===w.b.d));
 }
 /* ---------- 底座插槽（三菱 Q 系列）：基板 t.rack=[{k:'pwr'|'cpu'|'io',x,w}]，模組 t.rackKind 是能裝的槽種類，d.rack 記住裝在第幾槽 ---------- */
-const RACK_KIND={pwr:'電源',cpu:'CPU',io:'I/O'};
+const RACK_KIND={pwr:'電源',spwr:'電源',rpwr:'電源',cpu:'CPU',io:'I/O'};
 const rackN=t=>t.rackKind==='io'?Math.max(1,Math.round(t.w/27.4)):1;
 // 基板上每一槽被哪一台模組佔用（寬的模組佔好幾槽）
 function rackUse(h,except){const m=new Map();riders(h).forEach(r=>{if(r===except||r.rack==null)return;for(let i=0;i<rackN(tplOf(r));i++)m.set(r.rack+i,r);});return m;}
@@ -164,13 +164,23 @@ function rackFit(h,o,i){const R=tplOf(h).rack,ot=tplOf(o),n=rackN(ot),use=rackUs
 // 離指標最近、種類對、還空著的槽
 function rackPick(h,o,cx){const R=tplOf(h).rack||[],w=tplOf(o).w;let best=null;R.forEach((s,i)=>{if(!rackFit(h,o,i))return;const dd=Math.abs(h.x+s.x+w/2-cx);if(!best||dd<best.d)best={i,d:dd};});return best?best.i:null;}
 // 槽的顯示名稱：電源、CPU、I/O 槽從 0 開始編號
-function rackName(t,i){const R=t.rack,s=R&&R[i];if(!s)return '';if(s.k!=='io')return RACK_KIND[s.k];return String(R.slice(0,i).filter(x=>x.k==='io').length);}
-// I/O 位址：從 0 槽開始，每槽依裝的模組點數佔位址（空槽算 16 點）；回傳 {start,n}
+function rackName(t,i){const R=t.rack,s=R&&R[i];if(!s)return '';if(s.k!=='io'){const same=R.filter(x=>x.k===s.k);return RACK_KIND[s.k]+(same.length>1?same.indexOf(s)+1:'');}return String(R.slice(0,i).filter(x=>x.k==='io').length);}
+// I/O 位址：主基板從 0 槽開始，每槽依裝的模組點數佔位址（空槽算 16 點）；擴展基板接在主基板後面，依擴展級數排列
+const isMainBase=h=>!!(h&&tplOf(h).rack&&!tplOf(h).qext);
+// 擴展基板接在哪個主基板：有指定就用指定的，沒有就用專案裡第一個主基板
+function qMainOf(h){if(!tplOf(h).qext)return h;const m=h.main&&devOf(h.main);if(isMainBase(m))return m;return S.devices.find(isMainBase)||null;}
+// 擴展級數：有指定就用，沒有就依擴展基板在專案裡的順序（1 起）
+function qStage(h){if(h.stage)return h.stage;const m=qMainOf(h),ex=S.devices.filter(d=>tplOf(d).qext&&qMainOf(d)===m),used=new Set(ex.map(d=>d.stage).filter(Boolean));let k=0;for(const d of ex.filter(d=>!d.stage)){do k++;while(used.has(k));if(d===h)return Math.min(7,k);}return 1;}
+// 一個基板的 I/O 槽總點數
+function qBasePts(h){const R=tplOf(h).rack||[],use=rackUse(h);let a=0;R.forEach((s,i)=>{if(s.k!=='io')return;const m=use.get(i);if(!m)a+=16;else if(m.rack===i)a+=tplOf(m).qpts||16*rackN(tplOf(m));});return a;}
+// 基板的起始位址：主基板 0；擴展基板 = 主基板＋級數較小的擴展基板
+function qBaseStart(h){if(!tplOf(h).qext)return 0;const m=qMainOf(h);if(!m)return 0;const st=qStage(h);
+  return qBasePts(m)+S.devices.filter(d=>d!==h&&tplOf(d).qext&&qMainOf(d)===m&&(qStage(d)<st||(qStage(d)===st&&S.devices.indexOf(d)<S.devices.indexOf(h)))).reduce((a,d)=>a+qBasePts(d),0);}
+// 第 i 槽的起始位址
+function qAddrAt(h,i){const R=tplOf(h).rack||[],use=rackUse(h);let a=qBaseStart(h);for(let j=0;j<i;j++){if(!R[j]||R[j].k!=='io')continue;const m=use.get(j);if(!m)a+=16;else if(m.rack===j)a+=tplOf(m).qpts||16*rackN(tplOf(m));}return a;}
 function qAddr(d){
-  if(!d||d.rack==null||!d.on)return null;const t=tplOf(d);if(t.rackKind!=='io')return null;const h=devOf(d.on);if(!h)return null;
-  const R=tplOf(h).rack||[],use=rackUse(h);let a=0;
-  for(let i=0;i<d.rack;i++){if(!R[i]||R[i].k!=='io')continue;const m=use.get(i);if(!m)a+=16;else if(m.rack===i)a+=tplOf(m).qpts||16*rackN(tplOf(m));}
-  return {start:a,n:t.qpts||16*rackN(t)};
+  if(!d||d.rack==null||!d.on)return null;const t=tplOf(d);if(t.rackKind!=='io')return null;const h=devOf(d.on);if(!h||!tplOf(h).rack)return null;
+  return {start:qAddrAt(h,d.rack),n:t.qpts||16*rackN(t)};
 }
 const qHex=v=>v.toString(16).toUpperCase().padStart(2,'0');
 // 模組的接點 X00～X0F 換成依槽位算出的實際位址（沒裝在基板上就回傳 null）

@@ -66,6 +66,69 @@ const {chromium}=require('playwright'),path=require('path');
     ok(r.Y.some(y=>y.name==='Y03'),'模擬：輸出清單用實際位址 Y03');
     SIMST.y.add('Y1|Y03');r=simRun();ok(r.dev.KA&&r.dev.KA.coil,'模擬：Y03 ON，繼電器吸合');
     ok(/W\d+/.test(epText({d:'X1',t:'X05'}))||/X15/.test(epText({d:'X1',t:'X05'})),'線的端點文字：'+epText({d:'X1',t:'X05'}));
+    // ---------- 全型號：超薄型、冗餘電源、擴展基板位址、一體型 CPU、64 點模組、排線轉接座 ----------
+    const D2=(id,tpl,x,y,ex={})=>({id,tag:id,tpl,x,y,sheet:'plate',...ex});
+    S=normalize({box:{w:1400,h:900,d:300,back:20},plate:{w:1360,h:860},door:{w:900,h:700},ducts:[],glands:[],wires:[],
+      devices:[D2('PWR','field-power',0,-300,{sheet:'field'}),D2('M','q38b',40,40),D2('E1','q65b',40,200),D2('E2','q55b',40,360),D2('SB','q35sb',500,360),D2('RB','q38rb',700,40),D2('J','q00jcpu',700,200),
+        D2('PS','drl120',1200,500),D2('A1','a6tbxy36',600,600),D2('A2','a6tbx36-e',800,600)]}).state;resetUi();
+    const put=(id,tpl,host,rack)=>{const d=D2(id,tpl,0,0,{on:host,rack});S.devices.push(d);placeOn(d,devOf(host));return d;};
+    put('MP','q61p','M',0);put('MC','q06udvcpu','M',1);const m1=put('MX','qx42','M',2);put('MY','qy10','M',3);
+    put('EP','q61p','E1',0);const e1=put('EX','qx40','E1',1);const e2=put('EX2','qy41p','E2',0);
+    ok(qAddr(m1).start===0&&qAddr(m1).n===64,'主基板 0 槽 QX42：64 點 X00～X3F');
+    ok(qAddr(dv('MY')).start===0x40,'主基板 1 槽 QY10：64 點模組後面，從 40 開始');
+    // 主基板 8 槽：0 槽 64、1 槽 16、其他 6 槽空 → 64+16+96=176=0xB0
+    ok(qBasePts(dv('M'))===176,'主基板總點數 176（空槽算 16）');
+    ok(qStage(dv('E1'))===1&&qStage(dv('E2'))===2,'擴展級數依順序自動 1、2');
+    ok(qAddr(e1).start===0xB0,'擴展第 1 級 0 槽 QX40：接在主基板後面，從 B0 開始');
+    ok(qAddr(e2).start===0xB0+16*5,'擴展第 2 級 0 槽 QY41P：從 100 開始（'+qHex(qAddr(e2).start)+'）');
+    dv('E2').stage=1;dv('E1').stage=2;ok(qAddr(e2).start===0xB0&&qAddr(e1).start===0xB0+80+16,'改擴展級數：位址跟著換順序');
+    ok(qName(e2,'Y00')==='YB0','擴展基板模組接點名稱也換成實際位址（Y00 → YB0）');
+    // 超薄型基板：只能裝 Q61SP
+    ok(!rackFit(dv('SB'),{tpl:'q61p',id:'x'},0)&&rackFit(dv('SB'),{tpl:'q61sp',id:'y'},0),'超薄型基板電源槽：Q61P 不能裝，Q61SP 可以');
+    // 冗餘電源基板：兩個冗餘電源槽
+    put('R1','q64rp','RB',0);put('R2','q64rp','RB',1);ok(dv('R1').rack===0&&dv('R2').rack===1&&rackName(tplOf(dv('RB')),1)==='電源2','Q38RB：兩台冗餘電源裝在電源1、電源2');
+    ok(!rackFit(dv('RB'),{tpl:'q61p',id:'z'},0),'冗餘電源槽不能裝一般電源模組');
+    // 一體型 CPU：5 個 I/O 槽、自己的電源端子
+    const jx=put('JX','qx40','J',0);ok(qAddr(jx).start===0&&tplOf(dv('J')).rack.length===5,'Q00JCPU：5 個 I/O 槽，0 槽從 X00 開始');
+    ok(simElems(dv('J')).some(e=>e.k==='pwr'),'Q00JCPU 有電源動作資料');
+    // 排線轉接座：A6TBXY36 接 QX42 連接器 1
+    recompute();picked={k:'dev',id:'A1'};renderDetail();
+    const btns=[...document.querySelectorAll('#detail [data-ribbon]')].map(b=>b.dataset.ribbon);
+    ok(btns.includes('MX|1')&&btns.includes('MX|2')&&btns.includes('EX2|1'),'A6TBXY36 列出可接的 40 針連接器（QX42 兩個、QY41P）');
+    ok(!btns.some(b=>b.startsWith('A2')),'不列 D-sub 的轉接座');
+    document.querySelector('#detail [data-ribbon="MX|1"]').click();
+    const rc=S.cables.find(c=>c.ribbon),rw=rc&&coresOf(rc);
+    ok(rc&&rw.length===34,'接排線：建立一條排線，34 芯（32 點＋2 個 COM 針腳）');
+    ok(rw&&rw.every(w=>w.a.d==='MX'&&w.b.d==='A1'),'每一芯從 QX42 針腳接到 A6TBXY36 針腳');
+    ok(rw&&rw.some(w=>w.no==='X05'),'排線芯線的線號用實際位址（X05）');
+    const n3=normalize(JSON.parse(JSON.stringify(S))).state;ok(n3.cables.some(c=>c.ribbon)&&n3.wires.filter(w=>w.cab===rc.id).length===34,'排線存檔讀回');
+    document.querySelector('#detail [data-ribbon="MX|1"]')&&document.querySelector('#detail [data-ribbon="MX|1"]').click();
+    ok(S.cables.filter(c=>c.ribbon).length===1,'同一組不會重複接排線');
+    // 模擬穿過轉接座：24V → 轉接座端子 5，0V… QX42 正公共端：COM1 接 +24V，X 接 0V 就 ON
+    let kk=0;const W2=(a,at,bb,bt)=>S.wires.push({id:'v'+(++kk),no:'V'+kk,a:{d:a,t:at},b:{d:bb,t:bt},wps:[],gauge:.75,color:'black'});
+    W2('PWR','R','PS','L');W2('PWR','S','PS','N');W2('PWR','R','MP','L');W2('PWR','S','MP','N');W2('PS','+V1','A1','24V');W2('PS','-V1','A1','5');
+    commit();recompute();simReset();let r2=simRun();
+    ok(r2.X.some(x=>x.name==='X05'&&x.on),'模擬：轉接座端子 5 接 0V、24V 接 +24V → QX42 的 X05 ON（穿過排線與轉接座）');
+    ok(!r2.X.some(x=>x.name==='X06'&&x.on),'沒接的 X06 是 OFF');
+    // D-sub 轉接座接 QY81P
+    const yp=put('MY2','qy81p','M',4);recompute();picked={k:'dev',id:'A2'};renderDetail();
+    const b2=document.querySelector('#detail [data-ribbon="MY2|1"]');ok(!!b2,'A6TBX36-E 列出 QY81P（37 針 D-sub）');
+    // 電源模組模擬：AC 進來就有電；Q62P 另外有 24V 輸出；Q63P 是直流輸入（極性）
+    S=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:860,h:660},door:{w:900,h:700},ducts:[],glands:[],wires:[],
+      devices:[D2('PWR','field-power',0,-300,{sheet:'field'}),D2('PS','drl120',600,400),D2('B1','q35b',20,20),D2('B2','q65b',20,200),D2('KA','my2n-24',400,400)]}).state;resetUi();
+    put('P62','q62p','B1',0);put('P63','q63p','B2',0);
+    let k3=0;const W3=(a,at,bb,bt)=>S.wires.push({id:'p'+(++k3),no:'P'+k3,a:{d:a,t:at},b:{d:bb,t:bt},wps:[],gauge:.75,color:'black'});
+    W3('PWR','R','P62','L');W3('PWR','S','P62','N');W3('PWR','R','PS','L');W3('PWR','S','PS','N');W3('PS','+V1','P63','+24V');W3('PS','-V1','P63','24G');
+    W3('P62','+24V','KA','13');W3('P62','24G','KA','14');
+    commit();recompute();simReset();let r3=simRun();
+    ok(r3.dev.P62&&r3.dev.P62.on.length>0,'模擬：Q62P 接 AC 有電');
+    ok(r3.dev.P63&&r3.dev.P63.on.length>0,'模擬：Q63P 接 DC24V 有電');
+    ok(r3.dev.KA&&(r3.dev.KA.coil||r3.dev.KA.rev.length>0),'模擬：Q62P 的 +24V／24G 輸出能帶動繼電器線圈');
+    S.wires=S.wires.filter(w=>w.b.d!=='P63');W3('PS','-V1','P63','+24V');W3('PS','+V1','P63','24G');recompute();r3=simRun();
+    ok(!(r3.dev.P63&&r3.dev.P63.on.length),'模擬：Q63P 正負接反就沒電');
+    // 擴展基板的設定欄
+    picked={k:'dev',id:'B2'};renderDetail();ok(!!$('qMain')&&!!$('qStage')&&/從 50 開始/.test($('detail').textContent),'擴展基板：右側有主基板、擴展級數設定，顯示起始位址（Q35B 5 槽後面 → 50）');
+    $('qStage').value='3';$('qStage').dispatchEvent(new Event('change'));ok(devOf('B2').stage===3,'改擴展級數存進器具');
     return out;
   });
   await b.close();

@@ -754,7 +754,7 @@ function computeRoutes0(hint){hint=hint&&hint.retry?hint:BOHINT;const sigs={};
         if(fa)ra={...ra,pts:fa,len:plen(fa)};if(fb){const t=fb.reverse();rb={...rb,pts:t,len:plen(t)};}}
       const parts=[ra,S0,rb],via=[];
       parts.forEach(p=>p.via.forEach(id=>{if(via[via.length-1]!==id)via.push(id);}));
-      const warn=(parts.find(p=>p.warn)||{}).warn||null;
+      let warn=(parts.find(p=>p.warn)||{}).warn||null;if(c.ribbon&&warn==='無線槽可走')warn=null; // 排線直接接在連接器上，不走線槽
       ROUTES.set(w.id,{pts:simplify([...ra.pts,...S0.pts,...rb.pts]),len:ra.len+S0.len+rb.len,via,warn,gland:S0.gland,cab:c.id,parts:[ra.pts,S0.pts,rb.pts],tails:[ra.pts,rb.pts]});
     });
   });

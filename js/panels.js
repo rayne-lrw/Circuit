@@ -121,7 +121,7 @@ function renderDetailInner(){
       ${t.gen?`<div class="fields"><label for="dCount">${esc(t.cntLabel)}<input id="dCount" type="number" min="1" value="${d.count||t.cnt}"></label></div>`:''}
       ${t.userLinks?linkHtml(d):''}${hasSlots(t)?slotHtml(d)+(t.jumper?jumperHtml(d):''):slotSource(d)?`<div class="revert"><p class="note">這組端子台之前用「編輯器具」改過，變成了自訂器具，所以不能每片填端子號，也不能改片數。換回 WAGO 端子台後，原本改的編號會變成每片的端子號，接好的線都會保留。</p><button class="tool" id="slotRevert">換回 ${esc(TPL[slotSource(d)].n)}</button></div>`:''}
       ${t.terms.length>1&&!hasSlots(t)?`<label class="check"><input type="checkbox" id="dBus"${busOf(d)?' checked':''}>全部接點本來就同電位（接地銅板、共點排）</label>`:''}
-      ${t.rack?rackHtml(d):''}${t.rackKind?rackInfo(d):''}
+      ${t.rack?rackHtml(d):''}${t.rackKind?rackInfo(d):''}${t.adp?ribbonHtml(d):''}${t.conn?ribbonOf(d):''}
       ${!hasSlots(t)&&!t.sym&&t.terms.length?aliasHtml(d,t):''}
       ${S.tpls&&S.tpls[d.tpl]?'<p class="note cus-note">自訂器具（未核對）：尺寸、接點、動作都是自己設定的，程式不會核對；模擬只照「模擬動作」的設定計算。</p>':''}
       <div class="fields"><label for="dX">X（距${d.sheet==='door'?doorShort():d.sheet==='field'?esc(devRef(d).name||'現場區'):'底板'}左緣）<input id="dX" type="number" step="1" value="${r1(d.x-devRef(d).x)}"></label><label for="dY">Y（距上緣）<input id="dY" type="number" step="1" value="${r1(d.y-devRef(d).y)}"></label></div>${moveHtml(false)}
@@ -139,6 +139,9 @@ function renderDetailInner(){
       if($('dBus'))$('dBus').onchange=e=>{const v=e.target.checked,def=!!(t.bus||BUS_RE.test(t.n||''));if(v===def)delete d.bus;else d.bus=v;commit();recompute();};
       document.querySelectorAll('#detail [data-alias]').forEach(x=>x.onchange=()=>{const k=x.dataset.alias,v=x.value.trim().slice(0,12);d.alias=d.alias||{};if(v&&v!==k)d.alias[k]=v;else delete d.alias[k];if(!Object.keys(d.alias).length)delete d.alias;commit();recompute();});
       document.querySelectorAll('#detail [data-rack-add]').forEach(x=>x.onchange=()=>{const id=x.value;if(!id)return;rackAdd(d,Number(x.dataset.rackAdd),id);});
+      if($('qMain'))$('qMain').onchange=e=>{if(e.target.value)d.main=e.target.value;else delete d.main;commit();recompute();};
+      if($('qStage'))$('qStage').onchange=e=>{const v=Number(e.target.value);if(v)d.stage=v;else delete d.stage;commit();recompute();};
+      document.querySelectorAll('#detail [data-ribbon]').forEach(x=>x.onclick=()=>{const [mid,cn]=x.dataset.ribbon.split('|');ribbonConnect(d,devOf(mid),cn);});
       document.querySelectorAll('#detail [data-rack-pick]').forEach(x=>x.onclick=()=>{sel=null;picked={k:'dev',id:x.dataset.rackPick};recompute();});
       if($('dModel'))$('dModel').onchange=e=>{const v=e.target.value.trim().slice(0,30);if(v)d.model=v;else delete d.model;commit();recompute();};
       if($('dGland'))$('dGland').onchange=e=>{if(e.target.value)d.gland=e.target.value;else delete d.gland;commit();recompute();};
@@ -333,10 +336,8 @@ function rackHtml(d){
     const body=m?`<button class="tool rack-mod" data-rack-pick="${m.id}">${esc(m.tag)}　${esc(mt.n)}</button>`
       :`<select data-rack-add="${i}" aria-label="${esc(nm)} 槽裝模組"><option value="">空槽（選模組裝上）</option>${rackTpls(s.k).map(id=>`<option value="${id}">${esc(resolveTpl(id).n)}</option>`).join('')}</select>`;
     return `<tr><th>${esc(nm)}</th><td>${body}</td><td class="mono">${addr}</td></tr>`;}).join('');
-  return `<div class="sub-h">槽位（I/O 位址依槽位自動編號，空槽算 16 點）</div><table class="rack-tb"><thead><tr><th>槽</th><th>模組</th><th>位址</th></tr></thead><tbody>${rows}</tbody></table><p class="note">從器具庫把模組拖到基板上會自動吸到最近的空槽；選取基板時點器具庫的模組會裝到第一個空槽。</p>`;
+  return (t.qext?qExtHtml(d):'')+`<div class="sub-h">槽位（I/O 位址依槽位自動編號，空槽算 16 點）</div><table class="rack-tb"><thead><tr><th>槽</th><th>模組</th><th>位址</th></tr></thead><tbody>${rows}</tbody></table><p class="note">從器具庫把模組拖到基板上會自動吸到最近的空槽；選取基板時點器具庫的模組會裝到第一個空槽。</p>`;
 }
-// 空槽的起始位址（給槽位表顯示）
-function qAddrAt(h,i){const R=tplOf(h).rack||[],use=rackUse(h);let a=0;for(let j=0;j<i;j++){if(!R[j]||R[j].k!=='io')continue;const m=use.get(j);if(!m)a+=16;else if(m.rack===j)a+=tplOf(m).qpts||16*rackN(tplOf(m));}return a;}
 function rackInfo(d){
   const h=d.on&&devOf(d.on);if(!h||d.rack==null)return `<p class="note">${esc(RACK_KIND[tplOf(d).rackKind])}模組：拖到基板上會裝進${esc(RACK_KIND[tplOf(d).rackKind])}槽${tplOf(d).rackKind==='io'?'，位址依槽位自動編號':''}。</p>`;
   const a=qAddr(d);
@@ -348,4 +349,36 @@ function rackAdd(h,i,id){
   if(h.zone)d.zone=h.zone;
   if(!rackFit(h,d,i)){toast('這一槽放不下這個模組');renderDetail();return;}
   S.devices.push(d);placeOn(d,h);commit();recompute();renderDetail();toast(`已把 ${d.tag} 裝到 ${h.tag} 的 ${rackName(tplOf(h),i)} 槽`);
+}
+
+// 擴展基板：接在哪個主基板、擴展級數
+function qExtHtml(d){
+  const mains=S.devices.filter(isMainBase),m=qMainOf(d);
+  return `<div class="fields"><label for="qMain">接在主基板<select id="qMain"><option value="">自動（${esc(m?m.tag:'沒有主基板')}）</option>${mains.map(x=>`<option value="${x.id}"${d.main===x.id?' selected':''}>${esc(x.tag)}　${esc(tplOf(x).n)}</option>`).join('')}</select></label>
+    <label for="qStage">擴展級數<select id="qStage"><option value="">自動（第 ${qStage(d)} 級）</option>${[1,2,3,4,5,6,7].map(k=>`<option value="${k}"${d.stage===k?' selected':''}>第 ${k} 級</option>`).join('')}</select></label></div>
+    <p class="note">擴展基板的 I/O 位址接在主基板（${m?esc(m.tag):'—'}）後面，從 ${qHex(qBaseStart(d))} 開始。</p>`;
+}
+/* ---------- 排線：連接器／端子排轉換模組 ↔ I/O 模組的連接器 ---------- */
+// 這台轉接座已經接了哪些排線（依電纜）
+const ribbonCabs=d=>(S.cables||[]).filter(c=>c.ribbon&&coresOf(c).some(w=>w.a.d===d.id||w.b.d===d.id));
+function ribbonHtml(d){
+  const t=tplOf(d),cands=[];
+  S.devices.forEach(m=>{const mt=tplOf(m);if(!mt.conn||m.sheet!==d.sheet)return;Object.entries(mt.conn).forEach(([cn,c])=>{if(c.type===t.adp.type)cands.push([m,cn,Object.keys(mt.conn).length>1]);});});
+  const cur=ribbonCabs(d).map(c=>{const w=coresOf(c)[0],o=w&&(w.a.d===d.id?w.b:w.a);return `<li>${esc(c.no)}：接到 ${esc(o?tagOf(o.d):'—')}（${coresOf(c).length} 芯）</li>`;}).join('');
+  return `<div class="sub-h">排線（${t.adp.type==='40'?'40 針':'37 針 D-sub'}）</div>${cur?`<ul class="note">${cur}</ul>`:''}
+    ${cands.length?`<div class="row" style="flex-wrap:wrap;justify-content:flex-start">${cands.map(([m,cn,two])=>`<button class="tool" data-ribbon="${m.id}|${cn}">接到 ${esc(m.tag)}${two?` 連接器 ${cn}`:''}</button>`).join('')}</div>`
+      :`<p class="note">畫面上還沒有${t.adp.type==='40'?' 40 針連接器':' 37 針 D-sub'}的 I/O 模組（例如 ${t.adp.type==='40'?'QX41、QY41P':'QX81、QY81P'}）。</p>`}
+    <p class="note">按下會建立一條排線（電纜），每一芯從模組的針腳接到這台的同號針腳，模擬會穿過轉接座。</p>`;
+}
+// I/O 模組：列出接到哪些轉接座
+function ribbonOf(d){const cs=(S.cables||[]).filter(c=>c.ribbon&&coresOf(c).some(w=>w.a.d===d.id||w.b.d===d.id));
+  return cs.length?`<p class="note">排線：${cs.map(c=>{const w=coresOf(c)[0],o=w&&(w.a.d===d.id?w.b:w.a);return `${esc(c.no)} → ${esc(o?tagOf(o.d):'—')}`;}).join('、')}</p>`:'';}
+function ribbonConnect(a,m,cn){
+  const at=tplOf(a),mt=m&&tplOf(m),mc=mt&&mt.conn&&mt.conn[cn];if(!at.adp||!mc||mc.type!==at.adp.type){toast('連接器種類不同，不能接');return 0;}
+  const pins=Object.keys(at.adp.pins).filter(p=>mc.pins[p]);if(!pins.length){toast('沒有可以接的針腳');return 0;}
+  if(ribbonCabs(a).some(c=>coresOf(c).some(w=>w.a.d===m.id||w.b.d===m.id))){toast('這兩台已經接了排線');return 0;}
+  const c=newCable('',`排線 ${at.adp.type==='40'?'40P':'37P'}`);c.ribbon=true;c.direct=true;c.cores=pins.map(p=>({n:p,c:'gray',g:.3}));
+  pins.forEach(p=>{const n=nextWireNo();S.nextNo=n+1;
+    S.wires.push({id:'w'+n+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),no:termLabel(m,mc.pins[p]),a:{d:m.id,t:mc.pins[p]},b:{d:a.id,t:at.adp.pins[p]},wps:[],gauge:.3,color:'gray',cab:c.id,core:p});});
+  commit();recompute();renderDetail();toast(`已建立排線 ${c.no}：${m.tag} → ${a.tag}（${pins.length} 芯）`);return pins.length;
 }
