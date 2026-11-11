@@ -17,7 +17,7 @@ function rackOf(W,kinds,cpuW){const wd={pwr:PW,cpu:cpuW||CPU,io:IO};let x=W-6;re
 const ios=n=>Array(n).fill('io');
 function bp(name,W,kinds,o){
   const id=idOf(name),n=kinds.filter(k=>k==='io').length;
-  def(id,null,C4,DT,`${name} ${o.ext?'延伸背板':'主背板'}（${n} 槽）`,W,110,23.6,'BP','mid',[],{ser:'台達 AH 背板',rack:rackOf(W,kinds,o.cpuW),
+  def(id,null,C4,DT,`${name} ${o.ext?'延伸背板':'主背板'}（${n} 槽）`,W,110,23.6,'BP','mid',[],{ser:'AH 背板',rack:rackOf(W,kinds,o.cpuW),
     note:(o.note?o.note+'；':'')+(o.ext?'延伸背板：右側可設定接在哪個主背板與延伸順序，I/O 位址接在主背板後面；':'')+'背板本身沒有接線端子；'+NOTE});
   TPL[id].qext=!!o.ext;TPL[id].addr='ah';ver(id);
 }
@@ -43,7 +43,7 @@ function dio(name,T,o){
   const word=x=>+/^[XY](\d+)/.exec(x)[1],grp=(base,w)=>{const c=w?`${base}${w}`:base;return ids.has(c)?c:base;};
   if(xs.length){const ws=[...new Set(xs.map(word))];ws.forEach(w=>sim.push({k:'plcX',com:o.xcom?o.xcom:grp('S/S',w),pts:xs.filter(x=>word(x)===w)}));}
   if(ys.length)sim.push({k:'plcY',pairs:ys.map(y=>[y,o.ycom?o.ycom(y):grp(o.yc||'ZP',word(y))])});
-  def(id,null,C4,DT,`${name} ${o.txt}`,IO,110,103,ys.length&&xs.length?'DIO':ys.length?'DO':'DI','dark',T,{ser:'台達 AH 數位 I/O',rackKind:'io',attach:'slot',
+  def(id,null,C4,DT,`${name} ${o.txt}`,IO,110,103,ys.length&&xs.length?'DIO':ys.length?'DO':'DI','dark',T,{ser:'AH 數位 I/O',rackKind:'io',attach:'slot',
     xw:o.xw||0,yw:o.yw||0,links:links.length?links:null,sim,note:`${o.form}；裝上背板後接點依槽位換成實際位址；${NOTE}`});ver(id);
 }
 const S2=['S/S','S/S'];
@@ -108,7 +108,7 @@ AHX.forEach(r=>{
   const name=m+' '+(kind==='pwr'?'電源模組':kind==='cpu'?(/RTU/.test(m)?'遠程 I/O 通訊模組':'CPU 模組'):board?'配線模組（運動控制模組用）':
     /AD|DA|XA/.test(m)?'類比 I/O 模組':/PT|TC/.test(m)?'溫度模組':/HC|PM|MC/.test(m)?'運動控制模組':'網路模組');
   const sim=m==='AHPS05-5A'?[{k:'pwr',a:'L',b:'N'}]:m==='AHPS15-5A'?[{k:'pwr',a:'+24V',b:'24G',polar:true}]:null;
-  def(id,null,board?C7:C4,DT,name,W,H,D,kind==='pwr'?'PS':kind==='cpu'?'CPU':board?'TB':'AM','dark',T,{ser:board?'台達 AH 配線模組':kind==='pwr'?'台達 AH 電源':kind==='cpu'?'台達 AH CPU':'台達 AH 特殊模組',
+  def(id,null,board?C7:C4,DT,name,W,H,D,kind==='pwr'?'PS':kind==='cpu'?'CPU':board?'TB':'AM','dark',T,{ser:board?'AH 配線模組':kind==='pwr'?'AH 電源':kind==='cpu'?'AH CPU':'AH 特殊模組',
     ...(kind?{rackKind:kind,attach:'slot'}:{}),links:links.length?links:null,...(sim?{sim}:{}),
     note:`${note?note+'；':''}${med?'部分腳位方向依手冊表格推定；':''}${kind==='cpu'?'通訊埠各畫成一個接點；':''}${NOTE}`});ver(id);
 });

@@ -22,7 +22,7 @@ function csim(T){const ids=new Set(T.map(t=>t[0])),el=[{k:'coil',a:'A1',b:'A2'}]
 const SP={};
 function contactor(id,model,W,H,D,T0,o={}){
   const T=T0.map(([tid,lab,x,y])=>[tid,x,y,sideOf(y,H),cdesc(tid,lab)]);
-  def(id,null,C2,DT,`${model} 接觸器 AC220V`,W,H,D,'K','light',T,{ser:'士林 S-P 接觸器',sim:csim(T0),legacy:!!o.legacy,
+  def(id,null,C2,DT,`${model} 接觸器 AC220V`,W,H,D,'K','light',T,{ser:'S-P 接觸器',sim:csim(T0),legacy:!!o.legacy,
     note:(o.note?o.note+'；':'')+'線圈電壓依訂購；線圈 A1／A2 位置'+(o.coil||'依接線圖推定')+'；'+NOTE});ver(id);SP[id]={W,H};
 }
 const COIL_OK=new Set(['S-P50T','S-P100T']);
@@ -41,7 +41,7 @@ SPX.filter(x=>x[0].includes('S-P11')).forEach(([models,W,H,D,T])=>models.forEach
 /* ---------- 可逆組（機械互鎖） ---------- */
 [['S-2×P11','sp11r',14],['S-2×P15','sp15r',14],['S-2×P12','sp12',15],['S-2×P16','sp16',14],['S-2×P21','sp21',14],['S-2×P25','sp25',14],['S-2×P80T','sp80t',21],['S-2×P100T','sp100t',23],['S-2×P200T','sp200t',23],['S-2×P220T','sp220t',23],['S-2×P125T','sp125tr',32],['S-2×P150T','sp150tr',32]].forEach(([m,k,gap])=>{
   const h=SP[k];if(!h)return;const id='sl-2x'+k.replace(/r$/,'').replace(/^sp/,'p');
-  def(id,null,C2,DT,`${m} 可逆組（機械互鎖）`,gap,+(h.H*0.6).toFixed(1),40,'ML','mid',[],{ser:'士林 S-2×P 可逆組',ilock:true,pair:k,
+  def(id,null,C2,DT,`${m} 可逆組（機械互鎖）`,gap,+(h.H*0.6).toFixed(1),40,'ML','mid',[],{ser:'S-2×P 可逆組',ilock:true,pair:k,
     note:`放下時左右各放一台 ${k.replace(/r$/,'').toUpperCase().replace('SP','S-P')} 接觸器，三台一起移動；模擬時兩台不會同時吸合（同時通電左邊優先）；控制迴路還是要用常閉輔助接點做電氣互鎖；互鎖寬 ${gap} mm（S-2×P 外型圖）`});ver(id);
 });
 
@@ -64,7 +64,7 @@ THX.forEach(([models,W,H,D,T0,type])=>models.forEach(m=>{
   if(ids.has('97')&&ids.has('98'))sim.push({k:'sw',a:'97',b:'98',by:'trip',btn:'跳脫'});
   const fits=u?Object.keys(u.fit):null,under={};if(u)fits.forEach(k=>{under[k]={x:u.fit[k][0],y:u.fit[k][1]};});
   const ol=T1.some(t=>/推定|照片/.test(t[1]));
-  def(id,null,C2,DT,`${m} 積熱電驛`,W,H,D,'F','light',T,{ser:'士林 TH-P 積熱電驛',sim,trip:true,...(u?{attach:'under',fits,under,plug:u.plug}:{}),
+  def(id,null,C2,DT,`${m} 積熱電驛`,W,H,D,'F','light',T,{ser:'TH-P 積熱電驛',sim,trip:true,...(u?{attach:'under',fits,under,plug:u.plug}:{}),
     note:(u?`拖到 ${fits.map(k=>k.toUpperCase().replace('SP','S-P')).join('、')} 下方會自動裝上，${u.plug.L1?'1/L1…夾住接觸器的連接銅片':'銅片直接插進 2/T1…'}，和接觸器的 2/T1… 算同一點；`:'單獨安裝，自己接線；')+
       (m==='TH-P600CT'?'另有 CT 單元（106×104.5×46.8），主電路穿過 CT；':'')+(/CT/.test(type)&&m!=='TH-P600CT'?'CT 動作式；':'')+(ol?(T1.some(t=>/推定/.test(t[1]))?'輔助端子圖上沒印字，95／96／97／98 依接線圖推定；':'輔助端子外型圖沒印字，依實物照片左到右 98、97、95、96；'):'')+
       '模擬：點一下跳脫（95-96 打開、97-98 閉合），再點一下復歸；詳細資料可改自動復歸；熱元件電流範圍依訂購；'+NOTE});ver(id);
@@ -76,10 +76,10 @@ const AP=[['AP-20','AP-2P 上裝式 2a',23,[['53','54'],['63','64']]],['AP-11','
   ['AP-40','AP-4P 上裝式 4a',43,[['53','54'],['63','64'],['73','74'],['83','84']]],['AP-31','AP-4P 上裝式 3a1b',43,[['53','54'],['61','62'],['73','74'],['83','84']]],['AP-22','AP-4P 上裝式 2a2b',43,[['53','54'],['61','62'],['71','72'],['83','84']]]];
 AP.forEach(([m,txt,W,prs])=>{const id=idOf(m),n=prs.length,xs=n===2?[7,16]:[5.9,16.4,27,37.6],nc=a=>/[12]$/.test(a);
   const T=prs.flatMap(([a,b],i)=>[[a,xs[i],9,'top',nc(a)?'常閉':'常開'],[b,xs[i],40,'bottom',nc(a)?'常閉':'常開']]);
-  def(id,null,C2,DT,`${m} 輔助接點（${txt}）`,W,48.6,34,'KX','light',T,{ser:'士林 AP 輔助接點',front:true,sim:prs.map(([a,b])=>({k:'sw',a,b,by:'host',...(nc(a)?{nc:true}:{})})),
+  def(id,null,C2,DT,`${m} 輔助接點（${txt}）`,W,48.6,34,'KX','light',T,{ser:'AP 輔助接點',front:true,sim:prs.map(([a,b])=>({k:'sw',a,b,by:'host',...(nc(a)?{nc:true}:{})})),
     note:'疊在接觸器正面：拖到接觸器上會自動裝上，跟著接觸器的線圈動作；'+NOTE});ver(id);});
 [['APS-11',12.3,65,70,[['83',7.2],['71',16.3],['72',48.3],['84',57.8]]],['APL-11',14,64.5,47.5,[['43',6.8],['31',15.7],['32',49.1],['44',58.3]]]].forEach(([m,W,H,D,ts])=>{
   const id=idOf(m),T=ts.map(([t,y])=>[t,W/2,y,y<H/2?'top':'bottom',/[12]$/.test(t)?'常閉':'常開']);
-  def(id,null,C2,DT,`${m} 側裝式輔助接點 1a1b`,W,H,D,'KX','light',T,{ser:'士林 AP 輔助接點',attach:'side',sim:[{k:'sw',a:ts[0][0],b:ts[3][0],by:'host'},{k:'sw',a:ts[1][0],b:ts[2][0],nc:true,by:'host'}],
+  def(id,null,C2,DT,`${m} 側裝式輔助接點 1a1b`,W,H,D,'KX','light',T,{ser:'AP 輔助接點',attach:'side',sim:[{k:'sw',a:ts[0][0],b:ts[3][0],by:'host'},{k:'sw',a:ts[1][0],b:ts[2][0],nc:true,by:'host'}],
     note:'貼在接觸器右側：拖到接觸器上會自動裝上，跟著接觸器的線圈動作；'+(m==='APL-11'?'印字兩個方向都有（13/21/22/14 或 43/31/32/44），裝在右側用 43/31/32/44；':'印字反過來是 53/61/62/54；')+NOTE});ver(id);});
 })();

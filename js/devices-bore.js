@@ -132,7 +132,7 @@ function board(r){
   else{const up=ser==='XH'?'B':'A',dn=up==='A'?'B':'A',X=xs(half);for(let k=0;k<half;k++){T.push([up+(k+1),X(k),60,'bottom','端子 '+up+(k+1)]);T.push([dn+(k+1),X(k),74,'bottom','端子 '+dn+(k+1)]);}}
   for(let k=1;k<=half;k++)['A','B'].forEach(s=>links.push([s+k,...[...Array(ncon).keys()].map(c=>`CN${ncon>1?c+1:''}-${s}${k}`)]));
   const conns={};for(let c=1;c<=ncon;c++)conns[String(c)]={type:String(N),pins:Object.fromEntries([...Array(half).keys()].flatMap(k=>['A','B'].map(s=>[s+pad(k+1),`CN${ncon>1?c:''}-${s}${k+1}`])))};
-  def(id,null,C7,BR,`${name} ${N}P 牛角轉接座（${ttype}${ncon>1?'、牛角 ×2':''}）`,L,Wd,H,'TB','light',T,{ser:'柏叡 牛角轉接座',links,
+  def(id,null,C7,BR,`${name} ${N}P 牛角轉接座（${ttype}${ncon>1?'、牛角 ×2':''}）`,L,Wd,H,'TB','light',T,{ser:'牛角轉接座',links,
     note:`${fix}${brand} 端子台；${ncon>1?'兩個 ':''}${N}P IDC 牛角連接器，針腳 An／Bn 接到同名端子；選取後右側「接排線」可以接到 PLC 模組的連接器，詳細資料列出每個端子對應的 PLC 點位（可修改）；DIN 35mm 鋁軌；${NOTE}`});
   TPL[id].adpc=conns;VER[id]=[2,SRC+' product_detail/'+pid];
 }
@@ -146,7 +146,7 @@ BORE.forEach(board);
   T.push(['A2',6,8,'top','2P 端子 A2'],['B2',11,8,'top','2P 端子 B2'],['A1',L-11,8,'top','2P 端子 A1'],['B1',L-6,8,'top','2P 端子 B1']);
   const links=[];for(let k=0;k<16;k++){links.push([hx(k),`CN-B${20-k}`]);links.push([hx(16+k),`CN-A${20-k}`]);}
   links.push(['24V','24V(2)','24V(3)','24V(4)','CN-B1','CN-B2','B1','B2'],['0V','0V(2)','0V(3)','0V(4)','CN-A1','CN-A2','A1','A2']);
-  def(id,null,C7,BR,'A1S-DXO40MB 40P 帶燈牛角轉接座（三菱 QX4／QX71、富士 NP1Y32T09P1 專用）',L,86,57.9,'TB','light',T,{ser:'柏叡 牛角轉接座',links,
+  def(id,null,C7,BR,'A1S-DXO40MB 40P 帶燈牛角轉接座（三菱 QX4／QX71、富士 NP1Y32T09P1 專用）',L,86,57.9,'TB','light',T,{ser:'牛角轉接座',links,
     note:'DECA 5.0mm 歐規端子台；每點有 LED；00～0F 接牛角 B20～B05、10～1F 接 A20～A05；24V 接 B1／B2、0V 接 A1／A2（依三菱 40 針模組腳位推定，NPN／PNP 切換開關不模擬）；'+NOTE});
   TPL[id].adpc={'1':{type:'40',pins:Object.fromEntries([...Array(20).keys()].flatMap(k=>['A','B'].map(s=>[s+pad(k+1),`CN-${s}${k+1}`]))),pref:['qx4','qx71']}};VER[id]=[2,SRC+' product_detail/2020'];}
 })();

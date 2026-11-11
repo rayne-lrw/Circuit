@@ -6,7 +6,7 @@ const {chromium}=require('playwright'),path=require('path');
   await p.goto('file://'+path.join(__dirname,'..','index.html'));
   const res=await p.evaluate(only=>{
     const out=[],bad=[];let n=0;
-    Object.entries(TPL).forEach(([id,t])=>{if(t.legacy||t.gen)return;if(only&&!(t.ser||'').includes(only))return;n++;
+    Object.entries(TPL).forEach(([id,t])=>{if(t.legacy||t.gen)return;if(only&&!((t.b||'')+' '+(t.ser||'')).includes(only))return;n++;
       const r=resolveTpl(id),T=r.terms,ids=T.map(x=>x.id),msg=[];
       const dup=ids.filter((x,i)=>ids.indexOf(x)!==i);if(dup.length)msg.push('接點名稱重複 '+[...new Set(dup)].join(','));
       T.forEach(x=>{if(x.x<0||x.y<0||x.x>t.w||x.y>t.h)msg.push(`接點 ${x.id} 在外框外（${x.x},${x.y}）`);});

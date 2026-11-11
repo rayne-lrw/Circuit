@@ -193,6 +193,7 @@ js/devices-q.js    三菱 Q 系列器具（底座插槽式）
 js/devices-bore.js 柏叡牛角轉接座
 js/devices-ah.js   台達 AH500 系列器具
 js/devices-dvp.js  台達 DVP-ES3／EX3／SV3／SX3 主機
+js/devices-ser.js  原本內建器具的系列分組（器具庫依「廠牌 系列」收合）；隨機配置測試固定用的器具組
 js/devices-shihlin.js 士林 S-P 接觸器、S-2×P 可逆組、TH-P 熱電驛、AP 輔助接點
 js/devices-as.js   台達 AS 系列（主機、數位 I/O、類比、特殊模組、電源、功能卡）與 AX-3 主機
 js/devices-chain.js 三菱 FX5、FX3U 的串接設定

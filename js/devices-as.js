@@ -54,7 +54,7 @@ ASX.forEach(([m,kind,W,H,D,cols0,ports,blk])=>{
     gx.forEach((pts,com)=>sim.push({k:'plcX',com,pts,...(cpu?{cpu:true}:{})}));
     const pairs=ys.map(y=>[y,ov(y)||yc[y]]).filter(([,c])=>c&&ids.has(c));if(pairs.length)sim.push({k:'plcY',pairs,...(cpu?{cpu:true}:{})});
   }
-  const ser=ax?'台達 AX-3':cpu?'台達 AS 主機':ps?'台達 AS 電源':card?'台達 AS 功能卡':dio?'台達 AS 數位 I/O':'台達 AS 特殊模組';
+  const ser=ax?'AX-3':cpu?'AS 主機':ps?'AS 電源':card?'AS 功能卡':dio?'AS 數位 I/O':'AS 特殊模組';
   const txt=ax?'運動控制主機':cpu?'主機':ps?'電源模組':card?'功能卡（插在主機 CARD 槽）':dio?`數位 ${xs.length&&ys.length?'輸入輸出':xs.length?'輸入':'輸出'} ${xs.length+ys.length} 點`:'特殊模組';
   const id=m.toLowerCase().replace(/[^a-z0-9]+/g,'-');
   const xw=pulse?0:words(xs),yw=pulse?0:words(ys);

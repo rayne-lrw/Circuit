@@ -33,7 +33,7 @@ DVPX.forEach(([m,series,W,H,D,blocks,com,ports])=>{
   if(ac&&ids.has('+24V')&&ids.has('24G'))sim.push({k:'src',p:'+24V',n:'24G',v:'24V',in:['L','N']});
   xg.forEach((pts,com)=>sim.push({k:'plcX',com:ids.has(com)?com:xcom,pts,cpu:true}));if(pairs.length)sim.push({k:'plcY',pairs,cpu:true});
   const id=m.toLowerCase();
-  def(id,null,C4,DT,`${m} ${slim?'薄型':'磚型'}主機（${series}）`,W,H,D,'PLC','dark',T,{ser:'台達 '+series,links:links.length?links:null,sim,
+  def(id,null,C4,DT,`${m} ${slim?'薄型':'磚型'}主機（${series}）`,W,H,D,'PLC','dark',T,{ser:series,links:links.length?links:null,sim,
     note:`${slim?'右側擴充從 X20／Y20 開始（手冊 5.2）':'右側擴充接在主機點數後面（8 進位）'}；通訊埠各畫成一個接點；${NOTE}`});
   Object.assign(TPL[id],{chain:slim?{r:'dvp-s',l:'dvp-sl'}:{r:'dvp-e'},chainAddr:'oct',...(slim?{chainX:16,chainY:16}:{})});VER[id]=[2,SRC];
 });
