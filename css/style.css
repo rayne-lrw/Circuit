@@ -478,3 +478,9 @@ span.sim-chip{cursor:default}
 .rack-tb td.mono{font-family:var(--mono);white-space:nowrap}
 .rack-tb select{width:100%;font-size:12px}
 .rack-tb .rack-mod{width:100%;text-align:left;font-size:12px;padding:2px 6px}
+/* 放置中的預覽 */
+#placeGhost .ghost{fill:rgba(198,40,108,.12);stroke:#c6286c;stroke-width:.8;stroke-dasharray:3 2}
+#placeGhost .ghost.bad{fill:rgba(200,30,30,.18);stroke:#d22}
+#placeGhost .ghost-t{fill:#c6286c;opacity:.7}
+#placeGhost .ghost-l{fill:#c6286c;font-weight:600;paint-order:stroke;stroke:var(--bg);stroke-width:1.5px}
+#placeGhost .ghost-l.bad{fill:#d22}

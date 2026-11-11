@@ -70,6 +70,7 @@ svg.addEventListener('pointerdown',e=>{
   if(lg&&lg.dataset.lab===sel){act={t:'lab',wid:sel,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId};svg.setPointerCapture(e.pointerId);return;}
   // 中鍵、或按住空白鍵＋左鍵：一律平移畫面（不管點到什麼）
   if(e.button===1||(e.button===0&&spaceDown)){if(e.button===1)e.preventDefault();act={t:'press',sx:e.clientX,sy:e.clientY,vx:view.x,vy:view.y,moved:false,btn:e.button,id:e.pointerId,target:e.target,pan:true};svg.setPointerCapture(e.pointerId);return;}
+  if(placing){if(e.button===0){if(e.pointerType==='touch'){placing.touch=e.pointerId;placeMove(e);try{svg.setPointerCapture(e.pointerId);}catch(_){}}else{placeMove(e);placeDrop();}}else if(e.button===2)stopPlacing();return;}
   // 拖曳剝線點（接線、擺放模式都可以）
   const bg=mode!=='view'&&e.button===0&&!draft&&e.target.closest&&e.target.closest('[data-bo]');
   if(bg){const [cid,k]=bg.dataset.bo.split('|');act={t:'bo',cid,k,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId};svg.setPointerCapture(e.pointerId);return;}
@@ -131,6 +132,7 @@ svg.addEventListener('pointerdown',e=>{
 let framePend=null,frameReq=0;
 function frame(f){framePend=f;if(!frameReq)frameReq=requestAnimationFrame(()=>{frameReq=0;const g=framePend;framePend=null;if(g)g();});}
 svg.addEventListener('pointermove',e=>{
+  if(placing&&!act){placeMove(e);return;}
   if(!act){hoverUpdate(e);return;}
   const dx=e.clientX-act.sx,dy=e.clientY-act.sy;
   if(act.t==='simpress') return;
@@ -298,7 +300,7 @@ function tryDouble(p){
   commit();recompute();return true;
 }
 svg.addEventListener('wheel',e=>{e.preventDefault();const p=toWorld(e);zoomAt(Math.exp(-e.deltaY*.0015),p.sx,p.sy);},{passive:false});
-svg.addEventListener('contextmenu',e=>{if(draft&&!draft.pop){e.preventDefault();cancelDraft();}});
+svg.addEventListener('contextmenu',e=>{if(placing){e.preventDefault();stopPlacing();return;}if(draft&&!draft.pop){e.preventDefault();cancelDraft();}});
 
 /* ---------- 複製與貼上 ----------
    剪貼簿只存在這個頁面。鋁軌連軌上器具、現場區連區內器具一起複製；導線不複製。 */
@@ -521,6 +523,7 @@ document.addEventListener('keydown',e=>{
     if(k==='c'&&mode==='place'&&picked){const o=pickedObj();if(o){clip=makeClip(picked.k,o);e.preventDefault();toast(`已複製 ${clipName(clip)}，按 Ctrl＋V 貼上`);}return;}
     if(k==='v'&&clip&&!draft){e.preventDefault();pasteHere();return;}
   }
+  if(placing){if(e.key==='Escape'){stopPlacing();return;}if((e.key==='r'||e.key==='R')&&!e.ctrlKey&&!e.metaKey){e.preventDefault();placing.rot=(placing.rot+90)%360;if(placing.last)placeMove(placing.last);return;}}
   if(e.key==='Escape'){if(draft)cancelDraft();else if(cabPick){stopPick('已停止在圖上接芯線');}else{sel=null;picked=null;multi=[];selCab=null;coreEdit=null;renderList();renderWires();renderDetail();updateHint();}return;}
   if(draft&&draft.pop&&e.key==='Enter'){e.preventDefault();finishWire();return;}
   if(draft&&!draft.pop&&e.key==='Backspace'){e.preventDefault();if(draft.wps.length){draft.wps.pop();renderOverlay();updateHint();}else cancelDraft();return;}
@@ -539,7 +542,7 @@ $('mWire').onclick=()=>setMode('wire');
 $('mPlace').onclick=()=>setMode('place');
 $('mView').onclick=()=>setMode('view');
 $('mSim').onclick=()=>setMode('sim');
-$('undo').onclick=()=>{if(!hist.u.length)return;hist.r.push(JSON.stringify(S));draft=null;closePop();restore(hist.u.pop());};
+$('undo').onclick=()=>{stopPlacing();if(!hist.u.length)return;hist.r.push(JSON.stringify(S));draft=null;closePop();restore(hist.u.pop());};
 $('redo').onclick=()=>{if(!hist.r.length)return;hist.u.push(JSON.stringify(S));draft=null;closePop();restore(hist.r.pop());};
 $('bundle').onclick=e=>{bundle=!bundle;e.currentTarget.setAttribute('aria-pressed',bundle);computeRoutes();renderWires();};
 $('labels').onclick=e=>{showNo=!showNo;e.currentTarget.setAttribute('aria-pressed',showNo);applyView();};
@@ -703,6 +706,9 @@ $('palette').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
   if(mode==='view'&&b.matches('.lib')){toast('檢視模式不能新增，按「擺放」或「接線」切換');return;}
   if(b.dataset.add){
+    // 器具跟著滑鼠走、點一下放下（像 CAD 插入圖塊）；選取基板時點 Q 模組則直接裝到第一個空槽
+    {const t0=resolveTpl(b.dataset.add),pd0=picked&&picked.k==='dev'&&devOf(picked.id),h0=pd0&&(tplOf(pd0).rack?pd0:pd0.on&&devOf(pd0.on));
+      if(!(t0.rackKind&&h0&&rackPick(h0,{tpl:b.dataset.add,sheet:h0.sheet},h0.x)!=null)){startPlacing(b.dataset.add);return;}}
     const base=resolveTpl(b.dataset.add);let i=1;while(tagUsed(base.pre+i))i++;
     const vc=viewCenter(),zp=picked&&picked.k==='zone'&&S.fields.find(z=>z.id===picked.id),pd=picked&&picked.k==='dev'&&devOf(picked.id);
     const zone=zp||zoneAt(vc)||(pd&&pd.sheet==='field'&&zoneOf(pd))||S.fields[0];
@@ -820,3 +826,50 @@ function cleanCustomAsk(){
   const btn=document.querySelector('#askCard [data-ask="0"]');btn.onclick=()=>{const sel=[...document.querySelectorAll('#askCard [data-cus]')].filter(x=>x.checked).map(x=>x.dataset.cus);askClose();
     if(!sel.length)return;sel.forEach(id=>delete S.tpls[id]);commit();recompute();renderPalette();toast(`已刪除 ${sel.length} 個沒用到的自訂器具，可以按復原`);};
 }
+
+/* ---------- 放置中：新增器具時預覽跟著滑鼠走，點一下放下（像 CAD 插入圖塊） ----------
+   placing={tpl,rot,o}：o 是還沒加進專案的預覽器具，吸附規則和拖曳器具一樣（格點、鋁軌、正面附件、Q 系列槽位） */
+let placing=null;
+function startPlacing(tid){
+  if(mode==='view'||mode==='sim')setMode('place');else if(mode!=='place')setMode('place');
+  sel=null;picked=null;placing={tpl:tid,rot:0,o:null,bad:null};renderDetail();renderList();updateHint();placeGhost();
+}
+function stopPlacing(){if(!placing)return;placing=null;placeGhost();updateHint();}
+function placeMove(e){
+  if(!placing)return;placing.last={clientX:e.clientX,clientY:e.clientY};const p=toWorld(e),t0=resolveTpl(placing.tpl);
+  const o={id:'__place',tag:'',tpl:placing.tpl,x:0,y:0,sheet:'plate',...(placing.rot?{rot:placing.rot}:{}),...(t0.gen?{count:t0.cnt}:{})},t=tplOf(o);
+  o.x=Math.round((p.x-t.w/2)/5)*5;o.y=Math.round((p.y-t.h/2)/5)*5;
+  const c={x:o.x+t.w/2,y:o.y+t.h/2};
+  o.sheet=t0.sheet==='field'?'field':t0.sheet==='door'&&!useDoor()?'plate':sheetAt(c);
+  if(t0.sheet==='field'&&!zoneAt(c))o.sheet='field';
+  placing.bad=null;
+  if(attachOf(o)){hostSnap(o,p.x-t.w/2,p.y-t.h/2);
+    // Q 系列模組移到基板上卻沒有能裝的槽：不能放
+    if(t.rackKind&&!o.on){const h=S.devices.find(d=>tplOf(d).rack&&d.sheet===o.sheet&&inR(c,rectOf('dev',d)));if(h)placing.bad=`${h.tag} 沒有空的 ${RACK_KIND[t.rackKind]} 槽`;}}
+  else if(!isRail(o))railSnap(o,p.x-t.w/2,p.y-t.h/2);
+  if(t0.sheet==='field'&&!zoneAt({x:o.x+t.w/2,y:o.y+t.h/2}))placing.bad='現場器具要放在現場區裡';
+  placing.o=o;placeGhost();
+}
+function placeDrop(){
+  if(!placing||!placing.o)return;
+  if(placing.bad){toast(placing.bad);return;}
+  const o=placing.o,base=resolveTpl(o.tpl);let i=1;while(tagUsed(base.pre+i))i++;
+  const d={...o,id:base.pre+i,tag:base.pre+i};
+  S.devices.push(d);if(d.on)placeOn(d,devOf(d.on));zoneDrop(d);
+  placing=null;placeGhost();sel=null;picked={k:'dev',id:d.id};
+  commit();recompute();toast(`已放置 ${d.tag}`+(d.rack!=null&&d.on?`（${tagOf(d.on)} 的 ${rackName(tplOf(devOf(d.on)),d.rack)} 槽）`:''));
+}
+// 預覽：半透明外框＋器具名稱；不能放時是紅色；裝到槽位時顯示槽號與位址
+function placeGhost(){
+  let g=document.getElementById('placeGhost');
+  if(!placing||!placing.o){if(g)g.remove();return;}
+  if(!g){g=document.createElementNS('http://www.w3.org/2000/svg','g');g.id='placeGhost';g.setAttribute('pointer-events','none');($('world2')||svg).appendChild(g);}
+  const o=placing.o,t=tplOf(o),bad=!!placing.bad,a=o.on&&o.rack!=null?qAddr(o):null;
+  const info=placing.bad||(o.on?`裝到 ${tagOf(o.on)}`+(o.rack!=null?` 的 ${rackName(tplOf(devOf(o.on)),o.rack)} 槽`+(a?`（${qHex(a.start)}～${qHex(a.start+a.n-1)}）`:''):''):t.n);
+  const fs=Math.max(4,Math.min(9,t.w/10));
+  g.innerHTML=`<rect class="ghost${bad?' bad':''}" x="${o.x}" y="${o.y}" width="${t.w}" height="${t.h}" rx="1.5"/>`+
+    (t.terms||[]).slice(0,200).map(p=>`<circle class="ghost-t" cx="${o.x+p.x}" cy="${o.y+p.y}" r="1"/>`).join('')+
+    `<text class="ghost-l${bad?' bad':''}" x="${o.x+t.w/2}" y="${o.y-3}" text-anchor="middle" style="font-size:${fs}px">${esc(info)}</text>`;
+}
+svg.addEventListener('pointerup',e=>{if(placing&&placing.touch===e.pointerId){placeMove(e);placing.touch=null;placeDrop();}});
+svg.addEventListener('pointerleave',()=>{if(placing&&placing.o&&placing.touch==null){placing.o=null;placeGhost();}});

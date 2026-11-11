@@ -260,6 +260,7 @@ function updateHint(){
   if(typeof renderCabBar==='function')renderCabBar();
   let s,k;
   if(mode==='sim'){k='sim';s='模擬模式：按著按鈕、感測器才算按下；點斷路器切換 ON／OFF；右側可以切換 PLC 輸出、跑自動測試。拖曳空白處平移。';}
+  else if(typeof placing!=='undefined'&&placing){k='placing';s=`放置 ${resolveTpl(placing.tpl).n}：移動滑鼠到要放的位置點一下放下（會吸附格點、鋁軌、主體、槽位）；R 旋轉，Esc 或右鍵取消；滾輪縮放、中鍵或空白鍵拖曳平移。觸控：點一下放下。`;}
   else if(typeof noteAdd!=='undefined'&&noteAdd){k='note';s='放審查註記：在圖面上點一下要註記的位置；按 Esc 取消。';}
   else if(mode==='view'){k='view';s='檢視模式：只能看，不能修改。點線或器具可看詳細資料，拖曳空白處平移；按 W 回到接線、M 回到擺放。';}
   else if(mode==='place'){k=picked||multi.length?'place-picked':'place';s=(k==='place-picked'?'拖曳可移動，方向鍵或右側按鈕可依輸入距離移動，按 R 可旋轉，導線會自動重算；拖進面板或現場區會跟著換位置。Delete 可刪除。':'拖曳器具、線槽或出線口來擺放；左側可新增器具。')+(typeof opPref==='function'&&opPref().drag==='old'?'Shift＋點或 Shift＋拖曳框選可多選，':'拖曳空白處框選（由左往右只選完全框住的，由右往左碰到就選），Shift＋點加入或移出，')+'Ctrl＋A 全選；Ctrl＋拖曳可複製，Ctrl＋C／Ctrl＋V 複製貼上。拖到 H-66 鋁軌上會自動對齊並靠齊相鄰器具，按住 Alt 不吸附。';}
@@ -292,6 +293,7 @@ function setLeft(collapsed,save){
 /* 檢視模式：只能看。會改到資料的按鈕停用，右側詳細資料的欄位反灰 */
 const VIEW_LOCK=['undo','redo','clearB','importB','setOpen','newTpl','sample'];
 function setMode(m){
+  if(m!=='place'&&typeof placing!=='undefined'&&placing)stopPlacing();
   if(m!=='wire'){cabPick=null;cabPickCore=null;}mode=m;$('mWire').setAttribute('aria-pressed',m==='wire');$('mPlace').setAttribute('aria-pressed',m==='place');$('mView').setAttribute('aria-pressed',m==='view');$('mSim').setAttribute('aria-pressed',m==='sim');if(m==='sim'&&!SIMST)simEnter();if(m!=='sim'&&SIMST)simLeave();
   draft=null;closePop();snap=null;hoverW=null;picked=null;multi=[];sel=m!=='place'?sel:null;$('tip').hidden=true;
   document.body.classList.toggle('viewing',m==='view'||m==='sim');document.body.classList.toggle('simming',m==='sim');$('viewTag').hidden=m!=='view';
