@@ -144,10 +144,15 @@ const {chromium}=require('playwright'),path=require('path');
     picked={k:'dev',id:'AM'};renderDetail();ok(/X1\.0～X2\.15/.test($('detail').textContent)&&/只算數位模組/.test($('detail').textContent),'AH 主背板的槽位表顯示 X1.0～X2.15 與位址規則');
     // 模擬：用實際位址
     let k4=0;const W4=(a,at,bb,bt)=>S.wires.push({id:'h'+(++k4),no:'H'+k4,a:{d:a,t:at},b:{d:bb,t:bt},wps:[],gauge:.75,color:'black'});
-    W4('PWR','R','PS','L');W4('PWR','S','PS','N');W4('PS','-V1','A2','CN1.S/S1');W4('PS','+V1','A2','CN1.X1.3');W4('PS','-V1','E1','ZP');W4('PS','+V1','E1','UP');W4('E1','Y0.4','KA','14');W4('KA','13','PS','+V1');
+    // 模組吃同一塊背板電源模組的電：主背板、延伸背板各裝一台 AHPS05 並接 AC
+    put('PA','ahps05-5a','AM',0);put('PE','ahps05-5a','AE',0);
+    W4('PWR','R','PS','L');W4('PWR','S','PS','N');W4('PWR','R','PA','L');W4('PWR','S','PA','N');W4('PWR','R','PE','L');W4('PWR','S','PE','N');W4('PS','-V1','A2','CN1.S/S1');W4('PS','+V1','A2','CN1.X1.3');W4('PS','-V1','E1','ZP');W4('PS','+V1','E1','UP');W4('E1','Y0.4','KA','14');W4('KA','13','PS','+V1');
     commit();recompute();simReset();let r4=simRun();
     ok(r4.X.some(x=>x.name==='X2.3'&&x.on)&&r4.X.filter(x=>x.on).length===1,'模擬：32 點模組右欄 X1.3 接上 → 實際 X2.3 ON，只有一點');
     SIMST.y.add('E1|Y0.4');r4=simRun();ok(r4.Y.some(y=>y.name==='Y2.4')&&r4.dev.KA&&r4.dev.KA.coil,'模擬：延伸背板 Y2.4 ON，繼電器吸合');
+    // 電源：延伸背板的電源模組斷電 → 上面的模組沒電，輸出不動作；主背板照常
+    S.wires=S.wires.filter(w=>w.b.d!=='PE');recompute();r4=simRun();ok(!(r4.dev.KA&&r4.dev.KA.coil)&&r4.dev.E1.nopwr&&r4.X.some(x=>x.name==='X2.3'&&x.on),'延伸背板電源模組沒電：E1 沒電、Y2.4 不動作；主背板 X2.3 照常');
+    S.wires=S.wires.filter(w=>w.b.d!=='PA');recompute();r4=simRun();ok(!r4.X.some(x=>x.on)&&r4.dev.A2.nopwr&&!(r4.dev.A0.on||[]).length,'主背板電源模組也沒電：輸入不亮、模組不亮');
     return out;
   });
   await b.close();

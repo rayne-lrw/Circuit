@@ -49,6 +49,8 @@ ASX.forEach(([m,kind,W,H,D,cols0,ports,blk])=>{
   if(cpu)sim.push({k:'pwr',a:'24V',b:'0V',polar:true});
   if(ps)sim.push(m==='AS-PS02A'?{k:'pwr',a:'L',b:'N'}:{k:'pwr',a:'L',b:'N'});
   if(m==='AS-PS02A')sim.push({k:'src',p:'+24V',n:'24G',v:'24V',in:['L','N']});
+  // 特殊模組、通訊模組的 24V／0V 是模組本身的外部電源（端子排列圖印 24V／0V）：匯流排有電而且 24V 也有電才動作
+  if(!cpu&&!ps&&!card&&!dio&&ids0(T).has('24V')&&ids0(T).has('0V'))sim.push({k:'load',a:'24V',b:'0V',name:'外部 24V',polar:true});
   if(!pulse){
     const xc=commons(idCols,x=>/^X\d+\.\d+$/.test(x),isXC),yc=commons(idCols,y=>/^Y\d+\.\d+$/.test(y),isYC),ov=OVR[m]||(()=>null);
     const gx=new Map();xs.forEach(x=>{const c=ov(x)||xc[x];if(c&&ids.has(c)){if(!gx.has(c))gx.set(c,[]);gx.get(c).push(x);}});

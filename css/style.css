@@ -444,6 +444,7 @@ span.sim-chip{cursor:default}
 .sim-chip.on{background:#19c25a;border-color:#19c25a;color:#fff}
 .sim-chip.y.on{background:#ff8a00;border-color:#ff8a00}
 .sim-chip.op.on{background:#2b8cff;border-color:#2b8cff}
+.sim-chip.nopwr{opacity:.45;border-style:dashed} /* 模組沒電 */
 .sim-bad{color:#c00000;font-weight:600;font-size:12.5px;margin:4px 0}
 .sim-warn{color:#b85d00;font-size:12.5px;margin:4px 0}
 .sim-test{border:1px solid var(--line);border-radius:6px;padding:6px;margin-top:6px}

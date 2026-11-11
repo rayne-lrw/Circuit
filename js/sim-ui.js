@@ -61,8 +61,9 @@ function simPanel(box){
   const ths=S.devices.filter(d=>d.thReset!=='auto'&&simElems(d).some(e=>e.by==='trip')).sort((a,b)=>natCmp(a.tag,b.tag));
   const Y=r.Y.filter(y=>y.wired),X=r.X.filter(x=>S.wires.some(w=>wiredAt(w,x.d.id,x.t)));
   const act=Object.entries(r.dev).filter(([id,s])=>s.coil||s.latch||s.on.length).map(([id,s])=>`${esc(tagOf(id))}${s.coil?'（線圈）':s.latch?'（保持）':'（'+esc(s.on.join('、'))+'）'}`);
+  const np=(r.nopwr||[]).filter(x=>x.d.on||S.wires.some(w=>w.a.d===x.d.id||w.b.d===x.d.id));
   const rev=Object.entries(r.dev).filter(([id,s])=>s.rev.length).map(([id,s])=>esc(tagOf(id)));
-  const msg=[r.shorts?`<p class="sim-bad">短路 ${r.shorts} 處（桃紅色的線），請檢查配線</p>`:'',r.unstable?'<p class="sim-bad">迴路一直切換停不下來（不穩定），可能是自我保持或互鎖接錯</p>':'',rev.length?`<p class="sim-warn">極性相反：${rev.join('、')}</p>`:'',...r.warn.map(t=>`<p class="sim-warn">${esc(t)}</p>`)].join('');
+  const msg=[r.shorts?`<p class="sim-bad">短路 ${r.shorts} 處（桃紅色的線），請檢查配線</p>`:'',r.unstable?'<p class="sim-bad">迴路一直切換停不下來（不穩定），可能是自我保持或互鎖接錯</p>':'',rev.length?`<p class="sim-warn">極性相反：${rev.join('、')}</p>`:'',...r.warn.map(t=>`<p class="sim-warn">${esc(t)}</p>`),np.length?`<p class="sim-warn">模組沒電（輸入輸出不動作）：${np.map(x=>`${esc(x.d.tag)}（${esc(x.why)}）`).join('、')}</p>`:''].join('');
   const noSim=S.devices.filter(d=>!hasSim(d)&&S.wires.some(w=>w.a.d===d.id||w.b.d===d.id)&&!['端子台／接地'].includes((resolveTpl(d.tpl,d.count)||{}).cat)).map(d=>d.tag);
   box.innerHTML=`<div class="big">模擬</div><p class="note">圖上按著按鈕、感測器才算按下；點斷路器切換 ON／OFF。有電的線：＋紅、−藍、AC 橘；流動的虛線是有電流的迴路。</p>${msg}
   <div class="sub-h">斷路器</div><div class="sim-chips">${brks.map(d=>`<button class="sim-chip${SIMST.on[d.id]?' on':''}" data-sim-brk="${d.id}">${esc(d.tag)}</button>`).join('')}</div>
@@ -70,8 +71,8 @@ function simPanel(box){
   ${sels.length?`<div class="sub-h">選擇開關（圖上點左半邊／右半邊切換）</div><div class="sim-chips">${sels.map(d=>{const op=tplOf(d).op,cur=SIMST.sel[d.id]||op.def;return (op.n===3?['L','C','R']:['L','R']).map(q=>`<button class="sim-chip${cur===q?' on':''}" data-sim-sel="${d.id}|${q}">${esc(d.tag)} ${q}</button>`).join('');}).join('')}</div>`:''}
   ${ths.length?`<div class="sub-h">積熱電驛（點一下跳脫／復歸）</div><div class="sim-chips">${ths.map(d=>`<button class="sim-chip${SIMST.trip[d.id]?' on':''}" data-sim-trip="${d.id}">${esc(d.tag)}${SIMST.trip[d.id]?' 跳脫中':''}</button>`).join('')}</div>`:''}
   <div class="row" style="justify-content:flex-start"><button class="tool" data-sim-all="1">全部 ON</button><button class="tool" data-sim-all="0">全部 OFF</button><button class="tool" id="simReset">全部重置</button></div>
-  ${Y.length?`<div class="sub-h">PLC 輸出（點一下切換）</div><div class="sim-chips">${Y.map(y=>`<button class="sim-chip y${y.on?' on':''}" data-sim-y="${y.d.id}|${y.y}">${esc(y.name)}</button>`).join('')}</div>`:''}
-  ${X.length?`<div class="sub-h">PLC 輸入</div><div class="sim-chips">${X.map(x=>`<span class="sim-chip x${x.on?' on':''}">${esc(x.name)}</span>`).join('')}</div>`:''}
+  ${Y.length?`<div class="sub-h">PLC 輸出（點一下切換）</div><div class="sim-chips">${Y.map(y=>`<button class="sim-chip y${y.on?' on':''}${y.nopwr?' nopwr':''}"${y.nopwr?' title="模組沒電，輸出不動作"':''} data-sim-y="${y.d.id}|${y.y}">${esc(y.name)}</button>`).join('')}</div>`:''}
+  ${X.length?`<div class="sub-h">PLC 輸入</div><div class="sim-chips">${X.map(x=>`<span class="sim-chip x${x.on?' on':''}${x.nopwr?' nopwr':''}"${x.nopwr?' title="模組沒電，輸入不動作"':''}>${esc(x.name)}</span>`).join('')}</div>`:''}
   ${ops.length?`<div class="sub-h">按著操作</div><div class="sim-chips">${ops.flatMap(d=>[...new Set(opE(d).map(e=>e.btn))].map(b=>`<button class="sim-chip op${SIMST.press.has(d.id+'|'+b)?' on':''}" data-sim-op="${d.id}|${b}">${esc(d.tag)} ${esc(b)}</button>`)).join('')}</div>`:''}
   <div class="sub-h">動作中</div><p class="note">${act.join('、')||'沒有'}</p>
   <div class="sub-h">自動測試</div><div class="row" style="justify-content:flex-start"><button class="tool" id="simTestY">Y 輸出逐點測試</button><button class="tool" id="simTestX">輸入逐點測試</button></div>

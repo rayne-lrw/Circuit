@@ -126,7 +126,23 @@ function simRun(){
   // 有自己電源接點的器具（PLC CPU、感測器）要有電才動作；增設模組沒有電源接點，跟著 CPU 走，不另外判斷
   const pwrDev=new Set(els.filter(e=>e.k==='pwr').map(e=>e.d.id));
   // 左側串接的電源模組（台達 AS-PS02）有電時，主機也有電
-  const hostFed=d=>typeof chainOf==='function'&&chainOf(d,'l').some(m=>tplOf(m).feedsHost&&powered[m.id]);
+  /* 匯流排供電：沒有自己電源接點的增設模組、轉接器、基板上的 CPU 與 I/O 模組，吃上游的電
+     - 往右串接：往左找最近一台有自己電源的器具（CPU 或擴展單元）；往左串接的轉接器：吃主機
+     - 插槽：同一塊基板的電源模組（沒有電源槽的擴展基板吃主基板）；Q00UJ 這種一體型基板自己就是電源
+     - 要外部 24V 的模組（類比、定位等，動作資料是 load）：上游有電而且 24V 也有電才算有電
+     - 沒裝到主機或基板上的模組沒有電 */
+  const busKind=d=>{if(pwrDev.has(d.id))return false;const t=tplOf(d);return !!(t.chainKind||['io','cpu'].includes(t.rackKind));};
+  const extEls=new Map();els.forEach(e=>{if(e.k==='load'&&busKind(e.d)){if(!extEls.has(e.d.id))extEls.set(e.d.id,[]);extEls.get(e.d.id).push(e);}});
+  const busSrc=d=>{const h=d.on&&devOf(d.on);if(!h)return [];const t=tplOf(d);
+    if(t.chainKind==='r'){const L=chainOf(h,'r'),i=L.indexOf(d);for(let j=i-1;j>=0;j--)if(pwrDev.has(L[j].id))return [L[j]];return [h];}
+    if(t.chainKind)return [h];
+    const pm=b=>[...(pwrDev.has(b.id)?[b]:[]),...riders(b).filter(r=>pwrDev.has(r.id))];
+    let src=pm(h);if(!src.length&&tplOf(h).qext&&typeof qMainOf==='function'){const m=qMainOf(h);if(m&&m!==h)src=pm(m);}return src;};
+  const selfLive=(d,P)=>!!P[d.id]||chainOf(d,'l').some(m=>tplOf(m).feedsHost&&P[m.id]);
+  const liveWhy=(d,P,ext)=>{if(pwrDev.has(d.id))return selfLive(d,P)?'':'電源沒電';if(!busKind(d))return '';
+    const src=busSrc(d);if(!src.length)return '沒有裝到主機或基板上';if(!src.some(x=>!pwrDev.has(x.id)||selfLive(x,P)))return `${src.map(x=>x.tag).join('、')} 沒電`;
+    if(extEls.has(d.id)&&!ext[d.id])return '外部 24V 沒電';return '';};
+  const plcDevs=[...new Set(els.filter(e=>['plcX','plcY','pwr'].includes(e.k)||busKind(e.d)).map(e=>e.d))];S.devices.forEach(d=>{if(busKind(d)&&!plcDevs.includes(d))plcDevs.push(d);});
   let coil={...st.coil},latch={...st.latch},powered={},sensOn={},res=null,unstable=false;const seen=new Set();
   for(let it=0;it<40;it++){
     // 1. 目前狀態下導通的接點
@@ -138,7 +154,7 @@ function simRun(){
       else if(e.k==='sw'){const act=e.by==='coil'?coil[ck(e)]:e.by==='host'?coil[e.d.on]:e.by==='hostbrk'?!!(e.d.on&&st.on[e.d.on]):e.by==='op'?opAct(e.d):e.by==='latch'?latch[e.d.id]:e.by==='btn'?pressed(e.d,e.btn):e.by==='trip'?tripped(e.d):false;on=e.nc?!act:!!act;}
       else if(e.k==='sens')on=!!(sensOn[e.d.id+'|'+e.out]);
       if(on){u(e.aK||e.outK,e.bK||e.toK);conducting.push(e);}
-      if(e.k==='plcY')e.pairsK.forEach(([y,yk,ck])=>{if((powered[e.d.id]||!pwrDev.has(e.d.id)||hostFed(e.d))&&st.y.has(e.d.id+'|'+y)){u(yk,ck);conducting.push({k:'plcY',d:e.d,aK:yk,bK:ck,y});}});});
+      if(e.k==='plcY')e.pairsK.forEach(([y,yk,ck])=>{if(powered['L|'+e.d.id]&&st.y.has(e.d.id+'|'+y)){u(yk,ck);conducting.push({k:'plcY',d:e.d,aK:yk,bK:ck,y});}});});
     // 2. 電位：AC 電源一直有電；DC 電源要輸入有電才輸出（可能一層接一層，算到不再變）
     const lab=new Map(),add=(k,l)=>{const r=f(k);if(!lab.has(r))lab.set(r,new Set());lab.get(r).add(l);};
     els.filter(e=>e.k==='ac').forEach(e=>{e.phK.forEach((k,i)=>add(k,`A|${e.d.id}|${e.ph[i]}`));if(e.nK)add(e.nK,`A|${e.d.id}|N`);});
@@ -151,6 +167,7 @@ function simRun(){
     locks.forEach(m=>{const [a,b]=m.pair;if(nc[a]&&nc[b]){if(coil[b]&&!coil[a])delete nc[a];else delete nc[b];}});
     // 同一台裡的機械互鎖（LC2K 一體式正逆轉）：兩組線圈同時有電時，原本吸合的那組保持
     els.forEach(e=>{if(e.k!=='mlock')return;const [a,b]=e.g.map(g=>e.d.id+'#'+g);if(nc[a]&&nc[b]){if(coil[b]&&!coil[a])delete nc[a];else delete nc[b];}});
+    { const ext={};loads.forEach(l=>{if(l.on&&extEls.has(l.e.d.id))ext[l.e.d.id]=true;});plcDevs.forEach(d=>{if(!liveWhy(d,np,ext))np['L|'+d.id]=true;}); }
     els.forEach(e=>{if(e.k==='sens'&&np[e.d.id]&&pressed(e.d,e.btn))ns[e.d.id+'|'+e.out]=true;});
     els.forEach(e=>{if(e.k!=='pnoz')return;const R=e.insK.map(f),chOk=R.every((r,i)=>R.some((q,j)=>j!==i&&q===r)),pw=np[e.d.id];
       if(!pw||!chOk)nl[e.d.id]=false;else if((e.autoK&&f(e.autoK[0])===f(e.autoK[1]))||pressed(e.d,e.btn))nl[e.d.id]=true;});
@@ -171,8 +188,9 @@ function simRun(){
   // PLC 輸入
   // 點位名稱：連接器針腳先換成訊號（三菱 Q 的 B20 → X00），再換成實際位址
   const pName=(e,t)=>{const g=typeof cnSig==='function'?cnSig(e.d,t):t;return qName(e.d,g)||chainName(e.d,g)||(e.cpu?g:`${e.d.tag}·${g}`);};
-  const X=[];els.filter(e=>e.k==='plcX').forEach(e=>e.ptsK.forEach(([t,k])=>X.push({d:e.d,t,name:pName(e,t),on:feed(lab,f,k,e.comK).on})));
-  const Y=[];els.filter(e=>e.k==='plcY').forEach(e=>e.pairsK.forEach(([y])=>{if(termOf(e.d,y))Y.push({d:e.d,y,name:pName(e,y),on:st.y.has(e.d.id+'|'+y),wired:S.wires.some(w=>wiredAt(w,e.d.id,y))});}));
+  const live=d=>!!powered['L|'+d.id];
+  const X=[];els.filter(e=>e.k==='plcX').forEach(e=>e.ptsK.forEach(([t,k])=>X.push({d:e.d,t,name:pName(e,t),on:live(e.d)&&feed(lab,f,k,e.comK).on,...(live(e.d)?{}:{nopwr:true})})));
+  const Y=[];els.filter(e=>e.k==='plcY').forEach(e=>e.pairsK.forEach(([y])=>{if(termOf(e.d,y))Y.push({d:e.d,y,name:pName(e,y),on:st.y.has(e.d.id+'|'+y),...(live(e.d)?{}:{nopwr:true}),wired:S.wires.some(w=>wiredAt(w,e.d.id,y))});}));
   // 每條線：電位、有沒有電流
   const wires={};S.wires.forEach(w=>{const wk=wireKeys.get(w.id);if(!wk||!wk.keys.length){wires[w.id]={pot:'none'};return;}
     const ls=new Set();wk.keys.forEach(k=>labOf(k).forEach(l=>ls.add(l)));wires[w.id]={pot:potOf(ls),ls:[...ls],short:wk.keys.some(k=>shortSet.has(f(k)))};});
@@ -181,7 +199,12 @@ function simRun(){
   Object.keys(coil).forEach(k=>{if(coil[k]){const id=k.split('#')[0];devState[id]=devState[id]||{on:[],rev:[]};devState[id].coil=true;if(k.includes('#'))(devState[id].groups=devState[id].groups||[]).push(k.split('#')[1]);}});
   locks.forEach(m=>m.pair.forEach(id=>{const s=devState[id];if(s&&!coil[id]){const i=s.on.indexOf('線圈');if(i>=0)s.on[i]='線圈有電但被機械互鎖擋住';}}));
   Object.keys(latch).forEach(id=>{if(latch[id]){devState[id]=devState[id]||{on:[],rev:[]};devState[id].latch=true;}});
-  st.res={wires,dev:devState,X,Y,shorts:shorts.length,unstable,warn,conducting};
+  // 匯流排供電的模組：有電就亮（顯示「電源」）；沒電的列出原因；要外部 24V 的，上游沒電時 24V 有電也不算亮
+  const ext={};loads.forEach(l=>{if(l.on&&extEls.has(l.e.d.id))ext[l.e.d.id]=true;});const nopwr=[];
+  plcDevs.forEach(d=>{if(!busKind(d))return;const why=liveWhy(d,powered,ext),s=devState[d.id]=devState[d.id]||{on:[],rev:[]};
+    if(!why){if(!extEls.has(d.id))s.on.push('電源');return;}
+    const nm=new Set((extEls.get(d.id)||[]).map(e=>e.name||'電源'));s.on=s.on.filter(n=>!nm.has(n));s.nopwr=why;nopwr.push({d,why});});
+  st.res={wires,dev:devState,X,Y,shorts:shorts.length,unstable,warn,conducting,nopwr};
   return st.res;
 }
 // 兩點之間有沒有電：同一個 DC 電源的 ＋／−（接反時 polar 才算「極性相反」），或同一個 AC 電源的不同相（或相和中性線）
