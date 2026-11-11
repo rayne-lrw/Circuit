@@ -66,6 +66,11 @@ const {chromium}=require('playwright'),path=require('path');
     hostSnap(dv('GN'),dv('Q').x+20,dv('Q').y+40);ok(dv('GN').on==='Q'&&dv('GN').x===dv('Q').x-9.3,'GVAN11 拖到 GV2ME10 上：貼在左側');
     S.wires=S.wires.filter(w=>w.a.d!=='AN'&&w.b.d!=='AN'&&w.b.d!=='KA');W('PS','+V1','GE','13');W('GE','14','KA','14');W('KA','13','PS','-V1');commit();recompute();simReset();r=simRun();
     ok(!(r.dev.KA&&r.dev.KA.coil),'GVAE11 的 13-14：斷路器 OFF 時打開');SIMST.on.Q=true;r=simRun();ok(r.dev.KA&&r.dev.KA.coil,'斷路器 ON：13-14 閉合');
+    // ---------- iC60N：1P+N 的 N 一起開閉、4P 寬 72 ----------
+    ok(tplOf({tpl:'ic60-4P63A'}).w===72&&tplOf({tpl:'ic60-1PN16A'}).w===36&&tplOf({tpl:'ic60-1PN16A'}).terms.find(t=>t.id==='N').x<tplOf({tpl:'ic60-1PN16A'}).terms.find(t=>t.id==='1').x,'iC60N：4P 寬 72、1P+N 寬 36 且 N 在左邊');
+    S=normalize({...box,wires:[],devices:[D('PWR','field-power',0,-300,{sheet:'field'}),D('Q1','ic60-1PN16A',300,200),D('KA','my2n-220',900,300)]}).state;resetUi();
+    k=0;W('PWR','R','Q1','1');W('Q1','2','KA','14');W('PWR','S','Q1','N');W('Q1','N(2)','KA','13');commit();recompute();simReset();r=simRun();
+    ok(!(r.dev.KA&&r.dev.KA.coil),'iC60N 1P+N OFF：負載沒電');SIMST.on.Q1=true;r=simRun();ok(r.dev.KA&&r.dev.KA.coil,'iC60N 1P+N ON：相線與 N 一起接通');
     return out;
   });
   await b.close();
