@@ -44,8 +44,10 @@ sd('fx5u32',()=>[{k:'pwr',a:'L',b:'N'},{k:'src',p:'24V',n:'0V',v:'24V',in:['L','
 sd('fx516ex',()=>[{k:'plcX',com:'S/S',pts:['0','1','2','3','4','5','6','7','10','11','12','13','14','15','16','17']}]);
 sd('fx540ssc',()=>[{k:'load',a:'24V',b:'0V',name:'電源'}]);
 // 伺服驅動器（黑盒子）：只看主電源、控制電源有沒有電
-sd(['j4700','j4200'],()=>[{k:'load',a:'L1',b:'L2',name:'主電源'},{k:'load',a:'L11',b:'L21',name:'控制電源'}]);
-sd('je40',()=>[{k:'load',a:'L1',b:'L2',name:'主電源'}]);
+// 三相主電源 L1／L2／L3：兩兩之間都算負載，三相接好時三條線都有電流（單相接 L1、L3 也算有電）；配盤模擬不判斷欠相
+const MAIN3=()=>['L1','L2','L3'].flatMap((a,i,A)=>A.slice(i+1).map(b=>({k:'load',a,b,name:'主電源'})));
+sd(['j4700','j4200'],()=>[...MAIN3(),{k:'load',a:'L11',b:'L21',name:'控制電源'}]);
+sd('je40',MAIN3);
 // 電源、濾波
 sd('drl120',()=>[{k:'src',p:'+V1',n:'-V1',v:'24V',in:['L','N']},{k:'pass',a:'+V1',b:'+V2'},{k:'pass',a:'-V1',b:'-V2'}]);
 sd('fn3270',()=>pairs([['L1',"L1'"],['L2',"L2'"],['L3',"L3'"],['PE',"PE'"]],(a,b)=>({k:'pass',a,b})));
@@ -195,7 +197,7 @@ function simRun(){
   const wires={};S.wires.forEach(w=>{const wk=wireKeys.get(w.id);if(!wk||!wk.keys.length){wires[w.id]={pot:'none'};return;}
     const ls=new Set();wk.keys.forEach(k=>labOf(k).forEach(l=>ls.add(l)));wires[w.id]={pot:potOf(ls),ls:[...ls],short:wk.keys.some(k=>shortSet.has(f(k)))};});
   const cur=currentWires(res,wireKeys,loads);cur.forEach(id=>{if(wires[id])wires[id].cur=true;});
-  const devState={};loads.forEach(l=>{const d=l.e.d;if(!devState[d.id])devState[d.id]={on:[],rev:[]};if(l.on)devState[d.id].on.push(l.e.name||(l.e.k==='coil'?'線圈':'電源'));if(l.rev)devState[d.id].rev.push(l.e.name||'電源');});
+  const devState={};loads.forEach(l=>{const d=l.e.d;if(!devState[d.id])devState[d.id]={on:[],rev:[]};const nm=l.e.name||(l.e.k==='coil'?'線圈':'電源'),S2=devState[d.id];if(l.on&&!S2.on.includes(nm))S2.on.push(nm);if(l.rev&&!S2.rev.includes(l.e.name||'電源'))S2.rev.push(l.e.name||'電源');});
   Object.keys(coil).forEach(k=>{if(coil[k]){const id=k.split('#')[0];devState[id]=devState[id]||{on:[],rev:[]};devState[id].coil=true;if(k.includes('#'))(devState[id].groups=devState[id].groups||[]).push(k.split('#')[1]);}});
   locks.forEach(m=>m.pair.forEach(id=>{const s=devState[id];if(s&&!coil[id]){const i=s.on.indexOf('線圈');if(i>=0)s.on[i]='線圈有電但被機械互鎖擋住';}}));
   Object.keys(latch).forEach(id=>{if(latch[id]){devState[id]=devState[id]||{on:[],rev:[]};devState[id].latch=true;}});

@@ -53,6 +53,13 @@ const {chromium}=require('playwright'),path=require('path');
     // 自動測試
     SIMST.y.clear();const ty=simAutoY();ok(ty.rows.some(x=>x[0]==='Y0'&&/KA/.test(x[1])&&/雷射/.test(x[1])),'Y 逐點測試：Y0 → KA、燈、雷射');
     const tx=simAutoX();ok(tx.rows.some(x=>/PX 觸發/.test(x[0])&&/X0/.test(x[1])),'輸入逐點測試：PX → X0');
+    // 三相伺服主電源：L1、L2、L3 三條線都要有電流；單相接 L1、L3 也算有電（配盤模擬不判斷欠相）
+    ['j4200','j4700','je40'].forEach(sv=>{const keep=S.wires.slice(),kd=S.devices.slice();S.devices.push(D('SV',sv,600,400));const Q2=D('Q2','ic60-3P16A',500,400);S.devices.push(Q2);
+      W('PWR','R','Q2','1');W('PWR','S','Q2','3');W('PWR','T','Q2','5');const w1=W('Q2','2','SV','L1'),w2=W('Q2','4','SV','L2'),w3=W('Q2','6','SV','L3');const ids=S.wires.slice(-3).map(w=>w.id);
+      commit();recompute();simReset();SIMST.on.Q2=true;let R=simRun();
+      ok(ids.every(id=>R.wires[id]&&R.wires[id].cur)&&R.dev.SV.on.filter(x=>x==='主電源').length===1,`${sv} 三相主電源：L1、L2、L3 三條線都有電流，主電源只顯示一次`);
+      S.wires=S.wires.filter(w=>w.id!==ids[1]);recompute();R=simRun();ok(R.dev.SV&&R.dev.SV.on.includes('主電源')&&R.wires[ids[0]].cur&&R.wires[ids[2]].cur,`${sv} 單相接 L1、L3：主電源有電`);
+      S.wires=keep;S.devices=kd;commit();recompute();});
     // 自訂器具的動作資料：存檔讀回
     S.tpls.cx={...cleanTpl({n:'自訂燈',w:20,h:20,terms:[{id:'J',x:5,y:5,side:'top'}],sim:[{k:'grp',t:'J',sub:['+','-']},{k:'load',a:'J.+',b:'J.-',name:'燈',polar:true},{k:'bad'}]})};
     ok(JSON.stringify(S.tpls.cx.sim)==='[{"k":"grp","t":"J","sub":["+","-"]},{"k":"load","a":"J.+","b":"J.-","name":"燈","polar":true}]','自訂器具動作資料：不合格的元素會被拿掉');
