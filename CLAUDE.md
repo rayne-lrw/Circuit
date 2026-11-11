@@ -11,7 +11,7 @@
 1. `python3 scripts/bump-version.py`（更新 index.html 裡 css/js 的 ?v= 與版本號）
 2. 跑測試（說明見 README「測試」）：
    - `node tests/route-check.js [使用者專案檔.json …]`
-   - `node tests/layout-check.js`、`spec-check.js`、`fuzz-check.js`、`zone-check.js`、`review-check.js`、`sim-check.js`、`tpl-check.js`、`tpl-data-check.js`、`plc-sim-check.js`、`rack-check.js`、`place-check.js`、`adapter-check.js`、`chain-check.js`、`shihlin-check.js`、`tesys-check.js`、`idec-check.js`、`label-check.js`
+   - `node tests/layout-check.js`、`spec-check.js`、`fuzz-check.js`、`zone-check.js`、`review-check.js`、`sim-check.js`、`tpl-check.js`、`tpl-data-check.js`、`plc-sim-check.js`、`rack-check.js`、`place-check.js`、`adapter-check.js`、`chain-check.js`、`shihlin-check.js`、`tesys-check.js`、`idec-check.js`、`idec-sim-check.js`、`label-check.js`
    - `node tests/smoke-check.js [使用者專案檔.json]`
    - 使用者專案檔只用最新的一份（使用者會上傳）；舊的不留。
 3. 在工作分支 commit（中文訊息），fast-forward 合併到 main，兩個分支都推上去。不開 PR。
