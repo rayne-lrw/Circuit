@@ -310,6 +310,45 @@ function joinFix(T,nx){const n=T.length;if(n<4)return null;const u=T[n-3],a=T[n-
   const vt=Math.abs(a.x-b.x)<.01&&Math.abs(b.x-nx.x)<.01,hz=Math.abs(a.y-b.y)<.01&&Math.abs(b.y-nx.y)<.01;if(!vt&&!hz)return null;
   const k=vt?'y':'x';if((b[k]-a[k])*(nx[k]-b[k])>=0||Math.abs(a[k]-b[k])>25||Math.abs(u[k]-a[k])>.01)return null;
   return simplify([...T.slice(0,n-3),{...u,[k]:b[k]},{...a,[k]:b[k]},b]);}
+// 自動剝線點：芯線沿外皮那條直線跑過剝線點再折回來（或外皮沿芯線來的方向往回走），把剝線點移到芯線離開那條直線的地方
+// ta、tb 是兩端芯線尾段（ta 從接點走到 A 端剝線點，tb 從 B 端剝線點走到接點）；fixed 是外皮的必經點（中繼點、出線口），剝線點不移過它
+function unfoldBO(S0,A,B,ta,tb,fixed){
+  const E=.01,near=(p,q)=>Math.abs(p.x-q.x)<.6&&Math.abs(p.y-q.y)<.6,sg=v=>v>E?1:v<-E?-1:0;
+  const onSeg=(f,p,q)=>(Math.abs(f.x-p.x)<.6&&Math.abs(f.x-q.x)<.6&&(f.y-p.y)*(f.y-q.y)<=.36)||(Math.abs(f.y-p.y)<.6&&Math.abs(f.y-q.y)<.6&&(f.x-p.x)*(f.x-q.x)<=.36);
+  // 尾段一律取「最後一點是剝線點」的方向
+  const get=(r,k)=>k==='a'?r.pts:r.pts.slice().reverse(),put=(r,k,T)=>{T=simplify(T);r.pts=k==='a'?T:T.reverse();r.len=plen(r.pts);};
+  // 剝線點移到 nb（在 oc=L 的直線上）：尾段最後一段在這條直線上就換掉剝線點，否則接一段過去
+  const move=(r,k,nb,oc,L)=>{const T=get(r,k),n=T.length;put(r,k,n>=2&&Math.abs(T[n-2][oc]-L)<E?[...T.slice(0,n-1),nb]:[...T,nb]);};
+  const TS=[['a',ta,A],['b',tb,B]];
+  // 外皮只有一段直線（或長度 0）且兩端都是自動剝線點：照兩端芯線進出這條直線的位置，重新決定外皮的兩端
+  const P0=S0.pts;
+  if(A.bo&&A.auto&&B.bo&&B.auto&&P0.length&&P0.length<=2&&!fixed.length&&ta.length&&tb.length){
+    const p=P0[0],q=P0[P0.length-1],dg=Math.abs(p.x-q.x)+Math.abs(p.y-q.y)<E;let ax=null;
+    if(!dg)ax=Math.abs(p.y-q.y)<E?'x':Math.abs(p.x-q.x)<E?'y':null;
+    else for(const [k,rs] of TS){for(const r of rs){const T=get(r,k),n=T.length;if(n<2)continue;const u=T[n-2],v=T[n-1];if(Math.abs(u.y-v.y)<E&&Math.abs(u.x-v.x)>E){ax='x';break;}if(Math.abs(u.x-v.x)<E&&Math.abs(u.y-v.y)>E){ax='y';break;}}if(ax)break;}
+    if(ax){const oc=ax==='x'?'y':'x',L=p[oc],ent={a:[],b:[]};let ok=true;
+      for(const [k,rs,bo] of TS)for(const r of rs){const T=get(r,k),n=T.length;if(!n||!near(T[n-1],k==='a'?p:q)){ok=false;continue;}ent[k].push(n>=2&&Math.abs(T[n-2][oc]-L)<E?T[n-2][ax]:T[n-1][ax]);}
+      if(ok){const pA=p[ax],pB=q[ax],s=sg(pB-pA),a=ent.a,b=ent.b;
+        for(const d of s?[s,-s]:[1,-1]){const same=d===s;let nA,nB,fine;
+          if(d>0){nA=Math.max(...a,...(same?[pA]:[]));nB=Math.min(...b,...(same?[pB]:[]));fine=nB>=nA-E;}
+          else{nA=Math.min(...a,...(same?[pA]:[]));nB=Math.max(...b,...(same?[pB]:[]));fine=nA>=nB-E;}
+          if(!fine)continue;if(Math.abs(nA-pA)<E&&Math.abs(nB-pB)<E)break;
+          const na={[ax]:nA,[oc]:L},nbp={[ax]:nB,[oc]:L};S0.pts=simplify([na,nbp]);S0.len=plen(S0.pts);
+          ta.forEach(r=>move(r,'a',na,oc,L));tb.forEach(r=>move(r,'b',nbp,oc,L));A.x=na.x;A.y=na.y;B.x=nbp.x;B.y=nbp.y;break;}}}
+  }
+  // 一端一端看：外皮離開剝線點的第一段，芯線沿這段的直線從外皮那一側過來，剝線點就移到最遠那條芯線離開直線的地方（超過這一段就移到下一個轉角再看）
+  for(const [k,rs,P] of TS){if(!P.bo||!P.auto||!rs.length)continue;
+    for(let g=0;g<6;g++){const sp=k==='a'?S0.pts:S0.pts.slice().reverse();if(sp.length<2)break;const q0=sp[0],q1=sp[1];
+      const ax=Math.abs(q0.y-q1.y)<E&&Math.abs(q0.x-q1.x)>E?'x':Math.abs(q0.x-q1.x)<E&&Math.abs(q0.y-q1.y)>E?'y':null;if(!ax)break;
+      const oc=ax==='x'?'y':'x',L=q0[oc],dir=sg(q1[ax]-q0[ax]),Ls=Math.abs(q1[ax]-q0[ax]);let t=0;
+      for(const r of rs){const T=get(r,k),n=T.length;if(n>=2&&near(T[n-1],q0)&&Math.abs(T[n-2][oc]-L)<E)t=Math.max(t,(T[n-2][ax]-q0[ax])*dir);}
+      if(t<E)break;let nb,drop=false;
+      if(t<Ls-E)nb={[ax]:q0[ax]+dir*t,[oc]:L};else if(sp.length>2&&!fixed.some(f=>near(f,q1))){nb={x:q1.x,y:q1.y};drop=true;}else break;
+      if(fixed.some(f=>onSeg(f,q0,nb)))break;
+      const s2=drop?sp.slice(1):[nb,...sp.slice(1)];S0.pts=simplify(k==='a'?s2:s2.reverse());S0.len=plen(S0.pts);
+      rs.forEach(r=>move(r,k,nb,oc,L));P.x=nb.x;P.y=nb.y;}
+  }
+}
 function simplify(pts){
   const o=[];
   for(const p of pts){
@@ -745,6 +784,7 @@ function computeRoutes0(hint){hint=hint&&hint.retry?hint:BOHINT;const sigs={};
       sp.shift();sp[0]={x:q.x,y:q.y};const np=k==='a'?sp:sp.reverse();S0.pts=simplify(np);P.x=q.x;P.y=q.y;
       tl.forEach(r=>{const T=r.pts;if(k==='a'){const u=T[T.length-2];T[T.length-1]={x:q.x,y:q.y};if(u&&Math.abs(u.x-q.x)>.01&&Math.abs(u.y-q.y)>.01)T.splice(T.length-1,0,Math.abs(u.x-T[T.length-1].x)<Math.abs(u.y-T[T.length-1].y)?{x:u.x,y:q.y}:{x:q.x,y:u.y});r.pts=simplify(T);}
         else{const u=T[1];T[0]={x:q.x,y:q.y};if(u&&Math.abs(u.x-q.x)>.01&&Math.abs(u.y-q.y)>.01)T.splice(1,0,{x:q.x,y:u.y});r.pts=simplify(T);}});});
+    unfoldBO(S0,A,B,tails.map(t=>t.ja).filter(Boolean).map(j=>FIN.get(j.id)),tails.map(t=>t.jb).filter(Boolean).map(j=>FIN.get(j.id)),sh.anchors.filter(a=>!a.bo&&(a.wp||a.gland||a.must)));
     CABROUTES.set(c.id,{...S0,a:A.bo?{x:A.x,y:A.y,auto:A.auto}:null,b:B.bo?{x:B.x,y:B.y,auto:B.auto}:null});
     const none={pts:[],len:0,via:[],warn:null}; // 接頭那一端沒有芯線段
     tails.forEach(({w,ja,jb})=>{
