@@ -27,38 +27,46 @@ function contactor(id,model,W,H,D,T0,o={}){
 }
 const COIL_OK=new Set(['S-P50T','S-P100T']);
 SPX.forEach(([models,W,H,D,T])=>models.forEach(m=>contactor(idOf(m),m,W,H,D,T,{coil:COIL_OK.has(m)?'照正面圖':'依接線圖推定'})));
+// S-P06／S-P09：正面圖沒印端子名稱，依接線圖與 TH-P09 銅片位置（在左邊三顆）推定：上排 1/L1、3/L2、5/L3、13NO、A1，下排 2/T1、4/T2、6/T3、14NO、A2
+const P09=[['L1','1/L1',6,12.7],['L2','3/L2',14.1,12.7],['L3','5/L3',22.8,12.7],['13','13NO',31.2,12.7],['A1','A1',41.3,12.7],['T1','2/T1',6,44.5],['T2','4/T2',14.1,44.5],['T3','6/T3',22.8,44.5],['14','14NO',31.2,44.5],['A2','A2',41.3,44.5]];
+['S-P06','S-P09'].forEach(m=>contactor(idOf(m),m,46,58,52,P09,{coil:'與端子名稱依接線圖推定（正面圖沒印字）'}));
+// S-2×P125T／P150T 可逆組用本體（和單台 S-P125T 不同）：依可逆組外型圖（圖面未按比例，以總寬 370、中心距 196 換算，±5 mm）
+const P125R=[['L1','1/L1',49.2,17.2],['L2','3/L2',81.5,17.2],['L3','5/L3',113.1,17.2],['T1','2/T1',49.2,146.1],['T2','4/T2',81.5,146.1],['T3','6/T3',113.1,146.1],
+  ['A2','A2/b',19.7,34.1],['13','13NO',19.7,45.9],['21','21NC',19.7,57.4],['22','22NC',19.7,105.9],['14','14NO',19.7,117.7],
+  ['A1','A1/a',142.5,34.1],['43','43NO',142.5,45.9],['31','31NC',142.5,57.4],['32','32NC',142.5,105.9],['44','44NO',142.5,117.7]];
+['S-P125T','S-P150T'].forEach(m=>contactor(idOf(m)+'r',m+'（可逆用）',163,163,167,P125R,{legacy:true,coil:'與輔助接點位置依可逆組外型圖推定',note:'S-2×P125T／P150T 可逆組用本體，兩側各一疊輔助接點'}));
 // 可逆組專用：S-2×P11／P15 兩台的輔助接點是 21-22 常閉（電氣互鎖用）
 SPX.filter(x=>x[0].includes('S-P11')).forEach(([models,W,H,D,T])=>models.forEach(m=>contactor(idOf(m)+'r',m+'（可逆用）',W,H,D,T.map(([t,l,x,y])=>t==='13'?['21','21NC',x,y]:t==='14'?['22','22NC',x,y]:[t,l,x,y]),{legacy:true,note:'S-2×P11／P15 可逆組用：輔助接點是 21-22 常閉'})));
 
 /* ---------- 可逆組（機械互鎖） ---------- */
-[['S-2×P11','sp11r',14],['S-2×P15','sp15r',14],['S-2×P12','sp12',15],['S-2×P16','sp16',14],['S-2×P21','sp21',14],['S-2×P25','sp25',14],['S-2×P80T','sp80t',21],['S-2×P100T','sp100t',23],['S-2×P200T','sp200t',23],['S-2×P220T','sp220t',23]].forEach(([m,k,gap])=>{
+[['S-2×P11','sp11r',14],['S-2×P15','sp15r',14],['S-2×P12','sp12',15],['S-2×P16','sp16',14],['S-2×P21','sp21',14],['S-2×P25','sp25',14],['S-2×P80T','sp80t',21],['S-2×P100T','sp100t',23],['S-2×P200T','sp200t',23],['S-2×P220T','sp220t',23],['S-2×P125T','sp125tr',32],['S-2×P150T','sp150tr',32]].forEach(([m,k,gap])=>{
   const h=SP[k];if(!h)return;const id='sl-2x'+k.replace(/r$/,'').replace(/^sp/,'p');
   def(id,null,C2,DT,`${m} 可逆組（機械互鎖）`,gap,+(h.H*0.6).toFixed(1),40,'ML','mid',[],{ser:'士林 S-2×P 可逆組',ilock:true,pair:k,
     note:`放下時左右各放一台 ${k.replace(/r$/,'').toUpperCase().replace('SP','S-P')} 接觸器，三台一起移動；模擬時兩台不會同時吸合（同時通電左邊優先）；控制迴路還是要用常閉輔助接點做電氣互鎖；互鎖寬 ${gap} mm（S-2×P 外型圖）`});ver(id);
 });
 
 /* ---------- 積熱電驛 ---------- */
-// 沒印字的 4 個輔助端子：一排時依接線圖左到右 97、98、95、96；2×2 時上排 95、96，下排 97、98
-function olName(T){const ol=T.filter(t=>/^OL-/.test(t[0]));if(!ol.length)return T;const ys=[...new Set(ol.map(t=>t[3]))];
-  const order=ys.length===1?['97','98','95','96']:['95','96','97','98'];const s=ol.slice().sort((a,b)=>a[3]-b[3]||a[2]-b[2]);
-  s.forEach((t,i)=>{t[0]=order[i];t[1]=order[i]+'（未印字，推定）';});return T;}
-const UNDER={'TH-P12':{fit:{sp11:[-1.8,75],sp15:[-1.8,75],sp12:[9,75]},plug:{T1:'T1',T2:'T2',T3:'T3'}},
+// 外型圖沒印字的 4 個輔助端子：一排（TH-P12／12R／18R）照實物照片左到右 98、97（常開）、95、96（常閉）；2×2（TH-P220T／400T）依接線圖推定上排 95、96，下排 97、98
+function olName(T){const ol=T.filter(t=>/^OL-/.test(t[0]));if(!ol.length)return T;const ys=[...new Set(ol.map(t=>t[3]))],row=ys.length===1;
+  const order=row?['98','97','95','96']:['95','96','97','98'];const s=ol.slice().sort((a,b)=>a[3]-b[3]||a[2]-b[2]);
+  s.forEach((t,i)=>{t[0]=order[i];t[1]=order[i]+(row?'（照實物照片）':'（未印字，推定）');});return T;}
+const UNDER={'TH-P09':{fit:{sp06:[2.9,55],sp09:[2.9,55]},plug:{T1:'T1',T2:'T2',T3:'T3'}},'TH-P09PPS':{fit:{sp06:[2.9,55],sp09:[2.9,55]},plug:{T1:'T1',T2:'T2',T3:'T3'}},'TH-P12':{fit:{sp11:[-1.8,75],sp15:[-1.8,75],sp12:[9,75]},plug:{T1:'T1',T2:'T2',T3:'T3'}},
   'TH-P20':{fit:{sp16:[-6,81.7],sp21:[-6,81.7],sp25:[-6,81.7],sp21a:[-9.4,80],sp30t:[8.5,93.6],sp35t:[8.5,93.6],sp40t:[8.5,93.6]},plug:{L1:'T1',L2:'T2',L3:'T3'}},
   'TH-P60':{fit:{sp50t:[-6.3,116.8],sp60t:[-6.3,116.8],sp80t:[0,127.3]},plug:{L1:'T1',L2:'T2',L3:'T3'}},
   'TH-P120':{fit:{sp100t:[-4.7,142],sp125t:[5,157],sp150t:[5,157]},plug:{L1:'T1',L2:'T2',L3:'T3'}}};
 const SKIPTH=new Set(['TH-P09','TH-P09PPS']); // 對應的 S-P06S／P09S 沒有外型圖
 const tdesc=(id,lab)=>/^L\d$/.test(id)?`主迴路入 ${lab}`:/^T\d$/.test(id)?`主迴路出 ${lab}（接馬達）`:id==='95'||id==='96'?`跳脫常閉 ${lab}`:`跳脫常開 ${lab}`;
-THX.forEach(([models,W,H,D,T0,type])=>models.forEach(m=>{if(SKIPTH.has(m))return;
+THX.forEach(([models,W,H,D,T0,type])=>models.forEach(m=>{
   const T1=olName(T0.map(t=>t.slice())),u=UNDER[m],id=idOf(m);
   const T=T1.map(([tid,lab,x,y])=>[tid,x,y,sideOf(y,H),tdesc(tid,lab)]),ids=new Set(T.map(t=>t[0]));
   const sim=[];['1','2','3'].forEach(n=>{if(ids.has('L'+n)&&ids.has('T'+n))sim.push({k:'pass',a:'L'+n,b:'T'+n});});
   if(ids.has('95')&&ids.has('96'))sim.push({k:'sw',a:'95',b:'96',nc:true,by:'trip',btn:'跳脫'});
   if(ids.has('97')&&ids.has('98'))sim.push({k:'sw',a:'97',b:'98',by:'trip',btn:'跳脫'});
   const fits=u?Object.keys(u.fit):null,under={};if(u)fits.forEach(k=>{under[k]={x:u.fit[k][0],y:u.fit[k][1]};});
-  const ol=T1.some(t=>/推定/.test(t[1]));
+  const ol=T1.some(t=>/推定|照片/.test(t[1]));
   def(id,null,C2,DT,`${m} 積熱電驛`,W,H,D,'F','light',T,{ser:'士林 TH-P 積熱電驛',sim,trip:true,...(u?{attach:'under',fits,under,plug:u.plug}:{}),
     note:(u?`拖到 ${fits.map(k=>k.toUpperCase().replace('SP','S-P')).join('、')} 下方會自動裝上，${u.plug.L1?'1/L1…夾住接觸器的連接銅片':'銅片直接插進 2/T1…'}，和接觸器的 2/T1… 算同一點；`:'單獨安裝，自己接線；')+
-      (m==='TH-P600CT'?'另有 CT 單元（106×104.5×46.8），主電路穿過 CT；':'')+(/CT/.test(type)&&m!=='TH-P600CT'?'CT 動作式；':'')+(ol?'輔助端子圖上沒印字，95／96／97／98 依接線圖推定；':'')+
+      (m==='TH-P600CT'?'另有 CT 單元（106×104.5×46.8），主電路穿過 CT；':'')+(/CT/.test(type)&&m!=='TH-P600CT'?'CT 動作式；':'')+(ol?(T1.some(t=>/推定/.test(t[1]))?'輔助端子圖上沒印字，95／96／97／98 依接線圖推定；':'輔助端子外型圖沒印字，依實物照片左到右 98、97、95、96；'):'')+
       '模擬：點一下跳脫（95-96 打開、97-98 閉合），再點一下復歸；詳細資料可改自動復歸；熱元件電流範圍依訂購；'+NOTE});ver(id);
 }));
 

@@ -53,6 +53,14 @@ const {chromium}=require('playwright'),path=require('path');
     // S-2×P11 用 21-22 常閉
     placing={tpl:'sl-2xp11',rot:0,o:{id:'__place',tag:'',tpl:'sl-2xp11',x:400,y:600,sheet:'plate'},bad:null};placeDrop();
     const M2=S.devices.find(d=>d.tpl==='sl-2xp11'),L2=dv(M2.pair[0]);ok(!!termOf(L2,'21')&&!termOf(L2,'13'),'S-2×P11 可逆組的接觸器輔助接點是 21-22 常閉');
+    // S-2×P125T：可逆用本體
+    placing={tpl:'sl-2xp125t',rot:0,o:{id:'__place',tag:'',tpl:'sl-2xp125t',x:700,y:300,sheet:'plate'},bad:null};placeDrop();
+    const M3=S.devices.find(d=>d.tpl==='sl-2xp125t');ok(!!M3&&M3.pair.every(id=>dv(id).tpl==='sp125tr'),'S-2×P125T 可逆組：左右放的是可逆用 S-P125T 本體');
+    // TH-P09 插在 S-P06 下方
+    S=normalize({...box,devices:[D('PWR','field-power',0,-300,{sheet:'field'}),D('K6','sp06',300,200),D('F9','thp09',600,500),D('KA','my2n-220',900,300)]}).state;resetUi();
+    const K6=dv('K6');hostSnap(dv('F9'),K6.x,K6.y+60);ok(dv('F9').on==='K6'&&nodeKey({d:'F9',t:'T1'})===nodeKey({d:'K6',t:'T1'}),'TH-P09 插在 S-P06 下方：銅片插進 2/T1，算同一點');
+    ok(!tplOf({tpl:'thp09'}).fits.includes('sp16'),'TH-P09 不能裝到 S-P16');
+    const t12=tplOf({tpl:'thp12'}).terms.filter(t=>/^9/.test(t.id)).sort((a,b)=>a.x-b.x).map(t=>t.id).join(',');ok(t12==='98,97,95,96','TH-P12 輔助端子左到右 98、97、95、96（實物照片）');
     return out;
   });
   await b.close();
