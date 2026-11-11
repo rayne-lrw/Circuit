@@ -19,7 +19,8 @@ DVPX.forEach(([m,series,W,H,D,blocks,com,ports])=>{
   if(!slim){blocks.forEach(([pos,row])=>{const top=pos==='top',p=(W-16)/(row.length-1);row.forEach((id,i)=>add(id,8+i*p,top?6:H-6,top?'top':'bottom'));});}
   else{const pos={'front left column, upper':[9,12],'front left column, lower':[9,50],'front right column, upper':[W-9,12],'front right column, lower':[W-9,50]};
     blocks.forEach(([p,row])=>{if(pos[p])row.forEach((id,i)=>add(id,pos[p][0],pos[p][1]+i*4.2,pos[p][0]<W/2?'left':'right'));else if(p==='bottom')row.forEach((id,i)=>add(id,W/2-6+i*6,H-3,'bottom'));});
-    com.forEach((col,ci)=>col.forEach((id,r)=>add(id.replace(/^COM(\d) /,'$1'),30+ci*6,62+r*4.2,'bottom')));}
+    // COM1／COM2／CAN 端子塊：位置依外觀圖估算；欄距拉開、文字寫在接點左邊（不擠在一起）
+    com.forEach((col,ci)=>col.forEach((id,r)=>add(id.replace(/^COM(\d) /,'$1'),36+ci*14,60+r*4.4,'right')));}
   ports.forEach((id,i)=>add(id,W/2,slim?30+i*8:30+i*10,'right'));
   const links=dedup(T);T.forEach(t=>{t[4]=desc(t[0].replace(/\(\d+\)$/,''));});
   // 共點分組：依手冊排列，共點後面的 Y 屬於它（電晶體 T 用 ZP、S 用 UP，繼電器用 C）

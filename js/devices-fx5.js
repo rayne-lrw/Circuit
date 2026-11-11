@@ -17,7 +17,7 @@ const DESC=raw=>{const id=String(raw).replace(/\(\d+\)$/,'');return /^X/.test(id
 function dedup(list){const seen=new Map(),links=[];list.forEach(t=>{const id=t[0],c=(seen.get(id)||0)+1;seen.set(id,c);if(c>1){t[0]=id+'('+c+')';let g=links.find(g=>g[0]===id);if(!g){g=[id];links.push(g);}g.push(t[0]);}});return links;}
 // 橫式端子台（CPU、電源內置 I/O）：上方兩排、下方兩排，每排上下錯開半格
 function hTerms(W,H,R,desc=DESC){
-  const rows={tu:tok(R.tu,'X'),tl:tok(R.tl,'X'),bu:tok(R.bu,'Y'),bl:tok(R.bl,'Y')},n=Math.max(...Object.values(rows).map(a=>a.length)),m=10,p=(W-2*m)/(n-.5),T=[];
+  const rows={tu:tok(R.tu,'X'),tl:tok(R.tl,'X'),bu:tok(R.bu,'Y'),bl:tok(R.bl,'Y')},n=Math.max(...Object.values(rows).map(a=>a.length)),m=R.m??10,p=(W-2*m)/(n-.5),T=[]; // R.m：左右留邊（預設 10 mm）
   const put=(a,y,side,sh)=>a.forEach((id,i)=>{if(id&&id!=='|')T.push([id,+(m+sh+p*i).toFixed(2),y,side,desc(id)]);});
   put(rows.tu,5,'top',p/2);put(rows.tl,11,'top',0);put(rows.bu,H-11,'bottom',p/2);put(rows.bl,H-5,'bottom',0);
   return {T,links:dedup(T)};
@@ -33,7 +33,8 @@ function vTerms(L,R,desc=DESC){
 // 連接器／彈簧夾端子：每組兩欄針腳，由上往下；多組連接器左右排（FX5UC 64、96 點）
 function pinTerms(W,groups,desc=DESC){
   const T=[],pp=2.6;
-  groups.forEach(g=>g.cols.forEach((col,ci)=>col.forEach((id,ri)=>{if(id&&id!=='.')T.push([id,+(g.x+ci*pp).toFixed(2),+(g.y+ri*pp).toFixed(2),'right',desc(id)]);})));
+  // 兩欄的組：左欄朝左、右欄朝右出線（文字各自寫在外側，不會擠在兩欄中間）
+  groups.forEach(g=>g.cols.forEach((col,ci)=>col.forEach((id,ri)=>{if(id&&id!=='.')T.push([id,+(g.x+ci*pp).toFixed(2),+(g.y+ri*pp).toFixed(2),g.cols.length===2&&ci===0?'left':'right',desc(id)]);})));
   return {T,links:dedup(T)};
 }
 // 動作資料：電源、DC24V 供給電源、PLC 輸入（依輸入共點分組）、PLC 輸出（依輸出共點分組）
@@ -110,13 +111,13 @@ const ucConn=(W,n,inCom,outCom)=>{const g=[];for(let c=0;c<n;c++){const x=W-7-(n
     xin:[['COM',r.flatMap(xs)]],yout:r.map(c=>['COM'+c,ys(c)])});
   uc(`fx5uc-${p}mt-dss`,`FX5UC-${p}MT/DSS`,W,89.1,ucConn(W,n,c=>'COM'+c,c=>'+V'+c),{note:'連接器型（輸入、輸出各 20 針）、電晶體 source 輸出、輸入 sink／source',
     xin:r.map(c=>['COM'+c,xs(c)]),yout:r.map(c=>['+V'+c,ys(c)])});});
-// 彈簧夾端子型
+// 彈簧夾端子型（兩欄端子的位置依排列圖估算；兩欄放在本體中間，文字可以寫在兩側）
 const tsCols=(a,com,pre)=>[[...(pre==='X'?X(a,a+7):Y(a,a+7)),com],[...(pre==='X'?X(a+10,a+17):Y(a+10,a+17)),com]];
 uc('fx5uc-32mt-ds-ts','FX5UC-32MT/DS-TS',48.1,93.7,[{x:38,y:12,cols:tsCols(0,'S/S','X')},{x:38,y:50,cols:tsCols(0,'COM0','Y')}],{note:'彈簧夾端子型、電晶體 sink 輸出、輸入 sink／source',xin:[['S/S',X(0,17)]],yout:[['COM0',Y(0,17)]]});
 uc('fx5uc-32mt-dss-ts','FX5UC-32MT/DSS-TS',48.1,93.7,[{x:38,y:12,cols:tsCols(0,'S/S','X')},{x:38,y:50,cols:tsCols(0,'+V0','Y')}],{note:'彈簧夾端子型、電晶體 source 輸出、輸入 sink／source',xin:[['S/S',X(0,17)]],yout:[['+V0',Y(0,17)]]});
 // 繼電器型：每點兩個端子（內部相通）
 const dbl=(ids,com)=>[[...ids,com],[...ids,com]];
-uc('fx5uc-32mr-ds-ts','FX5UC-32MR/DS-TS',68.2,93.7,[{x:46,y:12,cols:dbl(X(0,7),'S/S0')},{x:55,y:12,cols:dbl(X(10,17),'S/S1')},{x:46,y:50,cols:dbl(Y(0,7),'COM0')},{x:55,y:50,cols:dbl(Y(10,17),'COM1')}],
+uc('fx5uc-32mr-ds-ts','FX5UC-32MR/DS-TS',68.2,93.7,[{x:34,y:12,cols:dbl(X(0,7),'S/S0')},{x:56,y:12,cols:dbl(X(10,17),'S/S1')},{x:34,y:50,cols:dbl(Y(0,7),'COM0')},{x:56,y:50,cols:dbl(Y(10,17),'COM1')}],
   {note:'彈簧夾端子型、繼電器輸出、每點兩個端子內部相通；輸入 X0～7 共點 S/S0、X10～17 共點 S/S1',xin:[['S/S0',X(0,7)],['S/S1',X(10,17)]],yout:[['COM0',Y(0,7)],['COM1',Y(10,17)]]});
 
 /* ---------- 增設 I/O 模組（擴展電纜型，寬 40） ---------- */
@@ -159,20 +160,20 @@ cMod('fx5-c16ex-d','FX5-C16EX/D',14.6,87,[{x:cx(14.6),y:25,cols:colPair(0,0,'COM
 cMod('fx5-c16ex-ds','FX5-C16EX/DS',14.6,87,[{x:cx(14.6),y:25,cols:colPair(0,0,'COM0','X')}],{note:'連接器型 16 點輸入、sink／source',xin:[['COM0',X(0,17)]]});
 cMod('fx5-c32ex-d','FX5-C32EX/D',20.1,87,[{x:cx(20.1),y:12,cols:colPair(0,0,'COM','X')},{x:cx(20.1),y:50,cols:colPair(20,20,'COM','X')}],{note:'連接器型 32 點輸入、sink 專用；兩組連接器的 COM 全部內部相通；大號碼那組是 X20～37',xin:[['COM',X(0,37)]]});
 cMod('fx5-c32ex-ds','FX5-C32EX/DS',20.1,87,[{x:cx(20.1),y:12,cols:colPair(0,0,'COM0','X')},{x:cx(20.1),y:50,cols:colPair(20,20,'COM0','X')}],{note:'連接器型 32 點輸入、sink／source；COM0 全部內部相通；大號碼那組是 X20～37',xin:[['COM0',X(0,37)]]});
-cMod('fx5-c32ex-ds-ts','FX5-C32EX/DS-TS',20.1,93.7,[{x:cx(20.1),y:12,cols:tsCols(0,'S/S','X')},{x:cx(20.1),y:50,cols:tsCols(20,'S/S','X')}],{note:'彈簧夾端子型 32 點輸入、sink／source；S/S 全部內部相通；第二組是 X20～37',xin:[['S/S',X(0,37)]]});
+cMod('fx5-c32ex-ds-ts','FX5-C32EX/DS-TS',20.1,93.7,[{x:8.75,y:12,cols:tsCols(0,'S/S','X')},{x:8.75,y:50,cols:tsCols(20,'S/S','X')}],{note:'彈簧夾端子型 32 點輸入、sink／source；S/S 全部內部相通；第二組是 X20～37',xin:[['S/S',X(0,37)]]});
 // 輸出
 cMod('fx5-c16eyr-d-ts','FX5-C16EYR/D-TS',30.7,93.7,[{x:16,y:12,cols:dbl(Y(0,7),'COM0')},{x:16,y:50,cols:dbl(Y(10,17),'COM1')}],{pre:'EY',note:'彈簧夾端子型 16 點繼電器輸出、每點兩個端子內部相通',yout:[['COM0',Y(0,7)],['COM1',Y(10,17)]]});
 cMod('fx5-c16eyt-d','FX5-C16EYT/D',14.6,87,[{x:cx(14.6),y:25,cols:colPair(0,0,'COM0','Y')}],{pre:'EY',note:'連接器型 16 點電晶體 sink 輸出',yout:[['COM0',Y(0,17)]]});
 cMod('fx5-c16eyt-dss','FX5-C16EYT/DSS',14.6,87,[{x:cx(14.6),y:25,cols:colPair(0,0,'+V0','Y')}],{pre:'EY',note:'連接器型 16 點電晶體 source 輸出',yout:[['+V0',Y(0,17)]]});
 cMod('fx5-c32eyt-d','FX5-C32EYT/D',20.1,87,[{x:cx(20.1),y:12,cols:colPair(0,0,'COM0','Y')},{x:cx(20.1),y:50,cols:colPair(20,20,'COM1','Y')}],{pre:'EY',note:'連接器型 32 點電晶體 sink 輸出；大號碼那組是 Y20～37',yout:[['COM0',Y(0,17)],['COM1',Y(20,37)]]});
 cMod('fx5-c32eyt-dss','FX5-C32EYT/DSS',20.1,87,[{x:cx(20.1),y:12,cols:colPair(0,0,'+V0','Y')},{x:cx(20.1),y:50,cols:colPair(20,20,'+V1','Y')}],{pre:'EY',note:'連接器型 32 點電晶體 source 輸出；大號碼那組是 Y20～37',yout:[['+V0',Y(0,17)],['+V1',Y(20,37)]]});
-cMod('fx5-c32eyt-d-ts','FX5-C32EYT/D-TS',20.1,93.7,[{x:cx(20.1),y:12,cols:tsCols(0,'COM0','Y')},{x:cx(20.1),y:50,cols:tsCols(20,'COM1','Y')}],{pre:'EY',note:'彈簧夾端子型 32 點電晶體 sink 輸出；第二組是 Y20～37',yout:[['COM0',Y(0,17)],['COM1',Y(20,37)]]});
-cMod('fx5-c32eyt-dss-ts','FX5-C32EYT/DSS-TS',20.1,93.7,[{x:cx(20.1),y:12,cols:tsCols(0,'+V0','Y')},{x:cx(20.1),y:50,cols:tsCols(20,'+V1','Y')}],{pre:'EY',note:'彈簧夾端子型 32 點電晶體 source 輸出；第二組是 Y20～37',yout:[['+V0',Y(0,17)],['+V1',Y(20,37)]]});
+cMod('fx5-c32eyt-d-ts','FX5-C32EYT/D-TS',20.1,93.7,[{x:8.75,y:12,cols:tsCols(0,'COM0','Y')},{x:8.75,y:50,cols:tsCols(20,'COM1','Y')}],{pre:'EY',note:'彈簧夾端子型 32 點電晶體 sink 輸出；第二組是 Y20～37',yout:[['COM0',Y(0,17)],['COM1',Y(20,37)]]});
+cMod('fx5-c32eyt-dss-ts','FX5-C32EYT/DSS-TS',20.1,93.7,[{x:8.75,y:12,cols:tsCols(0,'+V0','Y')},{x:8.75,y:50,cols:tsCols(20,'+V1','Y')}],{pre:'EY',note:'彈簧夾端子型 32 點電晶體 source 輸出；第二組是 Y20～37',yout:[['+V0',Y(0,17)],['+V1',Y(20,37)]]});
 // 輸入輸出
 cMod('fx5-c32et-d','FX5-C32ET/D',20.1,87,[{x:cx(20.1),y:12,cols:colPair(0,0,'COM','X')},{x:cx(20.1),y:50,cols:colPair(0,0,'COM0','Y')}],{note:'連接器型 16 點輸入（sink 專用）＋16 點電晶體 sink 輸出',xin:[['COM',X(0,17)]],yout:[['COM0',Y(0,17)]]});
 cMod('fx5-c32et-dss','FX5-C32ET/DSS',20.1,87,[{x:cx(20.1),y:12,cols:colPair(0,0,'COM0','X')},{x:cx(20.1),y:50,cols:colPair(0,0,'+V0','Y')}],{note:'連接器型 16 點輸入（sink／source）＋16 點電晶體 source 輸出',xin:[['COM0',X(0,17)]],yout:[['+V0',Y(0,17)]]});
-cMod('fx5-c32et-ds-ts','FX5-C32ET/DS-TS',20.1,93.7,[{x:cx(20.1),y:12,cols:tsCols(0,'S/S','X')},{x:cx(20.1),y:50,cols:tsCols(0,'COM0','Y')}],{note:'彈簧夾端子型 16 點輸入（sink／source）＋16 點電晶體 sink 輸出',xin:[['S/S',X(0,17)]],yout:[['COM0',Y(0,17)]]});
-cMod('fx5-c32et-dss-ts','FX5-C32ET/DSS-TS',20.1,93.7,[{x:cx(20.1),y:12,cols:tsCols(0,'S/S','X')},{x:cx(20.1),y:50,cols:tsCols(0,'+V0','Y')}],{note:'彈簧夾端子型 16 點輸入（sink／source）＋16 點電晶體 source 輸出',xin:[['S/S',X(0,17)]],yout:[['+V0',Y(0,17)]]});
+cMod('fx5-c32et-ds-ts','FX5-C32ET/DS-TS',20.1,93.7,[{x:8.75,y:12,cols:tsCols(0,'S/S','X')},{x:8.75,y:50,cols:tsCols(0,'COM0','Y')}],{note:'彈簧夾端子型 16 點輸入（sink／source）＋16 點電晶體 sink 輸出',xin:[['S/S',X(0,17)]],yout:[['COM0',Y(0,17)]]});
+cMod('fx5-c32et-dss-ts','FX5-C32ET/DSS-TS',20.1,93.7,[{x:8.75,y:12,cols:tsCols(0,'S/S','X')},{x:8.75,y:50,cols:tsCols(0,'+V0','Y')}],{note:'彈簧夾端子型 16 點輸入（sink／source）＋16 點電晶體 source 輸出',xin:[['S/S',X(0,17)]],yout:[['+V0',Y(0,17)]]});
 
 /* ---------- 擴展轉接器（裝在 CPU 左邊，寬 17.6、高 106） ---------- */
 const adp=(ids,desc)=>ids.map((id,i)=>id&&[id,8,+(28.8+i*4.29).toFixed(2),'right',desc(id)]).filter(Boolean);

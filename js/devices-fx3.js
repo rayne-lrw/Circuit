@@ -151,7 +151,7 @@ cmod('fx2n-16eyt-c','FX2N-16EYT-C',[[...Y(0,7),'COM','.'],[...Y(10,17),'COM','.'
 
 /* ---------- 特殊功能單元／模塊（端子在上方，上下兩排錯開） ---------- */
 function sp(id,name,W,R,o={}){
-  const H=o.H||90,{T,links}=hTerms(W,H,{tu:R.tu||'',tl:R.tl||'',bu:R.bu||'',bl:R.bl||''},D3);
+  const H=o.H||90,{T,links}=hTerms(W,H,{tu:R.tu||'',tl:R.tl||'',bu:R.bu||'',bl:R.bl||'',...(R.m!=null?{m:R.m}:{})},D3);
   const all=[...T,...(o.extra||[])];
   def(id,null,C4,MIT,name,W,H,o.D||87,o.pre||'SP','dark',all,{ser:o.ser||'FX 特殊功能',links:linksOf(o.noLink?null:links),note:(o.note?o.note+'；':'')+NOTE,...(pwrLoad(all)?{sim:pwrLoad(all)}:{})});ver(id);
 }
@@ -171,7 +171,7 @@ sp('fx3u-4lc','FX3U-4LC 4CH 溫度控制',90,{tu:'FG CT1A FG TC1- CT2A FG TC2- O
 sp('fx2n-2lc','FX2N-2LC 2CH 溫度控制',55,{tu:'24- OUT1 OUT2 . CT1A FG TC1- . CT2A FG TC2-',tl:'24+ FG COM . CT1B PTA1 TC1+ . CT2B PTA2 TC2+'},{pre:'TC',note:'TCn− 在測溫電阻時是 PTB；CTnA／CTnB 是比流器兩端'});
 sp('fx2n-8ad','FX2N-8AD 8CH 類比輸入',75,{tu:'FG V1+ I1+ COM1 V3+ I3+ COM3 .',tl:'24+ 24- V2+ I2+ COM2 V4+ I4+ COM4',bu:'V6+ I6+ COM6 V8+ I8+ COM8 . .',bl:'V5+ I5+ COM5 V7+ I7+ COM7 . .'},{D:75,pre:'AD',note:'上下兩組端子排（M3.5）'});
 sp('fx2n-1hc','FX2N-1HC 高速計數',55,{tu:'A24+ A5+ B24+ . B5+ XD24 XP24 . XP5 YH+ YS+',tl:'A12+ A- B12+ . B- XD5 COMD . COMP YH- YS-'},{pre:'HC',note:'A、B 相依電壓接 24／12／5V 端子；由 PLC 內部供電'});
-const PG1={tu:'COM0 RP PG0+ . . . CLR STOP DOG',tl:'VIN FP PG0- . . . COM1 S/S S/S'};
+const PG1={tu:'COM0 RP PG0+ . CLR STOP DOG',tl:'VIN FP PG0- . COM1 S/S S/S',m:3}; // 端子位置依排列圖估算：左右兩組各三顆，間距拉開到約 6 mm
 sp('fx3u-1pg','FX3U-1PG 1 軸定位',43,PG1,{pre:'PG',note:'兩個 S/S 內部相通'});
 sp('fx2n-1pg','FX2N-1PG(-E) 1 軸定位',43,PG1,{pre:'PG',note:'兩個 S/S 內部相通'});
 sp('fx2n-1rm-set','FX2N-1RM(-E)-SET 旋轉凸輪開關',97,{bu:'. . . . . S/S 24+ 24-',bl:'. . . . . B0 B1 FG'},{H:111,D:60,pre:'RM',note:'外形含顯示面板；端子在右下；另附 F2-720RSV 旋轉編碼器'});

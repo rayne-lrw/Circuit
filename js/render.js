@@ -16,36 +16,51 @@ function pathD(pts){
 /* 接點文字直寫：接點在上緣或下緣排成一橫排、文字寬到會和隔壁的字疊在一起時，整個字轉 90 度（任何旋轉角度都一樣）；
    範本指定 vlab 的接點一律直寫。回傳 接點 id → 字級。端子台的端子號另外縮字，不在這裡處理 */
 const labW=(lb,f)=>[...String(lb)].reduce((s,c)=>s+(c.charCodeAt(0)>255?1:.61),0)*f;
+// 圖上接點文字：同名接點內部相通時資料裡寫成 S/S(2)、COM(4)，板子上印的都是 S/S、COM，圖上照印字（線號表、接線表照樣分得出是哪一個）
+const labTxt=lb=>String(lb).replace(/\(\d+\)$/,'');
 const LABV=new Map();
-function labVert(d,t){
-  const key=d.tpl+'|'+(d.count||'')+'|'+(d.rot||0)+'|'+(d.labels?d.labels.join('\u0001'):''),hit=LABV.get(key);if(hit)return hit;
-  const out=new Map(),row=p=>(p.ls||p.side)==='top'||(p.ls||p.side)==='bottom';
-  const lab=p=>{const lb=termLabel(d,p.id);return lb!==p.id&&SLOT_RE.exec(p.id)?null:lb;};
-  t.terms.forEach(p=>{
-    if(!(p.side==='top'||p.side==='bottom')||!row(p))return;const lb=lab(p);if(lb==null)return;
-    const nb=t.terms.filter(q=>q!==p&&q.side===p.side&&Math.abs(q.y-p.y)<1.5&&lab(q)!=null),g=nb.length?Math.min(...nb.map(q=>Math.abs(q.x-p.x))):99;
-    const forced=t.vlab&&t.vlab.includes(p.id),clash=!t.gen&&t.cat!==C7&&nb.some(q=>(labW(lb,3.2)+labW(lab(q),3.2))/2>Math.abs(q.x-p.x)-.6);
-    if(forced||clash)out.set(p.id,forced&&!clash&&!d.rot?2.4:Math.max(1.8,Math.min(3.2,g*.75)));
-  });
-  // 同一排只要有字會疊，整排都直寫，不會一排裡有直有橫
-  t.terms.forEach(p=>{if(out.has(p.id)||!(p.side==='top'||p.side==='bottom')||!row(p)||lab(p)==null)return;
-    const same=t.terms.filter(q=>q!==p&&q.side===p.side&&Math.abs(q.y-p.y)<1.5&&out.has(q.id));
-    if(same.length&&!t.gen&&t.cat!==C7)out.set(p.id,Math.min(...same.map(q=>out.get(q.id))));});
+/* 接點文字自動找位置：同一排（上下緣）或同一欄（左右緣）的接點是一組，整組用同一種寫法；
+   橫排依序試：橫寫 → 斜寫 45° → 直寫，放不下再縮小字，還是放不下就寫在接點外側、出線旁邊（旗標）；直欄依序試：寫在內側 → 寫在外側（略高於出線） → 縮小字。
+   不能疊到別的字、不能壓到別的接點、不能超出器具外框。回傳 接點 id → {m:'in'|'out'|'diag'|'vert', fs, bx:[文字範圍框…]} */
+function labPlan(d,t){
+  const lab=p=>{const lb=termLabel(d,p.id);return lb!==p.id&&SLOT_RE.exec(p.id)?null:labTxt(lb);};
+  const T=t.terms.filter(p=>lab(p)!=null),key=d.tpl+'|'+(d.count||'')+'|'+(d.rot||0)+'|'+T.map(lab).join('\u0001'),hit=LABV.get(key);if(hit)return hit;
+  const out=new Map();if(t.gen||t.sym){LABV.set(key,out);return out;}
+  const ls=p=>p.ls||p.side,row=p=>ls(p)==='top'||ls(p)==='bottom';
+  // 分組：同一邊、同一條線上（相差 1.5 mm 內）
+  const groups=[];T.forEach(p=>{const s=ls(p),v=row(p)?p.y:p.x,g=groups.find(g=>g.s===s&&Math.abs(g.v-v)<1.5);if(g)g.ps.push(p);else groups.push({s,v,ps:[p]});});
+  const ch=s=>s*.8; // 字高
+  // 文字範圍框（斜寫用一串小框沿著字排）
+  function boxes(p,m,fs){const lb=lab(p),w=labW(lb,fs),h=ch(fs),s=ls(p),x=p.x,y=p.y;
+    if(m==='vert')return s==='bottom'?[[x-h/2,x+h/2,y-2.6-w,y-2.6]]:[[x-h/2,x+h/2,y+2.6,y+2.6+w]];
+    if(m==='flag')return s==='bottom'?[[x+1.4,x+1.4+w,y+1.6,y+1.6+h]]:[[x+1.4,x+1.4+w,y-1.6-h,y-1.6]]; // 旗標：寫在接點外側、出線旁邊
+    if(m==='diag'){const dy=s==='bottom'?-1:1,b=[],n=Math.max(1,Math.ceil(w/h)),st=w/n;for(let k=0;k<n;k++){const cx=x+.8+(k+.5)*st*.707,cy=y+dy*(2.6+(k+.5)*st*.707);b.push([cx-h*.55,cx+h*.55,cy-h*.55,cy+h*.55]);}return b;}
+    if(s==='top')return [[x-w/2,x+w/2,y+5.8-h,y+5.8]];
+    if(s==='bottom')return [[x-w/2,x+w/2,y-3.6-h,y-3.6]];
+    if(m==='out')return s==='left'?[[x-2.4-w,x-2.4,y-1.2-h,y-1.2]]:[[x+2.4,x+2.4+w,y-1.2-h,y-1.2]];
+    return s==='left'?[[x+2.4,x+2.4+w,y+1-h,y+1]]:[[x-2.4-w,x-2.4,y+1-h,y+1]];}
+  const ov=(a,b)=>a[0]<b[1]-.05&&b[0]<a[1]-.05&&a[2]<b[3]-.05&&b[2]<a[3]-.05;
+  const dots=T.map(p=>({p,b:[p.x-.9,p.x+.9,p.y-.9,p.y+.9]})),placed=[],inBody=b=>b[0]>=-1&&b[1]<=t.w+1&&b[2]>=-1&&b[3]<=t.h+1;
+  const ROW=[['in',3.2],['diag',3.2],['vert',3.2],['in',2.6],['diag',2.6],['vert',2.6],['in',2.2],['vert',2.2],['flag',2.6],['flag',2.2],['in',1.8],['vert',1.8],['flag',1.8],['vert',1.5]];
+  const COL=[['in',3.2],['out',3.2],['in',2.6],['out',2.6],['in',2.2],['out',2.2],['in',1.8],['out',1.8],['in',1.5]];
+  // 密的組先挑；組內只看自己這組和已經放好的字
+  groups.sort((a,b)=>b.ps.length-a.ps.length).forEach(g=>{
+    const forced=g.ps.some(p=>t.vlab&&t.vlab.includes(p.id))&&row(g.ps[0]),cands=forced?[['vert',2.4],...ROW.filter(c=>c[0]==='vert')]:row(g.ps[0])?ROW:COL;let best=null;
+    for(const [m,fs] of cands){const bx=g.ps.map(p=>boxes(p,m,fs));let bad=0;
+      bx.forEach((B,i)=>B.forEach(b=>{if(!inBody(b))bad+=2;bx.forEach((C,j)=>{if(j>i&&C.some(c=>ov(b,c)))bad++;});if(placed.some(c=>ov(b,c)))bad++;if(dots.some(o=>o.p!==g.ps[i]&&ov(b,o.b)))bad++;}));
+      if(!best||bad<best.bad)best={m,fs,bx,bad};if(!bad)break;}
+    g.ps.forEach((p,i)=>{out.set(p.id,{m:best.m,fs:best.fs,bx:best.bx[i]});placed.push(...best.bx[i]);});});
   if(LABV.size>500)LABV.clear();LABV.set(key,out);return out;
 }
+// 相容：直寫的接點 → 字級
+function labVert(d,t){const m=new Map();labPlan(d,t).forEach((v,id)=>{if(v.m==='vert')m.set(id,v.fs);});return m;}
 // 器具編號放中間會壓到接點（含接點旁的文字）時，改放到接點之間最寬的直向空白帶；空白帶太窄就直書
 function tagPlace(d,t,fs,small){
   const n=[...String(d.tag)].reduce((s,c)=>s+(c.charCodeAt(0)>255?1:.62),0),cx=t.w/2,cy=t.h/2,pad=1.2;
   if(small&&!t.cns) return {x:cx,y:cy,fs}; // 小器具維持原樣（有連接器的要避開連接器方框）
   // 每個接點佔的範圍：圓點加上旁邊的接點文字（旋轉後接點方向跟著轉，文字位置也跟著算）
-  const LV=labVert(d,t);
-  const boxes=t.terms.map(p=>{
-    const lb=String(termLabel(d,p.id)),vl=LV.has(p.id),lw=vl?labW(lb,LV.get(p.id)):[...lb].reduce((s,c)=>s+(c.charCodeAt(0)>255?3.2:1.95),0),b=[p.x-2.5,p.x+2.5,p.y-2.5,p.y+2.5];
-    const L=vl?(p.side==='bottom'?[p.x-1.5,p.x+1.5,p.y-2.6-lw,p.y]:[p.x-1.5,p.x+1.5,p.y,p.y+2.6+lw])
-      :(p.ls||p.side)==='top'?[p.x-lw/2,p.x+lw/2,p.y+3,p.y+7]:(p.ls||p.side)==='bottom'?[p.x-lw/2,p.x+lw/2,p.y-6.5,p.y-2]
-      :(p.ls||p.side)==='left'?[p.x+5-lw/2,p.x+5+lw/2,p.y-1.5,p.y+2.5]:[p.x-5-lw/2,p.x-5+lw/2,p.y-1.5,p.y+2.5];
-    return [Math.min(b[0],L[0]),Math.max(b[1],L[1]),Math.min(b[2],L[2]),Math.max(b[3],L[3])];
-  });
+  const LP=labPlan(d,t);
+  const boxes=t.terms.map(p=>{const b=[p.x-2.5,p.x+2.5,p.y-2.5,p.y+2.5],L=LP.get(p.id);(L?L.bx:[]).forEach(q=>{b[0]=Math.min(b[0],q[0]);b[1]=Math.max(b[1],q[1]);b[2]=Math.min(b[2],q[2]);b[3]=Math.max(b[3],q[3]);});return b;});
   // 連接器方框也要避開
   if(t.cns)Object.entries(t.cns).forEach(([cid,c])=>{const p=t.terms.find(q=>q.id===cid);if(!p)return;const sw=((d.rot||0)%180)===90,bw=(c.box[2]-c.box[0])/2+2,bh=(c.box[3]-c.box[1])/2+2,W=sw?bh:bw,H=sw?bw:bh;boxes.push([p.x-W,p.x+W,p.y-H,p.y+H+5]);});
   const hit=(x,y,f,sub)=>{const hw=n*f/2,top=y-f*.75,bot=y+(sub?8.5+f*.1:f*.35);return boxes.some(b=>b[1]>x-hw-pad&&b[0]<x+hw+pad&&b[3]>top-pad&&b[2]<bot+pad);};
@@ -128,14 +143,20 @@ function renderBoard(){
     // 連接器：畫針腳範圍的方框，中間一個接點（針腳收在裡面，詳細資料看針腳表）
     if(t.cns)Object.entries(t.cns).forEach(([cid,c])=>{const p=t.terms.find(q=>q.id===cid);if(!p)return;const sw=((d.rot||0)%180)===90,bw=(c.box[2]-c.box[0])+3,bh=(c.box[3]-c.box[1])+3,W=sw?bh:bw,H=sw?bw:bh;
       h+=`<rect class="cn-box" x="${d.x+p.x-W/2}" y="${d.y+p.y-H/2}" width="${W}" height="${H}" rx="0.8"/>`;});
-    const LV=labVert(d,t);
+    const LP=labPlan(d,t);
     for(const p of t.terms){
       const x=d.x+p.x,y=d.y+p.y;
       h+=`<circle class="term" cx="${x}" cy="${y}" r="${tr}"/>`;
       if(t.sym) continue; // 二極體：方向看符號，不另外標 A、K 文字（滑鼠靠近接點會顯示）
       const lb=termLabel(d,p.id),al=!!(d.alias&&d.alias[p.id]),sm=lb!==p.id&&(SLOT_RE.exec(p.id)||(al&&[...lb].length>[...p.id].length?[0,0,'']:null));
-      // 極距很密的端子（例如 FX5U 左側 5 極端子）：標籤照手冊直寫
-      if(LV.has(p.id)){const up=p.side==='bottom',ty=y+(up?-2.6:2.6);h+=`<text class="tl" x="${x}" y="${ty}" text-anchor="${up?'start':'end'}" dominant-baseline="central" transform="rotate(-90 ${x} ${ty})" fill="${t.i}" style="font-size:${LV.get(p.id).toFixed(2)}px">${esc(lb)}</text>`;continue;}
+      const L=LP.get(p.id),fz=L?` style="font-size:${L.fs.toFixed(2)}px"`:'';
+      const lt=labTxt(lb);
+      if(L&&!sm){const s2=p.ls||p.side;
+        if(L.m==='vert'){const up=s2==='bottom',ty=y+(up?-2.6:2.6);h+=`<text class="tl" x="${x}" y="${ty}" text-anchor="${up?'start':'end'}" dominant-baseline="central" transform="rotate(-90 ${x} ${ty})" fill="${t.i}"${fz}>${esc(lt)}</text>`;continue;}
+        if(L.m==='flag'){const up=s2==='bottom';h+=`<text class="tl" x="${x+1.4}" y="${y+(up?1.6+L.fs*.8:-1.6)}" text-anchor="start" fill="${t.i}"${fz}>${esc(lt)}</text>`;continue;}
+        if(L.m==='diag'){const up=s2==='bottom',tx=x+.8,ty=y+(up?-2.6:2.6);h+=`<text class="tl" x="${tx}" y="${ty}" text-anchor="start" dominant-baseline="central" transform="rotate(${up?-45:45} ${tx} ${ty})" fill="${t.i}"${fz}>${esc(lt)}</text>`;continue;}
+        if(s2==='left'||s2==='right'){const o=L.m==='out',an=(s2==='left')!==o?'start':'end',tx=x+((s2==='left')!==o?2.4:-2.4);h+=`<text class="tl" x="${tx}" y="${y+(o?-1.2:1)}" text-anchor="${an}" fill="${t.i}"${fz}>${esc(lt)}</text>`;continue;}
+        h+=`<text class="tl" x="${x}" y="${y+(s2==='top'?5.8:-3.6)}" text-anchor="middle" fill="${t.i}"${fz}>${esc(lt)}</text>`;continue;}
       const ls=p.ls||p.side; // 接點文字位置（可以和出線方向不同）
       if(!(sm&&(sm[2]==='B'||sm[2]==='D'))) h+=`<text class="tl" x="${x+(ls==='left'?5:ls==='right'?-5:0)}" y="${y+(ls==='top'?5.8:ls==='bottom'?-3.6:1)}" text-anchor="middle" fill="${t.i}"${sm?` style="font-size:${Math.min(3.2,7.2/Math.max(2,[...lb].length)).toFixed(2)}px"`:''}>${esc(lb)}</text>`; // 同一片上下兩點只標一次；端子號依長度縮小字體，避免和隔壁重疊
     }
