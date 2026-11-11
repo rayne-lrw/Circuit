@@ -17,7 +17,7 @@ const N=Number(process.argv[2])||150,SEED=Number(process.argv[3])||1;
     // 新增器具會讓整批隨機配置改變（上限要重訂），所以後來加的器具先不抽；要納入時把它從這裡拿掉並重新訂上限
     const SKIP=['laser-ps','dc5521f-tb','dc5525m-tb','laser-dot'];
     // 有系列的器具（例如三菱 FX5 一整批）也不抽，器具庫再怎麼擴充，隨機配置都不會變
-    const TP=Object.entries(TPL).filter(([k,t])=>!SKIP.includes(k)&&!t.ser&&!t.gen&&!t.attach&&!t.front&&!t.legacy&&!t.noOv&&!t.sym&&(t.t||[]).length&&t.w<180&&t.h<240);
+    const TP=Object.entries(TPL).filter(([k,t])=>!SKIP.includes(k)&&!t.ser&&!t.gen&&!(t.attach&&t.attach!=='chain')&&!t.front&&!t.legacy&&!t.noOv&&!t.sym&&(t.t||[]).length&&t.w<180&&t.h<240);
     const plateT=TP.filter(([k,t])=>t.sheet==='plate').map(([k])=>k),fieldT=TP.filter(([k,t])=>t.sheet==='field').map(([k])=>k);
     const stats={},ex={};let routes=0;
     const add=(k,s,msg)=>{stats[k]=(stats[k]||0)+1;(ex[k]=ex[k]||[]);if(ex[k].length<6)ex[k].push(`種子 ${s}：${msg}`);};

@@ -333,16 +333,16 @@ function rackHtml(d){
     if(m&&m.rack!==i)return '';
     const mt=m&&tplOf(m),a=m&&qAddr(m),n=m?rackN(mt):1;
     const nm=`${rackName(t,i)}${n>1?'～'+rackName(t,i+n-1):''}`;
-    const addr=s.k==='io'?(a?`${qHex(a.start)}～${qHex(a.start+a.n-1)}`:`${qHex(qAddrAt(d,i))}～${qHex(qAddrAt(d,i)+15)}`):'';
+    const addr=s.k==='io'?(m?addrText(m):isAhBase(d)?'—':`${qHex(qAddrAt(d,i))}～${qHex(qAddrAt(d,i)+15)}`):'';
     const body=m?`<button class="tool rack-mod" data-rack-pick="${m.id}">${esc(m.tag)}　${esc(mt.n)}</button>`
       :`<select data-rack-add="${i}" aria-label="${esc(nm)} 槽裝模組"><option value="">空槽（選模組裝上）</option>${rackTpls(s.k).map(id=>`<option value="${id}">${esc(resolveTpl(id).n)}</option>`).join('')}</select>`;
     return `<tr><th>${esc(nm)}</th><td>${body}</td><td class="mono">${addr}</td></tr>`;}).join('');
-  return (t.qext?qExtHtml(d):'')+`<div class="sub-h">槽位（I/O 位址依槽位自動編號，空槽算 16 點）</div><table class="rack-tb"><thead><tr><th>槽</th><th>模組</th><th>位址</th></tr></thead><tbody>${rows}</tbody></table><p class="note">從器具庫把模組拖到基板上會自動吸到最近的空槽；選取基板時點器具庫的模組會裝到第一個空槽。</p>`;
+  return (t.qext?qExtHtml(d):'')+`<div class="sub-h">槽位（I/O 位址依槽位自動編號${isAhBase(d)?'：X、Y 各自連續，只算數位模組':'，空槽算 16 點'}）</div><table class="rack-tb"><thead><tr><th>槽</th><th>模組</th><th>位址</th></tr></thead><tbody>${rows}</tbody></table><p class="note">從器具庫把模組拖到基板上會自動吸到最近的空槽；選取基板時點器具庫的模組會裝到第一個空槽。</p>`;
 }
 function rackInfo(d){
   const h=d.on&&devOf(d.on);if(!h||d.rack==null)return `<p class="note">${esc(RACK_KIND[tplOf(d).rackKind])}模組：拖到基板上會裝進${esc(RACK_KIND[tplOf(d).rackKind])}槽${tplOf(d).rackKind==='io'?'，位址依槽位自動編號':''}。</p>`;
-  const a=qAddr(d);
-  return `<dl><dt>裝在</dt><dd>${esc(h.tag)} 的 ${esc(rackName(tplOf(h),d.rack))}${tplOf(d).rackKind==='io'?' 槽':' 槽位'}</dd>${a?`<dt>位址</dt><dd class="mono">${qHex(a.start)}～${qHex(a.start+a.n-1)}</dd>`:''}</dl>`;
+  const a=addrText(d);
+  return `<dl><dt>裝在</dt><dd>${esc(h.tag)} 的 ${esc(rackName(tplOf(h),d.rack))}${tplOf(d).rackKind==='io'?' 槽':' 槽位'}</dd>${a?`<dt>位址</dt><dd class="mono">${esc(a)}</dd>`:''}</dl>`;
 }
 function rackAdd(h,i,id){
   const base=resolveTpl(id);let k=1;while(tagUsed(base.pre+k))k++;
@@ -357,7 +357,7 @@ function qExtHtml(d){
   const mains=S.devices.filter(isMainBase),m=qMainOf(d);
   return `<div class="fields"><label for="qMain">接在主基板<select id="qMain"><option value="">自動（${esc(m?m.tag:'沒有主基板')}）</option>${mains.map(x=>`<option value="${x.id}"${d.main===x.id?' selected':''}>${esc(x.tag)}　${esc(tplOf(x).n)}</option>`).join('')}</select></label>
     <label for="qStage">擴展級數<select id="qStage"><option value="">自動（第 ${qStage(d)} 級）</option>${[1,2,3,4,5,6,7].map(k=>`<option value="${k}"${d.stage===k?' selected':''}>第 ${k} 級</option>`).join('')}</select></label></div>
-    <p class="note">擴展基板的 I/O 位址接在主基板（${m?esc(m.tag):'—'}）後面，從 ${qHex(qBaseStart(d))} 開始。</p>`;
+    <p class="note">擴展基板的 I/O 位址接在主基板（${m?esc(m.tag):'—'}）後面${isAhBase(d)?'':`，從 ${qHex(qBaseStart(d))} 開始`}。</p>`;
 }
 /* ---------- 排線：轉接座（連接器轉端子台）↔ PLC 模組的連接器 ----------
    轉接座 t.adpc={連接器號:{type,pins:{針腳:接點}}}；模組 t.conn={連接器號:{type,pins:{針腳:接點}}}；同 type 才能接，同名針腳一芯一芯接起來 */

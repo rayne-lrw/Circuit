@@ -129,6 +129,24 @@ const {chromium}=require('playwright'),path=require('path');
     // 擴展基板的設定欄
     picked={k:'dev',id:'B2'};renderDetail();ok(!!$('qMain')&&!!$('qStage')&&/從 50 開始/.test($('detail').textContent),'擴展基板：右側有主基板、擴展級數設定，顯示起始位址（Q35B 5 槽後面 → 50）');
     $('qStage').value='3';$('qStage').dispatchEvent(new Event('change'));ok(devOf('B2').stage===3,'改擴展級數存進器具');
+    // ---------- 台達 AH：X、Y 各自連續，依槽位順序只算數位模組；延伸背板接續 ----------
+    S=normalize({box:{w:1400,h:900,d:300,back:20},plate:{w:1360,h:860},door:{w:900,h:700},ducts:[],glands:[],wires:[],
+      devices:[D2('PWR','field-power',0,-300,{sheet:'field'}),D2('PS','drl120',1200,600),D2('AM','ahbp08m1-5a',20,20),D2('AE','ahbp06e1-5a',20,200),D2('KA','my2n-24',1000,600)]}).state;resetUi();
+    const ar=(id,tpl,host,slot)=>{const R=tplOf(devOf(host)).rack,i=R.findIndex((s,k)=>s.k==='io'&&R.slice(0,k).filter(x=>x.k==='io').length===slot);return put(id,tpl,host,i);};
+    const a0=ar('A0','ah16am10n-5a','AM',0),a1=ar('A1','ah16an01r-5a','AM',1),a2=ar('A2','ah32am10n-5a','AM',2),a4=ar('A4','ah16ap11t-5a','AM',4),e0=ar('E0','ah64am10n-5c','AE',0),ee1=ar('E1','ah16an01t-5a','AE',2);
+    ok(qName(a0,'X0.5')==='X0.5'&&qName(a1,'Y0.3')==='Y0.3','AH 0 槽輸入 X0.x、1 槽輸出 Y0.x（X、Y 各自從 0 開始）');
+    ok(qName(a2,'X0.0')==='X1.0'&&qName(a2,'X1.15')==='X2.15','2 槽 32 點輸入：X1.0～X2.15');
+    ok(qName(a4,'X0.7')==='X3.7'&&qName(a4,'Y0.0')==='Y1.0','4 槽（3 槽空著不佔位址）輸入輸出混合：X3.0～、Y1.0～');
+    ok(qName(e0,'X0.0')==='X4.0'&&qName(e0,'X3.15')==='X7.15','延伸背板 0 槽 64 點：接在主背板後面 X4.0～X7.15');
+    ok(qName(ee1,'Y0.0')==='Y2.0','延伸背板的輸出接在主背板後面：Y2.0～');
+    ok(addrText(a4)==='X3.0～X3.15、Y1.0～Y1.15','槽位表的位址文字：X3.0～X3.15、Y1.0～Y1.15');
+    picked={k:'dev',id:'AM'};renderDetail();ok(/X1\.0～X2\.15/.test($('detail').textContent)&&/只算數位模組/.test($('detail').textContent),'AH 主背板的槽位表顯示 X1.0～X2.15 與位址規則');
+    // 模擬：用實際位址
+    let k4=0;const W4=(a,at,bb,bt)=>S.wires.push({id:'h'+(++k4),no:'H'+k4,a:{d:a,t:at},b:{d:bb,t:bt},wps:[],gauge:.75,color:'black'});
+    W4('PWR','R','PS','L');W4('PWR','S','PS','N');W4('PS','-V1','A2','S/S1');W4('PS','+V1','A2','X1.3');W4('PS','-V1','E1','ZP');W4('PS','+V1','E1','UP');W4('E1','Y0.4','KA','14');W4('KA','13','PS','+V1');
+    commit();recompute();simReset();let r4=simRun();
+    ok(r4.X.some(x=>x.name==='X2.3'&&x.on)&&r4.X.filter(x=>x.on).length===1,'模擬：32 點模組右欄 X1.3 接上 → 實際 X2.3 ON，只有一點');
+    SIMST.y.add('E1|Y0.4');r4=simRun();ok(r4.Y.some(y=>y.name==='Y2.4')&&r4.dev.KA&&r4.dev.KA.coil,'模擬：延伸背板 Y2.4 ON，繼電器吸合');
     return out;
   });
   await b.close();

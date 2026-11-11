@@ -110,7 +110,7 @@ const wireKind=w=>{const a=devOf(w.a.d),b=devOf(w.b.d);if(!a||!b)return 'in';if(
 const SLOT_RE=/^(\d+)([A-D])$/;
 const hasSlots=t=>!!(t&&t.gen&&t.cntLabel==='片數');
 // 接點顯示名稱：接點別名（使用者依公司習慣改的名稱，器具還是原本的）優先，端子台用片上標籤
-function termLabel(d,t){if(d&&d.alias&&d.alias[t])return d.alias[t];if(d&&d.rack!=null&&typeof qName==='function'){const q=qName(d,t);if(q)return q;}if(!d||!d.labels)return t;const m=SLOT_RE.exec(t);return (m&&d.labels[m[1]-1])||t;}
+function termLabel(d,t){if(d&&d.alias&&d.alias[t])return d.alias[t];if(d&&d.rack!=null&&typeof qName==='function'){const q=qName(d,t);if(q)return q;}if(d&&d.on&&d.chain!=null&&typeof chainName==='function'){const q=chainName(d,t);if(q)return q;}if(!d||!d.labels)return t;const m=SLOT_RE.exec(t);return (m&&d.labels[m[1]-1])||t;}
 /* 出線口：可裝在箱體四面。side=bottom/top 用 x 定位，left/right 用 y 定位 */
 const GSIDE={bottom:'箱底',top:'箱頂',left:'左側',right:'右側'};
 function glandPt(g){
@@ -183,9 +183,49 @@ function qAddr(d){
   return {start:qAddrAt(h,d.rack),n:t.qpts||16*rackN(t)};
 }
 const qHex=v=>v.toString(16).toUpperCase().padStart(2,'0');
+/* 台達 AH 的位址規則（基板 t.addr==='ah'）：X、Y 各自連續，依槽位順序分給數位模組（模組 t.xw／t.yw 是佔用的字數），空槽與類比模組不佔
+   模組接點用模組內的「字.位元」（X0.5、Y1.3），裝上後加上起始字號（X3.5…） */
+const isAhBase=h=>!!(h&&tplOf(h).addr==='ah');
+// 同一套系統（主基板＋接在它後面的擴展基板，依擴展級數）的基板順序
+function qSystem(h){const m=qMainOf(h);if(!m)return [h];const ex=S.devices.filter(d=>tplOf(d).qext&&qMainOf(d)===m).sort((a,b)=>qStage(a)-qStage(b)||S.devices.indexOf(a)-S.devices.indexOf(b));return [m,...ex];}
+function ahStart(d){
+  const h=d.on&&devOf(d.on);if(!h)return null;let x=0,y=0;
+  for(const b of qSystem(h)){const R=tplOf(b).rack||[],use=rackUse(b);for(let i=0;i<R.length;i++){const m=use.get(i);if(!m||m.rack!==i)continue;if(m===d)return {x,y};const t=tplOf(m);x+=t.xw||0;y+=t.yw||0;}}
+  return null;
+}
+// 模組的位址範圍文字（槽位表、預覽、詳細資料用）
+function addrText(d){
+  const h=d&&d.on&&devOf(d.on);if(!h||d.rack==null)return '';const t=tplOf(d);
+  if(isAhBase(h)){const s=ahStart(d);if(!s)return '';const p=[];if(t.xw)p.push(`X${s.x}.0～X${s.x+t.xw-1}.15`);if(t.yw)p.push(`Y${s.y}.0～Y${s.y+t.yw-1}.15`);return p.join('、');}
+  const a=qAddr(d);return a?`${qHex(a.start)}～${qHex(a.start+a.n-1)}`:'';
+}
+
 // 模組的接點 X00～X0F 換成依槽位算出的實際位址（沒裝在基板上就回傳 null）
-function qName(d,t){const m=/^([XY])([0-9A-F]+)$/.exec(t);if(!m)return null;const a=qAddr(d);return a?m[1]+qHex(a.start+parseInt(m[2],16)):null;}
-function hostOk(h,o){if(!h||h===o||h.on||h.sheet!==o.sheet)return false;const t=tplOf(h);if(t.attach||t.noOv)return false;const ot=tplOf(o);if(ot.rackKind)return !!t.rack&&rackPick(h,o,h.x)!=null;if(ot.coil)return !!coilOf(h);if(ot.at&&!ot.at[h.tpl])return false;return attachOf(o)==='below'?t.cat===C5:t.cat===(ot.hostCat||C2);}
+function qName(d,t){
+  const h=d&&d.on&&devOf(d.on);
+  if(isAhBase(h)){const m=/^([XY])(\d+)\.(\d+)$/.exec(t);if(!m||!(m[1]==='X'?tplOf(d).xw:tplOf(d).yw))return null;const st=ahStart(d);return st?`${m[1]}${(m[1]==='X'?st.x:st.y)+(+m[2])}.${m[3]}`:null;}
+  const m=/^([XY])([0-9A-F]+)$/.exec(t);if(!m)return null;const a=qAddr(d);return a?m[1]+qHex(a.start+parseInt(m[2],16)):null;}
+/* ---------- 往右／往左串接（三菱 FX5、FX3U，台達 AS、DVP）：主機 t.chain={r:族,l:族}；模組 t.chainKind='r'|'l'、t.chainFam=族（或族清單）
+   d.on 是主機、d.chain 是由主機往外的順序；串接的模組上緣對齊主機、一台貼一台，跟著主機移動 ---------- */
+const chainOf=(h,side)=>riders(h).filter(r=>tplOf(r).chainKind===side).sort((a,b)=>(a.chain??0)-(b.chain??0));
+function chainOk(h,o){const t=tplOf(h),ot=tplOf(o),f=t.chain&&t.chain[ot.chainKind];return !!f&&(Array.isArray(ot.chainFam)?ot.chainFam.includes(f):ot.chainFam===f);}
+function chainReflow(h){if(!h)return;const t=tplOf(h);['r','l'].forEach(side=>{let x=side==='r'?h.x+t.w:h.x;chainOf(h,side).forEach((m,i)=>{const mt=tplOf(m);m.chain=i;if(side==='r'){m.x=r1(x);x+=mt.w;}else{x-=mt.w;m.x=r1(x);}m.y=r1(h.y);m.sheet=h.sheet;});});}
+// 串接區：主機右緣（或左緣）到串接尾端再多一台的寬度；回傳插入的順序
+function chainZone(h,o){const t=tplOf(h),ot=tplOf(o),side=ot.chainKind,list=chainOf(h,side).filter(m=>m!==o),len=list.reduce((a,m)=>a+tplOf(m).w,0);
+  return side==='r'?{x:h.x+t.w*0.6,y:h.y-15,w:t.w*0.4+len+ot.w+25,h:t.h+30}:{x:h.x-len-ot.w-25,y:h.y-15,w:len+ot.w+25+t.w*0.4,h:t.h+30};}
+function chainPick(h,o,cx){const side=tplOf(o).chainKind,list=chainOf(h,side).filter(m=>m!==o);for(let k=0;k<list.length;k++){const m=list[k],mc=m.x+tplOf(m).w/2;if(side==='r'?cx<mc:cx>mc)return k;}return list.length;}
+// 串接模組的位址：oct（FX、DVP：8 進位，每台以 8 點為單位）或 word（台達 AS：字.位元）；主機自己的點數在前面
+const octTerms=(t,p)=>(t.terms||[]).filter(x=>new RegExp('^'+p+'[0-7]+$').test(x.id)).length;
+const round8=n=>Math.ceil(n/8)*8;
+function chainUse(t,p,rule){if(rule==='word')return (p==='X'?t.xw:t.yw)||0;const k=p==='X'?t.chainX:t.chainY;return k!=null?k:round8(octTerms(t,p));}
+function chainStart(d,p){const h=d.on&&devOf(d.on);if(!h)return null;const ht=tplOf(h),rule=ht.chainAddr;if(!rule||tplOf(d).chainKind!=='r')return null;
+  let a=rule==='word'?((p==='X'?ht.xw:ht.yw)||0):(p==='X'?(ht.chainX??round8(octTerms(ht,'X'))):(ht.chainY??round8(octTerms(ht,'Y'))));
+  for(const m of chainOf(h,'r')){if(m===d)return {a,rule};a+=chainUse(tplOf(m),p,rule);}return null;}
+function chainName(d,t){const m=/^([XY])(\d+)(?:\.(\d+))?$/.exec(t);if(!m)return null;const st=chainStart(d,m[1]);if(!st)return null;
+  if(st.rule==='word')return m[3]==null?null:`${m[1]}${st.a+(+m[2])}.${m[3]}`;if(!/^[0-7]+$/.test(m[2])||m[3]!=null)return null;return m[1]+(st.a+parseInt(m[2],8)).toString(8);}
+function chainText(d){const p=[];['X','Y'].forEach(L=>{const st=chainStart(d,L),t=tplOf(d);if(!st)return;const n=chainUse(t,L,st.rule);if(!n)return;
+  p.push(st.rule==='word'?`${L}${st.a}.0～${L}${st.a+n-1}.15`:`${L}${st.a.toString(8)}～${L}${(st.a+n-1).toString(8)}`);});return p.join('、');}
+function hostOk(h,o){if(!h||h===o||h.on||h.sheet!==o.sheet)return false;const t=tplOf(h);if(t.attach||t.noOv)return false;const ot=tplOf(o);if(ot.chainKind)return chainOk(h,o);if(ot.rackKind)return !!t.rack&&rackPick(h,o,h.x)!=null;if(ot.coil)return !!coilOf(h);if(ot.at&&!ot.at[h.tpl])return false;return attachOf(o)==='below'?t.cat===C5:t.cat===(ot.hostCat||C2);}
 // 伺服電池的安裝位置：預設掛在下方距左緣 6 mm（MR-J4-200B 外型圖）；
 // MR-J4-700B 依外型圖直立裝在正面右側區塊中間（CN1A、CN1B 左邊），露出 21×69.3 那一面；
 // MR-JE-40B 依外型圖裝在正面電池座（CN4 下方、CN1A／CN1B 左邊）
@@ -214,6 +254,7 @@ function placeOn(r,h){
       if(!best||cost<best.cost)best={rot,x,y,cost};
     }
     r.rot=best.rot;r.x=r1(h.x+best.x);r.y=r1(h.y+best.y);
+  }else if(tplOf(r).chainKind){chainReflow(h);
   }else if(tplOf(r).rackKind){
     // 插槽模組：沒有指定槽或那一槽不能裝，就裝到第一個能裝的槽
     if(r.rack==null||!rackFit(h,r,r.rack)){const i=rackPick(h,r,h.x);if(i!=null)r.rack=i;}

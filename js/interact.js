@@ -401,6 +401,13 @@ function carried(d){const base=isRail(d)?mountedOn(d):[];return [...base,...[d,.
 function hostSnap(o,x,y){
   const t=tplOf(o),c={x:x+t.w/2,y:y+t.h/2},below=attachOf(o)==='below';
   // 掛在下方的附件：拖到驅動器上或驅動器正下方都算
+  // 串接模組：拖到主機右邊（或左邊）的串接區就插進那個位置；離開就拆下，原本那串重新排
+  if(t.chainKind){const prev=o.on&&devOf(o.on),p=x+t.w/2,q=y+t.h/2;
+    const h=S.devices.find(d=>d!==o&&!d.on&&chainOk(d,o)&&d.sheet===o.sheet&&inR({x:p,y:q},chainZone(d,o)));
+    if(!h){delete o.on;delete o.chain;if(prev)chainReflow(prev);return null;}
+    const k=chainPick(h,o,p);o.on=h.id;o.chain=k-0.5;if(prev&&prev!==h)chainReflow(prev);
+    if(S.devices.includes(o))chainReflow(h);else{const list=chainOf(h,t.chainKind),ht=tplOf(h);let xx=t.chainKind==='r'?h.x+ht.w:h.x;list.slice(0,k).forEach(m=>{xx+=t.chainKind==='r'?tplOf(m).w:-tplOf(m).w;});o.x=r1(t.chainKind==='r'?xx:xx-t.w);o.y=h.y;}
+    return h.id;}
   const h=S.devices.find(d=>{if(!hostOk(d,o))return false;const R=rectOf('dev',d);return inR(c,below?{x:R.x,y:R.y,w:R.w,h:R.h+t.h+12}:R);});
   if(!h){delete o.on;delete o.rack;return null;}
   if(t.rackKind){const i=rackPick(h,o,c.x);if(i==null){delete o.on;delete o.rack;return null;}o.rack=i;}
@@ -466,7 +473,7 @@ function deleteSel(){
   if(!sel&&!picked&&selCab&&cabOf(selCab)){askDelCable(cabOf(selCab));return true;} // 選取整條電纜：問一次再刪
   if(sel){S.wires=S.wires.filter(w=>w.id!==sel);sel=null;commit();recompute();return true;}
   if(picked){
-    if(picked.k==='dev'){riders(devOf(picked.id)).forEach(r=>delete r.on);S.devices=S.devices.filter(d=>d.id!==picked.id);S.wires=S.wires.filter(w=>w.a.d!==picked.id&&w.b.d!==picked.id);if(filt.dev===picked.id)filt.dev='';}
+    if(picked.k==='dev'){const dd=devOf(picked.id),hh=dd&&dd.on&&tplOf(dd).chainKind&&devOf(dd.on);riders(dd).forEach(r=>delete r.on);S.devices=S.devices.filter(d=>d.id!==picked.id);S.wires=S.wires.filter(w=>w.a.d!==picked.id&&w.b.d!==picked.id);if(hh)chainReflow(hh);if(filt.dev===picked.id)filt.dev='';}
     else if(picked.k==='gland') S.glands=S.glands.filter(g=>g.id!==picked.id);
     else if(picked.k==='zone'){
       const z=S.fields.find(x=>x.id===picked.id),n=S.devices.filter(d=>inZone(z,d)).length;
@@ -864,8 +871,8 @@ function placeGhost(){
   let g=document.getElementById('placeGhost');
   if(!placing||!placing.o){if(g)g.remove();return;}
   if(!g){g=document.createElementNS('http://www.w3.org/2000/svg','g');g.id='placeGhost';g.setAttribute('pointer-events','none');($('world2')||svg).appendChild(g);}
-  const o=placing.o,t=tplOf(o),bad=!!placing.bad,a=o.on&&o.rack!=null?qAddr(o):null;
-  const info=placing.bad||(o.on?`裝到 ${tagOf(o.on)}`+(o.rack!=null?` 的 ${rackName(tplOf(devOf(o.on)),o.rack)} 槽`+(a?`（${qHex(a.start)}～${qHex(a.start+a.n-1)}）`:''):''):t.n);
+  const o=placing.o,t=tplOf(o),bad=!!placing.bad,a=o.on&&o.rack!=null?addrText(o):'';
+  const info=placing.bad||(o.on?`裝到 ${tagOf(o.on)}`+(o.rack!=null?` 的 ${rackName(tplOf(devOf(o.on)),o.rack)} 槽`+(a?`（${a}）`:''):''):t.n);
   const fs=Math.max(4,Math.min(9,t.w/10));
   g.innerHTML=`<rect class="ghost${bad?' bad':''}" x="${o.x}" y="${o.y}" width="${t.w}" height="${t.h}" rx="1.5"/>`+
     (t.terms||[]).slice(0,200).map(p=>`<circle class="ghost-t" cx="${o.x+p.x}" cy="${o.y+p.y}" r="1"/>`).join('')+
