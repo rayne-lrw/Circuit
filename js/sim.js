@@ -114,6 +114,8 @@ function simRun(){
   const pressed=(d,btn)=>st.press.has(d.id+'|'+btn);
   // 有自己電源接點的器具（PLC CPU、感測器）要有電才動作；增設模組沒有電源接點，跟著 CPU 走，不另外判斷
   const pwrDev=new Set(els.filter(e=>e.k==='pwr').map(e=>e.d.id));
+  // 左側串接的電源模組（台達 AS-PS02）有電時，主機也有電
+  const hostFed=d=>typeof chainOf==='function'&&chainOf(d,'l').some(m=>tplOf(m).feedsHost&&powered[m.id]);
   let coil={...st.coil},latch={...st.latch},powered={},sensOn={},res=null,unstable=false;const seen=new Set();
   for(let it=0;it<40;it++){
     // 1. 目前狀態下導通的接點
@@ -125,7 +127,7 @@ function simRun(){
       else if(e.k==='sw'){const act=e.by==='coil'?coil[e.d.id]:e.by==='host'?coil[e.d.on]:e.by==='latch'?latch[e.d.id]:e.by==='btn'?pressed(e.d,e.btn):false;on=e.nc?!act:!!act;}
       else if(e.k==='sens')on=!!(sensOn[e.d.id+'|'+e.out]);
       if(on){u(e.aK||e.outK,e.bK||e.toK);conducting.push(e);}
-      if(e.k==='plcY')e.pairsK.forEach(([y,yk,ck])=>{if((powered[e.d.id]||!pwrDev.has(e.d.id))&&st.y.has(e.d.id+'|'+y)){u(yk,ck);conducting.push({k:'plcY',d:e.d,aK:yk,bK:ck,y});}});});
+      if(e.k==='plcY')e.pairsK.forEach(([y,yk,ck])=>{if((powered[e.d.id]||!pwrDev.has(e.d.id)||hostFed(e.d))&&st.y.has(e.d.id+'|'+y)){u(yk,ck);conducting.push({k:'plcY',d:e.d,aK:yk,bK:ck,y});}});});
     // 2. 電位：AC 電源一直有電；DC 電源要輸入有電才輸出（可能一層接一層，算到不再變）
     const lab=new Map(),add=(k,l)=>{const r=f(k);if(!lab.has(r))lab.set(r,new Set());lab.get(r).add(l);};
     els.filter(e=>e.k==='ac').forEach(e=>{e.phK.forEach((k,i)=>add(k,`A|${e.d.id}|${e.ph[i]}`));if(e.nK)add(e.nK,`A|${e.d.id}|N`);});

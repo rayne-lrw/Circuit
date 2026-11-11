@@ -221,7 +221,7 @@ function chainUse(t,p,rule){if(rule==='word')return (p==='X'?t.xw:t.yw)||0;const
 function chainStart(d,p){const h=d.on&&devOf(d.on);if(!h)return null;const ht=tplOf(h),rule=ht.chainAddr;if(!rule||tplOf(d).chainKind!=='r')return null;
   let a=rule==='word'?((p==='X'?ht.xw:ht.yw)||0):(p==='X'?(ht.chainX??round8(octTerms(ht,'X'))):(ht.chainY??round8(octTerms(ht,'Y'))));
   for(const m of chainOf(h,'r')){if(m===d)return {a,rule};a+=chainUse(tplOf(m),p,rule);}return null;}
-function chainName(d,t){const m=/^([XY])(\d+)(?:\.(\d+))?$/.exec(t);if(!m)return null;const st=chainStart(d,m[1]);if(!st)return null;
+function chainName(d,t){const m=/^([XY])(\d+)(?:\.(\d+))?$/.exec(t);if(!m)return null;const st=chainStart(d,m[1]);if(!st||!chainUse(tplOf(d),m[1],st.rule))return null;
   if(st.rule==='word')return m[3]==null?null:`${m[1]}${st.a+(+m[2])}.${m[3]}`;if(!/^[0-7]+$/.test(m[2])||m[3]!=null)return null;return m[1]+(st.a+parseInt(m[2],8)).toString(8);}
 function chainText(d){const p=[];['X','Y'].forEach(L=>{const st=chainStart(d,L),t=tplOf(d);if(!st)return;const n=chainUse(t,L,st.rule);if(!n)return;
   p.push(st.rule==='word'?`${L}${st.a}.0～${L}${st.a+n-1}.15`:`${L}${st.a.toString(8)}～${L}${(st.a+n-1).toString(8)}`);});return p.join('、');}

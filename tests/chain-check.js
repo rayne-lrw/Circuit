@@ -57,6 +57,31 @@ const {chromium}=require('playwright'),path=require('path');
     ok(termLabel(dv('E2'),'X0')==='X30'&&termLabel(dv('E3'),'X0')==='X40','DVP48ES3（X0～X27）：擴充從 X30 開始，第二台 X40');
     ok(!chainOk(sv,{tpl:'t-dvp8e'})&&!chainOk(es,{tpl:'fx5-8ex-es'}),'磚型模組不能接薄型、FX5 模組不能接 DVP');
     delete TPL['t-dvp8'];delete TPL['t-dvp8e'];
+    // 台達 AS：字.位元位址，依連接順序；類比模組不佔 X／Y；左側電源模組供電給主機
+    S=normalize({box:{w:1400,h:900,d:300,back:20},plate:{w:1360,h:860},door:{w:900,h:700},ducts:[],glands:[],wires:[],
+      devices:[D('PWR','field-power',0,-300,{sheet:'field'}),D('PS','drl120',1200,600),D('KA','my2n-24',1000,600),D('A','as332t-a',200,100),D('P1','as-ps02',600,500),
+        D('I1','as16am10n-a',600,600),D('AD','as04ad-a',700,600),D('O1','as32an02t-a',800,600),D('I2','as08am10n-a',900,600)]}).state;resetUi();
+    const A=dv('A'),snapR=id=>{const l=chainOf(A,'r'),last=l.length?l[l.length-1]:A,lx=last.x+tplOf(last).w;hostSnap(dv(id),lx+5,A.y+10);};
+    ['I1','AD','O1','I2'].forEach(snapR);ok(['I1','AD','O1','I2'].every(id=>dv(id).on==='A'),'AS 模組依序串上 AS332T');
+    ok(termLabel(dv('I1'),'X0.3')==='X1.3'&&termLabel(dv('I1'),'X0.15')==='X1.15','AS16AM10N（第 1 台）：印字 3 → X1.3（主機佔 X0.x）');
+    ok(termLabel(dv('O1'),'Y0.5')==='Y1.5'&&termLabel(dv('O1'),'Y1.15')==='Y2.15','AS32AN02T：Y1.0～Y2.15（主機佔 Y0.x、類比模組不佔）');
+    ok(termLabel(dv('I2'),'X0.0')==='X2.0','AS08AM10N 接在 16 點輸入後面：X2.0（8 點也佔 1 個字）');
+    ok(termLabel(dv('AD'),'V1+')==='V1+','類比模組接點不換名');
+    hostSnap(dv('P1'),A.x-tplOf(dv('P1')).w-5,A.y+10);ok(dv('P1').on==='A'&&dv('P1').x===A.x-tplOf(dv('P1')).w,'AS-PS02 拖到主機左邊：串上');
+    ok(!chainOk(A,{tpl:'fx5-8ex-es'})&&!chainOk(dv('PS'),{tpl:'as16am10n-a'}),'FX5 模組不能接 AS、AS 模組不能接一般器具');
+    k=100;W('PWR','R','P1','L');W('PWR','S','P1','N');W('PWR','R','PS','L');W('PWR','S','PS','N');
+    W('PS','-V1','I1','S/S');W('PS','+V1','I1','X0.3');W('PS','-V1','O1','C0');W('O1','Y0.5','KA','14');W('KA','13','PS','+V1');
+    commit();recompute();simReset();r=simRun();ok(r.X.some(x=>x.name==='X1.3'&&x.on),'模擬：AS16AM10N 的 3 → X1.3 ON');
+    SIMST.y.add('O1|Y0.5');r=simRun();ok(r.Y.some(y=>y.name==='Y1.5')&&r.dev.KA&&r.dev.KA.coil,'模擬：Y1.5 ON，繼電器吸合');
+    // 主機本身的輸出：主機 24V 沒接線，靠左側 AS-PS02 供電
+    W('O1','Y0.5','PS','-V1');S.wires=S.wires.filter(w=>!(w.a.d==='O1'&&w.a.t==='Y0.5'&&w.b.d==='PS'));
+    W('PS','-V1','A','C0');W('A','Y0.2','KA','14');S.wires=S.wires.filter(w=>!(w.a.d==='O1'&&w.b.d==='KA'));commit();recompute();simReset();SIMST.y.add('A|Y0.2');r=simRun();
+    ok(r.dev.KA&&r.dev.KA.coil,'AS332T 只靠 AS-PS02 供電：主機 Y0.2 ON，繼電器吸合');
+    S.wires=S.wires.filter(w=>w.a.d!=='P1'&&w.b.d!=='P1');commit();recompute();simReset();SIMST.y.add('A|Y0.2');r=simRun();ok(!(r.dev.KA&&r.dev.KA.coil),'電源模組沒電：主機輸出不動作');
+    // AX-3 主機也接 AS 模組
+    S=normalize({box:{w:1400,h:900,d:300,back:20},plate:{w:1360,h:860},door:{w:900,h:700},ducts:[],glands:[],wires:[],
+      devices:[D('X3','ax-308ea0ma1t',100,100),D('N1','as16an01r-a',600,500)]}).state;resetUi();
+    hostSnap(dv('N1'),dv('X3').x+tplOf(dv('X3')).w+5,dv('X3').y+10);ok(dv('N1').on==='X3'&&termLabel(dv('N1'),'Y0.9')==='Y1.9','AX-308E ＋ AS16AN01R：Y1.0～Y1.15');
     return out;
   });
   await b.close();
