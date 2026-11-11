@@ -97,13 +97,14 @@ const {chromium}=require('playwright'),path=require('path');
     ok(btns.includes('MX|1|1')&&btns.includes('MX|2|1')&&btns.includes('EX2|1|1'),'A6TBXY36 列出可接的 40 針連接器（QX42 兩個、QY41P）');
     ok(!btns.some(b=>b.startsWith('A2')),'不列 D-sub 的轉接座');
     document.querySelector('#detail [data-ribbon="MX|1|1"]').click();
-    const rc=S.cables.find(c=>c.ribbon),rw=rc&&coresOf(rc);
-    ok(rc&&rw.length===34,'接排線：建立一條排線，34 芯（32 點＋2 個 COM 針腳）');
-    ok(rw&&rw.every(w=>w.a.d==='MX'&&w.b.d==='A1'),'每一芯從 QX42 針腳接到 A6TBXY36 針腳');
-    ok(rw&&rw.some(w=>w.no==='X05'),'排線芯線的線號用實際位址（X05）');
-    const n3=normalize(JSON.parse(JSON.stringify(S))).state;ok(n3.cables.some(c=>c.ribbon)&&n3.wires.filter(w=>w.cab===rc.id).length===34,'排線存檔讀回');
+    // 排線：兩個連接器之間一條線（連接器在圖上只算一個接點，針腳收在裡面）
+    const rc=S.wires.find(w=>w.ribbon);
+    ok(rc&&rc.a.d==='MX'&&rc.a.t==='CN1'&&rc.b.d==='A1'&&rc.b.t==='CN1'&&!S.cables.length,'接排線：一條線從 QX42 的 CN1 接到 A6TBXY36 的 CN1');
+    ok(cnWhole(devOf('MX'),'CN1').keys.length===34,'QX42 連接器 1 有 34 支針腳（32 點＋2 個 COM）');
+    ok(adpAuto(devOf('A1'),'5')==='X05','轉接座端子 5 經排線對應實際位址 X05');
+    const n3=normalize(JSON.parse(JSON.stringify(S))).state;ok(n3.wires.some(w=>w.ribbon&&w.id===rc.id),'排線存檔讀回');
     document.querySelector('#detail [data-ribbon="MX|1|1"]')&&document.querySelector('#detail [data-ribbon="MX|1|1"]').click();
-    ok(S.cables.filter(c=>c.ribbon).length===1,'同一組不會重複接排線');
+    ok(S.wires.filter(w=>w.ribbon).length===1,'同一組不會重複接排線');
     // 模擬穿過轉接座：24V → 轉接座端子 5，0V… QX42 正公共端：COM1 接 +24V，X 接 0V 就 ON
     let kk=0;const W2=(a,at,bb,bt)=>S.wires.push({id:'v'+(++kk),no:'V'+kk,a:{d:a,t:at},b:{d:bb,t:bt},wps:[],gauge:.75,color:'black'});
     W2('PWR','R','PS','L');W2('PWR','S','PS','N');W2('PWR','R','MP','L');W2('PWR','S','MP','N');W2('PS','+V1','A1','24V');W2('PS','-V1','A1','5');
@@ -143,7 +144,7 @@ const {chromium}=require('playwright'),path=require('path');
     picked={k:'dev',id:'AM'};renderDetail();ok(/X1\.0～X2\.15/.test($('detail').textContent)&&/只算數位模組/.test($('detail').textContent),'AH 主背板的槽位表顯示 X1.0～X2.15 與位址規則');
     // 模擬：用實際位址
     let k4=0;const W4=(a,at,bb,bt)=>S.wires.push({id:'h'+(++k4),no:'H'+k4,a:{d:a,t:at},b:{d:bb,t:bt},wps:[],gauge:.75,color:'black'});
-    W4('PWR','R','PS','L');W4('PWR','S','PS','N');W4('PS','-V1','A2','S/S1');W4('PS','+V1','A2','X1.3');W4('PS','-V1','E1','ZP');W4('PS','+V1','E1','UP');W4('E1','Y0.4','KA','14');W4('KA','13','PS','+V1');
+    W4('PWR','R','PS','L');W4('PWR','S','PS','N');W4('PS','-V1','A2','CN1.S/S1');W4('PS','+V1','A2','CN1.X1.3');W4('PS','-V1','E1','ZP');W4('PS','+V1','E1','UP');W4('E1','Y0.4','KA','14');W4('KA','13','PS','+V1');
     commit();recompute();simReset();let r4=simRun();
     ok(r4.X.some(x=>x.name==='X2.3'&&x.on)&&r4.X.filter(x=>x.on).length===1,'模擬：32 點模組右欄 X1.3 接上 → 實際 X2.3 ON，只有一點');
     SIMST.y.add('E1|Y0.4');r4=simRun();ok(r4.Y.some(y=>y.name==='Y2.4')&&r4.dev.KA&&r4.dev.KA.coil,'模擬：延伸背板 Y2.4 ON，繼電器吸合');

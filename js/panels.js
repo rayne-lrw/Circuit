@@ -122,7 +122,7 @@ function renderDetailInner(){
       ${t.gen?`<div class="fields"><label for="dCount">${esc(t.cntLabel)}<input id="dCount" type="number" min="1" value="${d.count||t.cnt}"></label></div>`:''}
       ${t.userLinks?linkHtml(d):''}${hasSlots(t)?slotHtml(d)+(t.jumper?jumperHtml(d):''):slotSource(d)?`<div class="revert"><p class="note">這組端子台之前用「編輯器具」改過，變成了自訂器具，所以不能每片填端子號，也不能改片數。換回 WAGO 端子台後，原本改的編號會變成每片的端子號，接好的線都會保留。</p><button class="tool" id="slotRevert">換回 ${esc(TPL[slotSource(d)].n)}</button></div>`:''}
       ${t.terms.length>1&&!hasSlots(t)?`<label class="check"><input type="checkbox" id="dBus"${busOf(d)?' checked':''}>全部接點本來就同電位（接地銅板、共點排）</label>`:''}
-      ${t.rack?rackHtml(d):''}${t.rackKind?rackInfo(d):''}${t.adpc?ribbonHtml(d)+pointsHtml(d):''}${t.conn?ribbonOf(d):''}
+      ${t.rack?rackHtml(d):''}${t.rackKind?rackInfo(d):''}${t.adpc?ribbonHtml(d)+pointsHtml(d):''}${t.cns&&!t.adpc?cnHtml(d):''}
       ${!hasSlots(t)&&!t.sym&&t.terms.length?aliasHtml(d,t):''}
       ${S.tpls&&S.tpls[d.tpl]?'<p class="note cus-note">自訂器具（未核對）：尺寸、接點、動作都是自己設定的，程式不會核對；模擬只照「模擬動作」的設定計算。</p>':''}
       <div class="fields"><label for="dX">X（距${d.sheet==='door'?doorShort():d.sheet==='field'?esc(devRef(d).name||'現場區'):'底板'}左緣）<input id="dX" type="number" step="1" value="${r1(d.x-devRef(d).x)}"></label><label for="dY">Y（距上緣）<input id="dY" type="number" step="1" value="${r1(d.y-devRef(d).y)}"></label></div>${moveHtml(false)}
@@ -363,41 +363,52 @@ function qExtHtml(d){
 }
 /* ---------- 排線：轉接座（連接器轉端子台）↔ PLC 模組的連接器 ----------
    轉接座 t.adpc={連接器號:{type,pins:{針腳:接點}}}；模組 t.conn={連接器號:{type,pins:{針腳:接點}}}；同 type 才能接，同名針腳一芯一芯接起來 */
-const ribbonCabs=d=>(S.cables||[]).filter(c=>c.ribbon&&coresOf(c).some(w=>w.a.d===d.id||w.b.d===d.id));
-// 轉接座某個連接器已經接的排線
-const adpCab=(d,acn)=>{const P=new Set(Object.values(tplOf(d).adpc[acn].pins));return ribbonCabs(d).find(c=>coresOf(c).some(w=>(w.b.d===d.id&&P.has(w.b.t))||(w.a.d===d.id&&P.has(w.a.t))));};
+// 排線：兩個連接器之間一條線（w.ribbon）；模擬照針腳名稱一一對接
+const ribbonWires=d=>S.wires.filter(w=>w.ribbon&&(w.a.d===d.id||w.b.d===d.id));
+const cnRibbon=(d,cid)=>S.wires.find(w=>w.ribbon&&((w.a.d===d.id&&w.a.t===cid)||(w.b.d===d.id&&w.b.t===cid)));
+const otherEnd=(w,d,cid)=>w.a.d===d.id&&w.a.t===cid?w.b:w.a;
+// 轉接座某個牛角已經接的排線
+const adpCab=(d,acn)=>cnRibbon(d,tplOf(d).adpc[acn].cid);
 function ribbonHtml(d){
   const t=tplOf(d),AC=Object.entries(t.adpc),multiA=AC.length>1;
   const rows=AC.map(([acn,ac])=>{
     const cur=adpCab(d,acn),pref=ac.pref||[];
-    if(cur){const w=coresOf(cur)[0],o=w&&(w.a.d===d.id?w.b:w.a);return `<p class="note">${multiA?`牛角 ${acn}：`:''}排線 ${esc(cur.no)} 接到 ${esc(o?tagOf(o.d):'—')}（${coresOf(cur).length} 芯）</p>`;}
-    const cands=[];S.devices.forEach(m=>{const mt=tplOf(m);if(!mt.conn||m.sheet!==d.sheet)return;Object.entries(mt.conn).forEach(([cn,c])=>{if(c.type===ac.type)cands.push([m,cn,Object.keys(mt.conn).length>1,pref.some(p=>m.tpl.startsWith(p))]);});});
+    if(cur){const o=otherEnd(cur,d,ac.cid);return `<p class="note">${multiA?`牛角 ${acn}：`:''}排線 ${esc(cur.no)} 接到 ${esc(tagOf(o.d))} ${esc(o.t)}</p>`;}
+    const cands=[];S.devices.forEach(m=>{const mt=tplOf(m);if(!mt.conn||m.sheet!==d.sheet)return;Object.entries(mt.conn).forEach(([cn,c])=>{if(c.type===ac.type&&!cnRibbon(m,c.cid))cands.push([m,cn,Object.keys(mt.conn).length>1,pref.some(p=>m.tpl.startsWith(p))]);});});
     cands.sort((x,y)=>y[3]-x[3]);
-    return `${multiA?`<p class="note">牛角 ${acn}：</p>`:''}${cands.length?`<div class="row" style="flex-wrap:wrap;justify-content:flex-start">${cands.map(([m,cn,two,pf])=>`<button class="tool" data-ribbon="${m.id}|${cn}|${acn}">接到 ${esc(m.tag)}${two?` 連接器 ${cn}`:''}${pf?'（廠商指定）':''}</button>`).join('')}</div>`
-      :`<p class="note">畫面上還沒有 ${esc(ac.type)} 針連接器的 PLC 模組。</p>`}`;}).join('');
-  return `<div class="sub-h">排線（${esc(t.adpc['1'].type)} 針）</div>${rows}<p class="note">按下會建立一條排線（電纜），每一芯從模組的針腳接到這台的同名針腳；模擬會穿過排線與轉接座。</p>`;
+    return `${multiA?`<p class="note">牛角 ${acn}：</p>`:''}${cands.length?`<div class="row" style="flex-wrap:wrap;justify-content:flex-start">${cands.map(([m,cn,two,pf])=>`<button class="tool" data-ribbon="${m.id}|${cn}|${acn}">接到 ${esc(m.tag)}${two?` 連接器 CN${cn}`:''}${pf?'（廠商指定）':''}</button>`).join('')}</div>`
+      :`<p class="note">畫面上還沒有空著的 ${esc(ac.type)} 針連接器 PLC 模組。</p>`}`;}).join('');
+  return `<div class="sub-h">排線（${esc(t.adpc['1'].type)} 針）</div>${rows}<p class="note">按下會建立一條排線，從模組的連接器接到這台的牛角；模擬照針腳一一對接、穿過轉接座。也可以用接線模式直接從連接器拉到連接器。</p>`;
 }
-function ribbonOf(d){const cs=ribbonCabs(d);
-  return cs.length?`<p class="note">排線：${cs.map(c=>{const w=coresOf(c)[0],o=w&&(w.a.d===d.id?w.b:w.a);return `${esc(c.no)} → ${esc(o?tagOf(o.d):'—')}`;}).join('、')}</p>`:'';}
+function ribbonOf(d){const ws=ribbonWires(d);
+  return ws.length?`<p class="note">排線：${ws.map(w=>{const me=w.a.d===d.id?w.a:w.b,o=me===w.a?w.b:w.a;return `${esc(me.t)} ${esc(w.no)} → ${esc(tagOf(o.d))} ${esc(o.t)}`;}).join('、')}</p>`:'';}
+// 建立排線：一條線接兩個連接器
+function ribbonMake(a,acid,m,mcid,no){const n=nextWireNo();S.nextNo=n+1;
+  const w={id:'w'+n+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),no:no||'W'+String(n).padStart(3,'0'),a:{d:m.id,t:mcid},b:{d:a.id,t:acid},wps:[],gauge:.3,color:'gray',ribbon:true,direct:true};S.wires.push(w);return w;}
 function ribbonConnect(a,m,cn,acn='1'){
   const at=tplOf(a),ac=at.adpc&&at.adpc[acn],mt=m&&tplOf(m),mc=mt&&mt.conn&&mt.conn[cn];if(!ac||!mc||mc.type!==ac.type){toast('連接器種類不同，不能接');return 0;}
   if(adpCab(a,acn)){toast('這個牛角已經接了排線');return 0;}
-  const mP=new Set(Object.values(mc.pins));if(S.cables.some(c=>c.ribbon&&coresOf(c).some(w=>(w.a.d===m.id&&mP.has(w.a.t))))){toast('這個模組連接器已經接了排線');return 0;}
-  const pins=Object.keys(ac.pins).filter(p=>mc.pins[p]);if(!pins.length){toast('沒有可以接的針腳');return 0;}
-  const c=newCable('',`排線 ${ac.type}P`);c.ribbon=true;c.direct=true;c.cores=pins.map(p=>({n:p,c:'gray',g:.3}));
-  pins.forEach(p=>{const n=nextWireNo();S.nextNo=n+1;
-    S.wires.push({id:'w'+n+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),no:termLabel(m,mc.pins[p]),a:{d:m.id,t:mc.pins[p]},b:{d:a.id,t:ac.pins[p]},wps:[],gauge:.3,color:'gray',cab:c.id,core:p});});
-  commit();recompute();renderDetail();toast(`已建立排線 ${c.no}：${m.tag} → ${a.tag}（${pins.length} 芯）`);return pins.length;
+  if(cnRibbon(m,mc.cid)){toast('這個模組連接器已經接了排線');return 0;}
+  const pins=ac.keys||at.cns[ac.cid].keys,mk=new Set(mt.cns[mc.cid].keys),n=pins.filter(p=>mk.has(p)).length;if(!n){toast('沒有可以接的針腳');return 0;}
+  const w=ribbonMake(a,ac.cid,m,mc.cid);
+  commit();recompute();renderDetail();toast(`已建立排線 ${w.no}：${m.tag} ${mc.cid} → ${a.tag} ${ac.cid}（${n} 支針腳對接）`);return n;
 }
 /* ---------- 轉接座的端子 → PLC 點位對照：自動依排線推算，可以手動改（轉接座不一定接 PLC） ---------- */
-// 端子（不含牛角針腳）透過內部相通的針腳、排線，接到哪個模組的哪個點
+// 端子透過內部相通的牛角針腳、排線，接到哪個模組的哪個點
 function adpAuto(d,term){
-  const t=tplOf(d),pins=new Set(Object.values(t.adpc).flatMap(c=>Object.values(c.pins)));
-  const g=(t.links||[]).find(x=>x.includes(term))||[term],mine=g.filter(x=>pins.has(x)),out=[];
-  S.wires.forEach(w=>{if(!w.cab)return;const c=cabOf(w.cab);if(!c||!c.ribbon)return;[[w.a,w.b],[w.b,w.a]].forEach(([e,o])=>{if(e.d===d.id&&mine.includes(e.t)){const m=devOf(o.d);if(m){const s=`${termLabel(m,o.t)}`;if(!out.includes(s))out.push(s);}}});});
+  const t=tplOf(d),out=[],subs=[];
+  (t.sim||[]).forEach(e=>{if(e.k!=='pass')return;[[e.a,e.b],[e.b,e.a]].forEach(([x,y])=>{if(x===term){const s=cnSub(d,y);if(s)subs.push(s);}});});
+  subs.forEach(s=>{const w=cnRibbon(d,s.cid);if(!w)return;const o=otherEnd(w,d,s.cid),m=devOf(o.d),mc=m&&cnWhole(m,o.t);if(!mc||!mc.keys.includes(s.key))return;
+    const g=mc.sig[s.key],v=(m.rack!=null&&qName(m,g))||(m.on&&m.chain!=null&&chainName(m,g))||g;if(!out.includes(v))out.push(v);});
   return out.join('、');
 }
-const adpTerms=d=>{const t=tplOf(d),pins=new Set(Object.values(t.adpc).flatMap(c=>Object.values(c.pins)));return t.terms.filter(x=>!pins.has(x.id));};
+const adpTerms=d=>{const t=tplOf(d),cs=t.cns||{};return t.terms.filter(x=>!cs[x.id]);};
+// 連接器針腳表：針腳、訊號（實際位址）、接到哪裡（排線或散線）
+function cnHtml(d){const t=tplOf(d);return ribbonOf(d)+Object.entries(t.cns).map(([cid,c])=>{
+  const rows=c.keys.map(k=>{const id=cid+'.'+k,lb=termLabel(d,id),ws=S.wires.filter(w=>(w.a.d===d.id&&w.a.t===id)||(w.b.d===d.id&&w.b.t===id));
+    return `<tr><th>${esc(k)}</th><td>${esc(lb.replace(cid+'-',''))}</td><td>${ws.map(w=>{const o=w.a.d===d.id&&w.a.t===id?w.b:w.a;return `${esc(w.no)} → ${esc(tagOf(o.d))} ${esc(termLabel(devOf(o.d),o.t))}`;}).join('、')||'—'}</td></tr>`;}).join('');
+  return `<details class="cn-pins"><summary>連接器 ${esc(cid)}（${esc(c.type)}，${c.keys.length} 支針腳）${cnRibbon(d,cid)?'：已接排線':''}</summary><table class="rack-tb"><thead><tr><th>針腳</th><th>訊號</th><th>散線</th></tr></thead><tbody>${rows}</tbody></table>
+  <p class="note">接線模式從 ${esc(cid)} 拉到另一個連接器是排線；拉到一般端子時會問接哪一支針腳。</p></details>`;}).join('');}
 const adpPoint=(d,term)=>(d.points&&d.points[term])||adpAuto(d,term);
 function pointsHtml(d){
   const rows=adpTerms(d).map(x=>{const auto=adpAuto(d,x.id),v=d.points&&d.points[x.id]||'';

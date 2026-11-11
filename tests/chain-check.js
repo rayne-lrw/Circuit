@@ -70,14 +70,14 @@ const {chromium}=require('playwright'),path=require('path');
     hostSnap(dv('P1'),A.x-tplOf(dv('P1')).w-5,A.y+10);ok(dv('P1').on==='A'&&dv('P1').x===A.x-tplOf(dv('P1')).w,'AS-PS02 拖到主機左邊：串上');
     ok(!chainOk(A,{tpl:'fx5-8ex-es'})&&!chainOk(dv('PS'),{tpl:'as16am10n-a'}),'FX5 模組不能接 AS、AS 模組不能接一般器具');
     k=100;W('PWR','R','P1','L');W('PWR','S','P1','N');W('PWR','R','PS','L');W('PWR','S','PS','N');
-    W('PS','-V1','I1','S/S');W('PS','+V1','I1','X0.3');W('PS','-V1','O1','C0');W('O1','Y0.5','KA','14');W('KA','13','PS','+V1');
+    W('PS','-V1','I1','S/S');W('PS','+V1','I1','X0.3');W('PS','-V1','O1','CN1.C0');W('O1','CN1.Y0.5','KA','14');W('KA','13','PS','+V1');
     commit();recompute();simReset();r=simRun();ok(r.X.some(x=>x.name==='X1.3'&&x.on),'模擬：AS16AM10N 的 3 → X1.3 ON');
-    SIMST.y.add('O1|Y0.5');r=simRun();ok(r.Y.some(y=>y.name==='Y1.5')&&r.dev.KA&&r.dev.KA.coil,'模擬：Y1.5 ON，繼電器吸合');
+    SIMST.y.add('O1|CN1.Y0.5');r=simRun();ok(r.Y.some(y=>y.name==='Y1.5')&&r.dev.KA&&r.dev.KA.coil,'模擬：Y1.5 ON，繼電器吸合');
     // 主機本身的輸出：主機 24V 沒接線，靠左側 AS-PS02 供電
-    W('O1','Y0.5','PS','-V1');S.wires=S.wires.filter(w=>!(w.a.d==='O1'&&w.a.t==='Y0.5'&&w.b.d==='PS'));
-    W('PS','-V1','A','C0');W('A','Y0.2','KA','14');S.wires=S.wires.filter(w=>!(w.a.d==='O1'&&w.b.d==='KA'));commit();recompute();simReset();SIMST.y.add('A|Y0.2');r=simRun();
+    W('O1','CN1.Y0.5','PS','-V1');S.wires=S.wires.filter(w=>!(w.a.d==='O1'&&w.a.t==='CN1.Y0.5'&&w.b.d==='PS'));
+    W('PS','-V1','A','CN1.C0');W('A','CN1.Y0.2','KA','14');S.wires=S.wires.filter(w=>!(w.a.d==='O1'&&w.b.d==='KA'));commit();recompute();simReset();SIMST.y.add('A|CN1.Y0.2');r=simRun();
     ok(r.dev.KA&&r.dev.KA.coil,'AS332T 只靠 AS-PS02 供電：主機 Y0.2 ON，繼電器吸合');
-    S.wires=S.wires.filter(w=>w.a.d!=='P1'&&w.b.d!=='P1');commit();recompute();simReset();SIMST.y.add('A|Y0.2');r=simRun();ok(!(r.dev.KA&&r.dev.KA.coil),'電源模組沒電：主機輸出不動作');
+    S.wires=S.wires.filter(w=>w.a.d!=='P1'&&w.b.d!=='P1');commit();recompute();simReset();SIMST.y.add('A|CN1.Y0.2');r=simRun();ok(!(r.dev.KA&&r.dev.KA.coil),'電源模組沒電：主機輸出不動作');
     // AX-3 主機也接 AS 模組
     S=normalize({box:{w:1400,h:900,d:300,back:20},plate:{w:1360,h:860},door:{w:900,h:700},ducts:[],glands:[],wires:[],
       devices:[D('X3','ax-308ea0ma1t',100,100),D('N1','as16an01r-a',600,500)]}).state;resetUi();

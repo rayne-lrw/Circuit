@@ -45,6 +45,9 @@ function dio(name,T,o){
   if(ys.length)sim.push({k:'plcY',pairs:ys.map(y=>[y,o.ycom?o.ycom(y):grp(o.yc||'ZP',word(y))])});
   def(id,null,C4,DT,`${name} ${o.txt}`,IO,110,103,ys.length&&xs.length?'DIO':ys.length?'DO':'DI','dark',T,{ser:'AH 數位 I/O',rackKind:'io',attach:'slot',
     xw:o.xw||0,yw:o.yw||0,links:links.length?links:null,sim,note:`${o.form}；裝上背板後接點依槽位換成實際位址；${NOTE}`});ver(id);
+  // 連接器型（40 針、D-sub 37、MIL）：一個連接器在圖上只算一個接點；cnTerms 每個連接器左右兩欄，連接器之間隔 12 mm
+  if(/連接器|D-sub/.test(o.form)){const g=[];T.forEach(t=>{const k=Math.max(0,Math.floor((t[1]-8)/12));(g[k]=g[k]||[]).push(t[0]);});
+    TPL[id].cnDef=g.filter(Boolean).map((ids,i)=>({cid:'CN'+(i+1),type:/D-sub/.test(o.form)?'D-sub 37':/MIL/.test(o.form)?'MIL 40':'40',ids}));}
 }
 const S2=['S/S','S/S'];
 dio('AH16AM10N-5A',tbTerms([...W16('X'),...S2]),{txt:'數位輸入 16 點（24VDC）',xw:1,form:'18 點脫落式端子'});
@@ -111,5 +114,6 @@ AHX.forEach(r=>{
   def(id,null,board?C7:C4,DT,name,W,H,D,kind==='pwr'?'PS':kind==='cpu'?'CPU':board?'TB':'AM','dark',T,{ser:board?'AH 配線模組':kind==='pwr'?'AH 電源':kind==='cpu'?'AH CPU':'AH 特殊模組',
     ...(kind?{rackKind:kind,attach:'slot'}:{}),links:links.length?links:null,...(sim?{sim}:{}),
     note:`${note?note+'；':''}${med?'部分腳位方向依手冊表格推定；':''}${kind==='cpu'?'通訊埠各畫成一個接點；':''}${NOTE}`});ver(id);
+  if(lay==='cn')TPL[id].cnAuto=true; // 連接器型特殊模組：針腳由 connectors.js 依位置分群
 });
 })();

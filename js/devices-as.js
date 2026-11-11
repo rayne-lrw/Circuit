@@ -32,11 +32,12 @@ ASX.forEach(([m,kind,W,H,D,cols0,ports,blk])=>{
   const cols=cols0.map((col,c)=>col.map(raw=>SKIP.has(raw)?null:{raw,id:dio||cpu?idOf(raw,dio?P(c):null):nm(raw)}));
   const T=[],n=cols.length,rows=Math.max(1,...cols.map(c=>c.length)),hz=card||ps;
   const px=n>2?8:9,cx=cpu?W*0.66:W/2,py=rows>12?2.6:Math.min(7,(H-36)/Math.max(1,rows-1)),y0=rows>12?28:22;
+  const colOf=[];
   cols.forEach((col,c)=>col.forEach((o,r)=>{if(!o)return;let x,y,side;
     if(card){x=8+r*(W-16)/Math.max(1,col.length-1);y=H-6;side='bottom';}
     else if(ps){x=10;y=56+r*7;side='left';}
     else{x=cx+(c-(n-1)/2)*(rows>12&&n<=2?2.6:px);y=y0+r*py;side=c%2===0?'left':'right';}
-    T.push([o.id,+x.toFixed(2),+y.toFixed(2),side,'',o.raw]);}));
+    T.push([o.id,+x.toFixed(2),+y.toFixed(2),side,'',o.raw]);colOf.push(c);}));
   if(cpu||m==='AS00SCM-A')['24V','0V','FG'].forEach((id,i)=>T.push([id,2.5,16+i*7,'left','']));
   if(ax&&!ids0(T).has('TX'))['RX','TX','SG','RS485-','RS485+'].forEach((id,i)=>T.push([id,12,40+i*5,'left','']));
   if(m==='AS01DNET-A')['24V','0V'].forEach((id,i)=>T.push([id,W-6,80+i*7,'right','']));
@@ -64,6 +65,10 @@ ASX.forEach(([m,kind,W,H,D,cols0,ports,blk])=>{
       dio?'串上主機後接點依連接順序換成實際位址（X／Y 字.位元）；':pulse?'模組點位走 HWCONFIG 對應的 D 暫存器，不佔 X／Y；':'不佔 X／Y，資料走 HWCONFIG 配置的 D 暫存器；')+
       (m==='AS64AM10N-A'?'右側連接器 2.x 那組印 S/S、3.x 那組印 S/S1（照印字）；':'')+(m==='AS01DNET-A'?'DeviceNet 端子手冊只畫色條，依 DeviceNet 標準色碼（黑 V-、藍 CAN_L、裸線 SHLD、白 CAN_H、紅 V+）；':'')+NOTE});
   VER[id]=[2,SRC];
+  // 連接器（40 針、D-sub 15）：整個連接器在圖上只算一個接點（CN1、CN2），針腳收在裡面；64 點與 AS02HC 有兩個連接器
+  if(kind==='connector'&&rows>12){const nc=/^AS64|^AS02HC/.test(m)?2:1,per=Math.ceil(n/nc),cn=[];
+    T.forEach((t,i)=>{const c=colOf[i];if(c==null)return;const k=Math.floor(c/per);(cn[k]=cn[k]||[]).push(t[0]);});
+    TPL[id].cnDef=cn.filter(Boolean).map((ids,i)=>({cid:'CN'+(i+1),type:m==='AS02HC-A'?'D-sub 15':'40',ids}));}
   if(cpu)Object.assign(TPL[id],{chain:ax?{r:'as'}:{r:'as',l:'as-ps'},chainAddr:'word',xw,yw});
   else if(ps)Object.assign(TPL[id],{chainKind:'l',chainFam:'as-ps',attach:'chain',feedsHost:true});
   else if(!card)Object.assign(TPL[id],{chainKind:'r',chainFam:'as',attach:'chain',xw,yw});

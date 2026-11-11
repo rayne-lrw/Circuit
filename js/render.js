@@ -36,7 +36,7 @@ function labVert(d,t){
 // 器具編號放中間會壓到接點（含接點旁的文字）時，改放到接點之間最寬的直向空白帶；空白帶太窄就直書
 function tagPlace(d,t,fs,small){
   const n=[...String(d.tag)].reduce((s,c)=>s+(c.charCodeAt(0)>255?1:.62),0),cx=t.w/2,cy=t.h/2,pad=1.2;
-  if(small) return {x:cx,y:cy,fs}; // 小器具維持原樣
+  if(small&&!t.cns) return {x:cx,y:cy,fs}; // 小器具維持原樣（有連接器的要避開連接器方框）
   // 每個接點佔的範圍：圓點加上旁邊的接點文字（旋轉後接點方向跟著轉，文字位置也跟著算）
   const LV=labVert(d,t);
   const boxes=t.terms.map(p=>{
@@ -46,6 +46,8 @@ function tagPlace(d,t,fs,small){
       :(p.ls||p.side)==='left'?[p.x+5-lw/2,p.x+5+lw/2,p.y-1.5,p.y+2.5]:[p.x-5-lw/2,p.x-5+lw/2,p.y-1.5,p.y+2.5];
     return [Math.min(b[0],L[0]),Math.max(b[1],L[1]),Math.min(b[2],L[2]),Math.max(b[3],L[3])];
   });
+  // 連接器方框也要避開
+  if(t.cns)Object.entries(t.cns).forEach(([cid,c])=>{const p=t.terms.find(q=>q.id===cid);if(!p)return;const sw=((d.rot||0)%180)===90,bw=(c.box[2]-c.box[0])/2+2,bh=(c.box[3]-c.box[1])/2+2,W=sw?bh:bw,H=sw?bw:bh;boxes.push([p.x-W,p.x+W,p.y-H,p.y+H+5]);});
   const hit=(x,y,f,sub)=>{const hw=n*f/2,top=y-f*.75,bot=y+(sub?8.5+f*.1:f*.35);return boxes.some(b=>b[1]>x-hw-pad&&b[0]<x+hw+pad&&b[3]>top-pad&&b[2]<bot+pad);};
   if(!hit(cx,cy,fs,true)) return {x:cx,y:cy,fs};
   // 找沒有接點的空白帶：橫向（上下之間）與直向（左右之間），選字可以放最大的那個
@@ -123,6 +125,9 @@ function renderBoard(){
       if(!small&&!L.rot&&L.sub!==false&&!t.sym) h+=`<text class="sub" x="${d.x+L.x}" y="${d.y+L.y+Math.max(5.5,L.fs*.8)}" text-anchor="middle" fill="${t.i}"${L.fs<10?` style="font-size:${Math.max(3,L.fs*.44).toFixed(2)}px"`:''}>${esc(t.b)}</text>`;
     }
     const tr=Math.min(t.terms.length>30?1.3:t.terms.length>14?1.7:2.3,minGap(t)*.36); // 接點很密（例如 D-sub）時縮小圓點
+    // 連接器：畫針腳範圍的方框，中間一個接點（針腳收在裡面，詳細資料看針腳表）
+    if(t.cns)Object.entries(t.cns).forEach(([cid,c])=>{const p=t.terms.find(q=>q.id===cid);if(!p)return;const sw=((d.rot||0)%180)===90,bw=(c.box[2]-c.box[0])+3,bh=(c.box[3]-c.box[1])+3,W=sw?bh:bw,H=sw?bw:bh;
+      h+=`<rect class="cn-box" x="${d.x+p.x-W/2}" y="${d.y+p.y-H/2}" width="${W}" height="${H}" rx="0.8"/>`;});
     const LV=labVert(d,t);
     for(const p of t.terms){
       const x=d.x+p.x,y=d.y+p.y;
@@ -163,7 +168,7 @@ function renderBoard(){
   $('board').innerHTML=h;
 }
 function wireInner(w,r){
-  const col=colorOf(w),sw=gw(w.gauge),d=pathD(r.pts),kind=wireKind(w);
+  const col=colorOf(w),sw=w.ribbon?2.2:gw(w.gauge),d=pathD(r.pts),kind=wireKind(w); // 排線畫粗線
   // 散線的外線畫虛線表示在箱外；電纜芯線已經有外皮表示，不畫虛線
   const dash=kind==='ext'&&!w.cab?' stroke-dasharray="7 3" style="stroke-linecap:butt"':'';
   let s=`<path class="vis" d="${d}" stroke="${col.k}" stroke-width="${sw+.9}"/>`;
@@ -219,7 +224,7 @@ function renderWires(){
     const r=ROUTES.get(w.id); if(!r) continue;
     // 電纜芯線只畫剝線點到接點那兩段
     const segs=r.tails?r.tails.filter(p=>p.length>1):[r.pts],vis=r.tails?{...r}:r;
-    h+=`<g class="wire${r.cab?' core':''}" data-wid="${w.id}">${segs.map(p=>wireInner(w,{...vis,pts:p})).join('')}${segs.map(p=>`<path class="hit" d="${pathD(p)}"/>`).join('')}`;
+    h+=`<g class="wire${r.cab?' core':''}${w.ribbon?' ribbon':''}" data-wid="${w.id}">${segs.map(p=>wireInner(w,{...vis,pts:p})).join('')}${segs.map(p=>`<path class="hit" d="${pathD(p)}"/>`).join('')}`;
     labelSpots(w,r).forEach(p=>{h+=`<text class="wn" data-lab="${w.id}" x="${p.x}" y="${p.y}" text-anchor="middle" dominant-baseline="central"${p.v?` transform="rotate(-90 ${p.x} ${p.y})"`:''}>${esc(w.no)}</text>`;});
     h+='</g>';
     if(wireKind(w)==='ext'&&w.ext&&w.ext.cable){

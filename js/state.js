@@ -40,7 +40,8 @@ function rotated(b,r){
   return m[r];
 }
 const tplOf=d=>rotated(resolveTpl(d.tpl,d.count),d.rot);
-const termOf=(d,t)=>tplOf(d).terms.find(x=>x.id===t);
+// 接點；連接器的單一針腳（'CN1.B20'）位置就是連接器那一點
+const termOf=(d,t)=>{const T=tplOf(d).terms,x=T.find(x=>x.id===t);if(x||typeof cnSub!=='function')return x;const s=cnSub(d,t);if(!s)return undefined;const c=T.find(q=>q.id===s.cid);return c&&{...c,id:t,desc:s.c.desc[s.key]||''};};
 const axis=d=>d.w>=d.h?'h':'v';
 const center=d=>axis(d)==='h'?d.y+d.h/2:d.x+d.w/2;
 const sgn=v=>v>0.01?1:v<-0.01?-1:0;
@@ -110,7 +111,10 @@ const wireKind=w=>{const a=devOf(w.a.d),b=devOf(w.b.d);if(!a||!b)return 'in';if(
 const SLOT_RE=/^(\d+)([A-D])$/;
 const hasSlots=t=>!!(t&&t.gen&&t.cntLabel==='片數');
 // 接點顯示名稱：接點別名（使用者依公司習慣改的名稱，器具還是原本的）優先，端子台用片上標籤
-function termLabel(d,t){if(d&&d.alias&&d.alias[t])return d.alias[t];if(d&&d.rack!=null&&typeof qName==='function'){const q=qName(d,t);if(q)return q;}if(d&&d.on&&d.chain!=null&&typeof chainName==='function'){const q=chainName(d,t);if(q)return q;}if(!d||!d.labels)return t;const m=SLOT_RE.exec(t);return (m&&d.labels[m[1]-1])||t;}
+function termLabel(d,t){if(d&&d.alias&&d.alias[t])return d.alias[t];
+  // 連接器針腳：CN1-B20（三菱 Q 再附實際位址），針腳名稱就是訊號的直接換成實際位址
+  if(typeof cnSub==='function'){const s=cnSub(d,t);if(s){const g=s.c.sig[s.key],a=(d.rack!=null&&typeof qName==='function'&&qName(d,g))||(d.on&&d.chain!=null&&typeof chainName==='function'&&chainName(d,g))||null;
+    return g===s.key?`${s.cid}-${a||g}`:`${s.cid}-${s.key}${a||/^[XY]/.test(g)?`(${a||g})`:''}`;}}if(d&&d.rack!=null&&typeof qName==='function'){const q=qName(d,t);if(q)return q;}if(d&&d.on&&d.chain!=null&&typeof chainName==='function'){const q=chainName(d,t);if(q)return q;}if(!d||!d.labels)return t;const m=SLOT_RE.exec(t);return (m&&d.labels[m[1]-1])||t;}
 /* 出線口：可裝在箱體四面。side=bottom/top 用 x 定位，left/right 用 y 定位 */
 const GSIDE={bottom:'箱底',top:'箱頂',left:'左側',right:'右側'};
 function glandPt(g){
@@ -215,7 +219,7 @@ function chainZone(h,o){const t=tplOf(h),ot=tplOf(o),side=ot.chainKind,list=chai
   return side==='r'?{x:h.x+t.w*0.6,y:h.y-15,w:t.w*0.4+len+ot.w+25,h:t.h+30}:{x:h.x-len-ot.w-25,y:h.y-15,w:len+ot.w+25+t.w*0.4,h:t.h+30};}
 function chainPick(h,o,cx){const side=tplOf(o).chainKind,list=chainOf(h,side).filter(m=>m!==o);for(let k=0;k<list.length;k++){const m=list[k],mc=m.x+tplOf(m).w/2;if(side==='r'?cx<mc:cx>mc)return k;}return list.length;}
 // 串接模組的位址：oct（FX、DVP：8 進位，每台以 8 點為單位）或 word（台達 AS：字.位元）；主機自己的點數在前面
-const octTerms=(t,p)=>(t.terms||[]).filter(x=>new RegExp('^'+p+'[0-7]+$').test(x.id)).length;
+const octTerms=(t,p)=>{const re=new RegExp('^'+p+'[0-7]+$');return (t.terms||[]).filter(x=>re.test(x.id)).length+Object.values(t.cns||{}).reduce((n,c)=>n+Object.values(c.sig).filter(v=>re.test(v)).length,0);};
 const round8=n=>Math.ceil(n/8)*8;
 function chainUse(t,p,rule){if(rule==='word')return (p==='X'?t.xw:t.yw)||0;const k=p==='X'?t.chainX:t.chainY;return k!=null?k:round8(octTerms(t,p));}
 function chainStart(d,p){const h=d.on&&devOf(d.on);if(!h)return null;const ht=tplOf(h),rule=ht.chainAddr;if(!rule||tplOf(d).chainKind!=='r')return null;

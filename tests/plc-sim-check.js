@@ -23,7 +23,7 @@ const {chromium}=require('playwright'),path=require('path');
         const acIn=/UA1/.test(t.n);
         base();const comW=acIn?W('PWR','S','P',e.com):W('PS','-V1','P',e.com);
         e.pts.forEach(x=>acIn?W('PWR','R','P',x):W('PS','+V1','P',x));
-        simReset();let R=run();const nm=x=>e.cpu?x:'P·'+x;
+        simReset();let R=run();const nm=x=>{const g=cnSig(devOf('P'),x);return e.cpu?g:'P·'+g;}; // 連接器針腳用訊號名稱
         const off=e.pts.filter(x=>{const r=R.X.find(z=>z.name===nm(x));return !r||!r.on;});
         if(off.length)bad.push(`${id}：共點 ${e.com} 接好，${off.join(',')} 沒有 ON`);nx+=e.pts.length;
         S.wires=S.wires.filter(w=>!(w.b.d==='P'&&w.b.t===e.com));R=run();

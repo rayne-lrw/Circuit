@@ -259,6 +259,7 @@ text.sub{font-family:var(--sans);font-size:4.4px}
 .wire path{fill:none;stroke-linejoin:round;stroke-linecap:round}
 .wire .hit{stroke:transparent;stroke-width:12px;vector-effect:non-scaling-stroke;pointer-events:stroke}
 .wire .vis{pointer-events:none}
+.cn-box{fill:rgba(255,255,255,.06);stroke:#c9a227;stroke-width:.35;stroke-dasharray:1 .6}
 .wn{font-family:var(--mono);font-size:3.4px;font-weight:500;fill:#14181a;paint-order:stroke;stroke:#fff;stroke-width:1px;display:none;pointer-events:none}
 .z2 .wn,.labels-on .wn{display:block}
 .ct{font-family:var(--mono);font-size:6px;font-weight:600;fill:#14181a;paint-order:stroke;stroke:#fff;stroke-width:1.6px;pointer-events:none}

@@ -1,4 +1,5 @@
-// 轉接座訊號對應檢查：轉接座（柏叡、三菱 A6TB）用排線接到裝在基板上的 Q 系列模組，逐點確認模擬時 PLC 收到的點位正確
+// 轉接座訊號對應檢查：轉接座（柏叡、三菱 A6TB）用排線（兩個連接器之間一條線）接到裝在基板上的 Q 系列模組，逐點確認模擬時 PLC 收到的點位正確
+// - 連接器在圖上只算一個接點（CN1），針腳是成組接點的子導線（CN1.B20）；散線可以接在單一支針腳上
 // - 輸入：QX41 裝在 1 槽（實際位址 X10～X2F），共點接 +24V；轉接座每個端子逐一接 0V，只有對應的那一個 X 會 ON，名稱是實際位址
 // - 輸出：QY41P 裝在 2 槽（Y30～Y4F）；每個 Y 逐一 ON，只有接在對應端子上的繼電器吸合
 // - 右側「端子 → PLC 點位」對照表自動推算的點位，和模擬實際 ON 的點一致；手動填的會蓋過自動
@@ -19,16 +20,17 @@ const {chromium}=require('playwright'),path=require('path');
       return n;
     };
     let k=0;const W=(a,at,bb,bt)=>S.wires.push({id:'t'+(++k),no:'T'+k,a:{d:a,t:at},b:{d:bb,t:bt},wps:[],gauge:.75,color:'black'});
-    const base=()=>{S.wires=S.wires.filter(w=>w.cab);W('PWR','R','P','L');W('PWR','S','P','N');W('PWR','R','PS','L');W('PWR','S','PS','N');};
+    const base=()=>{S.wires=S.wires.filter(w=>w.cab||w.ribbon);W('PWR','R','P','L');W('PWR','S','P','N');W('PWR','R','PS','L');W('PWR','S','PS','N');};
     // 轉接座上和模組某支針相通的端子（不含牛角針腳本身）
-    const termFor=(modPin)=>{const a=devOf('A'),t=tplOf(a),cab=S.cables.find(c=>c.ribbon),w=coresOf(cab).find(x=>x.core===modPin);if(!w)return null;
-      const pinT=w.b.t,pins=new Set(Object.values(t.adpc).flatMap(c=>Object.values(c.pins))),g=(t.links||[]).find(x=>x.includes(pinT))||[];return g.find(x=>!pins.has(x))||null;};
+    // 排線那一頭（轉接座）的牛角、和模組針腳同名的那一支，內部接到哪個端子
+    const termFor=(modPin)=>{const a=devOf('A'),t=tplOf(a),w=S.wires.find(x=>x.ribbon);if(!w)return null;const sub=w.b.t+'.'+modPin;
+      const e=(t.sim||[]).find(e=>e.k==='pass'&&(e.a===sub||e.b===sub));return e?(e.a===sub?e.b:e.a):null;};
     // ---------- 輸入 ----------
     ['bore-xo40m','bore-xh40m','bore-xu40m','bore-xw40m','bore-xn40m','bore-xv40m','bore-xo40m2','bore-dxo40mb','a6tbxy36'].forEach(adp=>{
       const acs=adp==='bore-xo40m2'?['1','2']:['1'];
       acs.forEach(acn=>{
         const n=setup(adp,'qx41',3,acn);if(!n){ok(false,`${adp}：接不上 QX41`);return;}
-        const mc=tplOf(devOf('M')).conn['1'].pins,com=termFor('B01');
+        const mc=tplOf(devOf('M')).conn['1'].pins,com=termFor('B01');ok(S.wires.filter(w=>w.ribbon).length===1&&!S.cables.length,`${adp}${acs.length>1?' 牛角 '+acn:''}：排線是一條線，不是一束芯線`);
         let bad=[],cnt=0,ptBad=[];
         Object.entries(mc).forEach(([pin,sig])=>{if(!/^X/.test(sig))return;
           const term=termFor(pin),want=qName(devOf('M'),sig);if(!term){bad.push(pin+' 沒有端子');return;}
@@ -50,11 +52,33 @@ const {chromium}=require('playwright'),path=require('path');
         base();W('PS','+V1','A',vp);W('PS','-V1','A',cm);W('A',term,'KA','14');W('KA','13','PS','+V1');recompute();simReset();
         let r=simRun();if(r.dev.KA&&r.dev.KA.coil)bad.push(`${want} 沒 ON 就吸合`);
         // 其他 Y 全部 ON、這一點 OFF：繼電器不能吸合
-        Object.values(mc).filter(s=>/^Y/.test(s)&&s!==sig).forEach(s=>SIMST.y.add('M|'+s));r=simRun();if(r.dev.KA&&r.dev.KA.coil)bad.push(`其他點 ON 時 ${termLabel(devOf('A'),term)} 也吸合`);
-        SIMST.y.clear();SIMST.y.add('M|'+sig);r=simRun();if(!(r.dev.KA&&r.dev.KA.coil))bad.push(`${want} ON，${termLabel(devOf('A'),term)} 的繼電器沒吸合`);
+        Object.entries(mc).filter(([p2,s])=>/^Y/.test(s)&&s!==sig).forEach(([p2])=>SIMST.y.add('M|CN1.'+p2));r=simRun();if(r.dev.KA&&r.dev.KA.coil)bad.push(`其他點 ON 時 ${termLabel(devOf('A'),term)} 也吸合`);
+        SIMST.y.clear();SIMST.y.add('M|CN1.'+pin);r=simRun();if(!(r.dev.KA&&r.dev.KA.coil))bad.push(`${want} ON，${termLabel(devOf('A'),term)} 的繼電器沒吸合`);
         if(!r.Y.some(y=>y.name===want))bad.push(`輸出清單沒有 ${want}`);cnt++;});
       ok(cnt===32&&!bad.length,`${adp} 接 QY41P（2 槽）：Y30～Y4F 逐點 ON，只有對應端子上的繼電器吸合${bad.length?'；'+bad.slice(0,4).join('；'):''}`);
     });
+    // ---------- 接頭對散線：散線接在 QX41 連接器的單一支針腳 ----------
+    setup('bore-xo40m','qx41',3);S.wires=S.wires.filter(w=>!w.ribbon);{
+      const M=devOf('M'),mp=tplOf(M).conn['1'].pins,comPin=Object.keys(mp).find(p=>mp[p]==='COM'),xPin=Object.keys(mp).find(p=>mp[p]==='X05'),want=qName(M,'X05');
+      base();W('PS','+V1','M','CN1.'+comPin);W('PS','-V1','M','CN1.'+xPin);recompute();simReset();const r=simRun(),on=r.X.filter(x=>x.on).map(x=>x.name);
+      ok(on.length===1&&on[0]===want,`散線接在 QX41 CN1 的 ${xPin}（X05）：模擬只有 ${want} ON${on.length!==1?'；實際 '+on.join(','):''}`);
+      ok(termLabel(M,'CN1.'+xPin)===`CN1-${xPin}(${want})`,`接點名稱顯示 CN1-${xPin}(${want})`);
+      const n2=normalize(JSON.parse(JSON.stringify(S))).state;ok(n2.wires.some(w=>w.b.t==='CN1.'+xPin),'散線接在針腳：存檔讀回保留');
+      // 建線彈窗：一端是連接器時選針腳；兩端都是連接器是排線
+      draft={a:{d:'M',t:'CN1'},end:{d:'KA',t:'14'},wps:[]};openPop();ok(!!document.getElementById('pPin'),'從連接器拉線到一般端子：彈窗有「針腳」選單');
+      draft.pin=xPin;finishWire();ok(S.wires.some(w=>w.a.d==='M'&&w.a.t==='CN1.'+xPin&&w.b.t==='14'),`選針腳 ${xPin} 建立：線接在 CN1.${xPin}`);
+      draft={a:{d:'M',t:'CN1'},end:{d:'A',t:'CN1'},wps:[]};openPop();ok(!document.getElementById('pPin'),'連接器拉到連接器：不用選針腳');finishWire();
+      ok(S.wires.some(w=>w.ribbon&&w.a.t==='CN1'&&w.b.t==='CN1'),'連接器拉到連接器：建立一條排線');
+      ok(adpAuto(devOf('A'),'B20')===qName(M,'X00'),'接線模式拉的排線：轉接座對照表一樣自動推算');}
+    // ---------- 舊檔：排線是一束芯線（每支針腳一芯、接在針腳接點上）→ 讀檔換成一條排線 ----------
+    {const old={box:{w:1200,h:800,d:300,back:20},plate:{w:1160,h:760},door:{w:900,h:700},ducts:[],glands:[],devices:[D('B','q35b',20,20),D('M','qx41',0,0,{on:'B',rack:1}),D('A','bore-xo40m',300,300)],
+        cables:[{id:'C1',no:'C1',spec:'排線 40P',ribbon:true,direct:true,cores:[{n:'B20',c:'gray',g:.3},{n:'A20',c:'gray',g:.3}]}],
+        wires:[{id:'w1',no:'X10',a:{d:'M',t:'X00'},b:{d:'A',t:'CN-B20'},wps:[],gauge:.3,color:'gray',cab:'C1',core:'B20'},{id:'w2',no:'X20',a:{d:'M',t:'X10'},b:{d:'A',t:'CN-A20'},wps:[],gauge:.3,color:'gray',cab:'C1',core:'A20'},
+          {id:'w3',no:'W3',a:{d:'M',t:'X01'},b:{d:'A',t:'B1'},wps:[],gauge:.75,color:'black'}]};
+      S=normalize(old).state;resetUi();placeOn(devOf('M'),devOf('B'));recompute();
+      ok(S.wires.filter(w=>w.ribbon).length===1&&!S.cables.length&&S.wires.find(w=>w.ribbon).a.t==='CN1','舊檔的 2 芯排線讀進來變成一條連接器對連接器的排線');
+      ok(S.wires.some(w=>w.id==='w3'&&w.a.t==='CN1.B19'),'舊檔接在針腳接點（X01）的散線：換成 CN1.B19');
+      ok(adpAuto(devOf('A'),'B20')===qName(devOf('M'),'X00'),'舊檔轉換後：轉接座對照表照樣推算');}
     // 兩個連接器的 64 點模組：轉接座分別接連接器 1、2，對照表分到 X00～X1F、X20～X3F
     S=normalize({box:{w:1200,h:800,d:300,back:20},plate:{w:1160,h:760},door:{w:900,h:700},ducts:[],glands:[],wires:[],
       devices:[D('B','q35b',20,20),D('A1','bore-xo40m',300,300),D('A2','bore-xo40m',450,300)]}).state;resetUi();

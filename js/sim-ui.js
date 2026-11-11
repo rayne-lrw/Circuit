@@ -50,7 +50,7 @@ function simPanel(box){
   const opE=d=>simElems(d).filter(e=>e.btn&&(e.by!=='trip'||d.thReset==='auto'));
   const ops=S.devices.filter(d=>opE(d).length).sort((a,b)=>natCmp(a.tag,b.tag));
   const ths=S.devices.filter(d=>d.thReset!=='auto'&&simElems(d).some(e=>e.by==='trip')).sort((a,b)=>natCmp(a.tag,b.tag));
-  const Y=r.Y.filter(y=>y.wired),X=r.X.filter(x=>S.wires.some(w=>(w.a.d===x.d.id&&w.a.t===x.t)||(w.b.d===x.d.id&&w.b.t===x.t)));
+  const Y=r.Y.filter(y=>y.wired),X=r.X.filter(x=>S.wires.some(w=>wiredAt(w,x.d.id,x.t)));
   const act=Object.entries(r.dev).filter(([id,s])=>s.coil||s.latch||s.on.length).map(([id,s])=>`${esc(tagOf(id))}${s.coil?'（線圈）':s.latch?'（保持）':'（'+esc(s.on.join('、'))+'）'}`);
   const rev=Object.entries(r.dev).filter(([id,s])=>s.rev.length).map(([id,s])=>esc(tagOf(id)));
   const msg=[r.shorts?`<p class="sim-bad">短路 ${r.shorts} 處（桃紅色的線），請檢查配線</p>`:'',r.unstable?'<p class="sim-bad">迴路一直切換停不下來（不穩定），可能是自我保持或互鎖接錯</p>':'',rev.length?`<p class="sim-warn">極性相反：${rev.join('、')}</p>`:'',...r.warn.map(t=>`<p class="sim-warn">${esc(t)}</p>`)].join('');

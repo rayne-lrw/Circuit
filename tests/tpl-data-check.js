@@ -12,8 +12,11 @@ const {chromium}=require('playwright'),path=require('path');
       T.forEach(x=>{if(x.x<0||x.y<0||x.x>t.w||x.y>t.h)msg.push(`接點 ${x.id} 在外框外（${x.x},${x.y}）`);});
       for(let i=0;i<T.length;i++)for(let j=i+1;j<T.length;j++){if(Math.hypot(T[i].x-T[j].x,T[i].y-T[j].y)<1.2)msg.push(`接點 ${T[i].id} 和 ${T[j].id} 重疊`);}
       if(t.links)t.links.forEach(g=>g.forEach(x=>{if(!ids.includes(x))msg.push('同電位組的接點不存在 '+x);}));
-      const sim=simElems({tpl:id});if(sim.length){const ids2=new Set(ids);const ok=simClean(sim,ids2)||[];
-        if(ok.length!==sim.length)msg.push(`動作資料 ${sim.length-ok.length} 條指到不存在的接點`);
+      // 動作資料指到的接點都要存在；連接器的針腳寫成 'CN1.針腳'（成組接點的子導線）
+      const sim=simElems({tpl:id});if(sim.length){const ids2=new Set(ids);sim.filter(e=>e.k==='grp').forEach(e=>{if(!ids2.has(e.t))msg.push('成組接點不存在 '+e.t);e.sub.forEach(k=>ids2.add(e.t+'.'+k));});
+        const refs=e=>[...['a','b','p','n','out','to','com'].map(k=>e[k]),...['pts','in','ins','auto','ph'].flatMap(k=>e[k]||[]),...(e.pairs||[]).flat()].filter(v=>v!=null);
+        const bad=sim.filter(e=>e.k!=='grp'&&refs(e).some(v=>!ids2.has(v)));
+        if(bad.length)msg.push(`動作資料 ${bad.length} 條指到不存在的接點（${[...new Set(bad.flatMap(refs).filter(v=>!ids2.has(v)))].slice(0,4).join(',')}）`);
         const Y=sim.filter(e=>e.k==='plcY').flatMap(e=>e.pairs.map(p=>p[0])),X=sim.filter(e=>e.k==='plcX').flatMap(e=>e.pts);
         const ys=ids.filter(x=>/^Y\d+$/.test(x)),xs=ids.filter(x=>/^X\d+$/.test(x));
         if(ys.some(y=>!Y.includes(y)))msg.push('有 Y 點沒有分到共點：'+ys.filter(y=>!Y.includes(y)).join(','));

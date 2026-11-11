@@ -70,7 +70,11 @@ function normalize(o){
   // 範本接點改名：舊檔接在舊名稱的線改接到新名稱（PNOZ X2.8P 的 S33 實際是 S52）
   const RENAME={pnoz:{S33:'S52'},glr22:{'+24V':'棕','0V':'藍',OSSD1:'黑',OSSD2:'白'},ga096:{'+24V':'棕','0V':'藍',OUT:'黑',SYNC:'白'}};
   o.wires.forEach(w=>{[w&&w.a,w&&w.b].forEach(e=>{const d=e&&devices.find(x=>x.id===e.d),m=d&&RENAME[d.tpl];if(m&&m[e.t])e.t=m[e.t];});});
-  const has=e=>{const d=e&&devices.find(x=>x.id===e.d);return d&&termsOf(d).includes(e.t);};
+  // 連接器：舊檔接在原本針腳接點的線換成 'CN1.針腳'；新檔也可以接在單一針腳（'CN1.B20'）
+  const cnsOf=dv=>{const b=tpls[dv.tpl]||TPL[dv.tpl];return b&&b.cns||null;};
+  o.wires.forEach(w=>{[w&&w.a,w&&w.b].forEach(e=>{const d=e&&devices.find(x=>x.id===e.d),b=d&&(tpls[d.tpl]||TPL[d.tpl]);if(b&&b.pinMap&&b.pinMap[e.t])e.t=b.pinMap[e.t];});});
+  const isSub=(d,t)=>{const cs=cnsOf(d),i=typeof t==='string'?t.indexOf('.'):-1;return !!(cs&&i>0&&cs[t.slice(0,i)]&&cs[t.slice(0,i)].keys.includes(t.slice(i+1)));};
+  const has=e=>{const d=e&&devices.find(x=>x.id===e.d);return d&&(termsOf(d).includes(e.t)||isSub(d,e.t));};
   const wires=o.wires.filter(w=>w&&safe(w.id)&&typeof w.no==='string'&&w.no.trim()&&has(w.a)&&has(w.b)).map(w=>{
     const r={id:w.id,no:txt(w.no,16).trim(),a:{d:w.a.d,t:w.a.t},b:{d:w.b.d,t:w.b.t},gauge:num(w.gauge,1.25),color:safe(w.color)?w.color:'black',
       wps:(Array.isArray(w.wps)?w.wps:[]).filter(p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y)).map(p=>({x:p.x,y:p.y}))};
@@ -79,6 +83,7 @@ function normalize(o){
     if(safe(w.gland)) r.gland=w.gland;
     if(w.direct===true) r.direct=true;
     if(w.auto==='coil') r.auto='coil';
+    if(w.ribbon===true) r.ribbon=true;
     if(Number.isFinite(w.lab)) r.lab=Math.min(1,Math.max(0,w.lab));
     if(['end','mid','both'].includes(w.labAt)) r.labAt=w.labAt;
     if(safe(w.cab)){r.cab=w.cab;r.core=txt(w.core,10).trim()||'1';}
@@ -98,6 +103,11 @@ function normalize(o){
     if(typeof c.hex==='string'&&/^#[0-9a-fA-F]{6}$/.test(c.hex)){r.hex=c.hex;r.cname=txt(c.cname||'自訂',8);}
     return r;
   });
+  // 舊檔的排線（一條電纜、每支針腳一芯）：換成兩個連接器之間的一條排線
+  cables.filter(c=>c.ribbon).forEach(c=>{const cw=wires.filter(w=>w.cab===c.id);if(!cw.length)return;const w0=cw[0],base=e=>{const i=e.t.indexOf('.');return i>0?{d:e.d,t:e.t.slice(0,i)}:null;},A=base(w0.a),B=base(w0.b);
+    cw.forEach(w=>wires.splice(wires.indexOf(w),1));c.dead=true;
+    if(A&&B)wires.push({id:w0.id,no:c.no,a:A,b:B,gauge:.3,color:'gray',wps:[],ribbon:true,direct:true});});
+  for(let i=cables.length-1;i>=0;i--)if(cables[i].dead)cables.splice(i,1);
   wires.forEach(w=>{if(w.cab&&!cables.some(c=>c.id===w.cab)){delete w.cab;delete w.core;}});
   const plate={w:Math.max(100,num(o.plate&&o.plate.w,600)),h:Math.max(100,num(o.plate&&o.plate.h,800))};
   const bx=o.box||{},box={w:Math.max(100,num(bx.w,plate.w+100)),h:Math.max(100,num(bx.h,plate.h+100)),d:Math.max(50,num(bx.d,300)),back:Math.max(0,num(bx.back,20))};
