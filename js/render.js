@@ -126,7 +126,9 @@ function renderBoard(){
       if(g.k==='res'){const cx=d.x+g.x+g.w/2;h+=`<g class="deco"><line x1="${cx}" y1="${d.y+(g.a??g.y-4)}" x2="${cx}" y2="${d.y+g.y-.3}"/><line x1="${cx}" y1="${d.y+g.y+g.h+.3}" x2="${cx}" y2="${d.y+(g.b??g.y+g.h+4)}"/><rect x="${d.x+g.x}" y="${d.y+g.y}" width="${g.w}" height="${g.h}" rx=".6"/><text x="${cx+g.w/2+2}" y="${d.y+g.y+g.h/2}" dominant-baseline="central">${esc(g.label||'')}</text></g>`;}});
     const bodyEnd=h.length; // 短路片插在外殼後面，編號與接點畫在它上面
     const cy=d.y+t.h/2,small=t.w<28||t.h<26,tagSize=small?Math.max(4.5,Math.min(t.w/3.6,8)):10;
-    if(d.on) h+=`<text class="tag" style="font-size:5px" x="${d.x+t.w/2}" y="${d.y+5.5}" text-anchor="middle" fill="${t.i}">${esc(d.tag)}</text>`; // 附件編號放上緣，不和接觸器的編號疊在一起
+    if(d.on&&['cb','fa'].includes(t.rackKind)){} // IDEC 接點塊：屬於操作部，圖上不另外標編號（詳細資料、接線表照樣有）
+    else if(t.cbHost&&riders(d).length) h+=`<text class="tag" style="font-size:6px" x="${d.x+t.w/2}" y="${d.y-2.5}" text-anchor="middle" fill="#333">${esc(d.tag)}</text>`; // 操作部的編號被接點塊蓋住：放到上方
+    else if(d.on) h+=`<text class="tag" style="font-size:5px" x="${d.x+t.w/2}" y="${d.y+5.5}" text-anchor="middle" fill="${t.i}">${esc(d.tag)}</text>`; // 附件編號放上緣，不和接觸器的編號疊在一起
     else if(t.noOv) h+=`<text class="sub" x="${d.x+t.w/2}" y="${cy+1.5}" text-anchor="middle" fill="${t.i}">${esc(d.tag)} 鋁軌 ${t.w} mm</text>`;
     else{
       let L=t.tagAt&&!d.rot?{x:t.tagAt.x,y:t.tagAt.y,fs:tagSize}:tagPlace(d,t,tagSize,small); // 範本指定編號位置（例如按鈕盒的名牌）

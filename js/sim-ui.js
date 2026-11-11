@@ -32,10 +32,18 @@ function simPaint(){
 function simPointerDown(e,p){
   // 依位置找器具（導線蓋在器具上面也點得到）：可以操作的器具優先，同樣時取面積小的（例如裝在接觸器上的附件）
   const under=S.devices.filter(x=>inR(p,rectOf('dev',x))).sort((a,b)=>{const oa=simElems(a).some(e=>e.btn||e.k==='brk'||e.by==='trip')?0:1,ob=simElems(b).some(e=>e.btn||e.k==='brk'||e.by==='trip')?0:1;if(oa!==ob)return oa-ob;const ra=rectOf('dev',a),rb=rectOf('dev',b);return ra.w*ra.h-rb.w*rb.h;});
-  const d=under[0]||null;
+  let d=under[0]||null;
+  // 點到裝在操作部上的接點塊：當成點操作部
+  if(d&&d.on&&tplOf(d).rackKind&&devOf(d.on)&&tplOf(devOf(d.on)).op)d=devOf(d.on);
   if(!d){act={t:'press',sx:e.clientX,sy:e.clientY,vx:view.x,vy:view.y,moved:false,btn:e.button,id:e.pointerId,target:e.target,pan:true};svg.setPointerCapture(e.pointerId);return;}
   const els=simElems(d);
   if(els.some(x=>x.k==='brk')){SIMST.on[d.id]=!SIMST.on[d.id];simRefresh();return;}
+  const op=tplOf(d).op;
+  if(op&&op.k==='alt'){SIMST.on[d.id]=!SIMST.on[d.id];simRefresh();return;}
+  if(op&&op.k==='sel'){const R=rectOf('dev',d),left=p.x<R.x+R.w/2,side=left?'L':'R',cur=SIMST.sel[d.id]||op.def,spring=(op.ret||'').includes(side);
+    // 3 位置：點左半邊切到 L（已在 L 就回 C），右半邊同理；有彈簧的那一邊按著才在那個位置。2 位置：L／R 兩個位置
+    const next=op.n===3?(cur===side&&!spring?'C':side):side,back=spring?(op.n===3?'C':op.def):null;
+    SIMST.sel[d.id]=next;simRefresh();if(back){act={t:'simsel',id:d.id,back,pid:e.pointerId,sx:e.clientX,sy:e.clientY,moved:false};try{svg.setPointerCapture(e.pointerId);}catch(_){}}return;}
   if(els.some(x=>x.by==='trip')&&d.thReset!=='auto'){SIMST.trip[d.id]=!SIMST.trip[d.id];simRefresh();return;}
   const btns=[...new Set(els.filter(x=>x.btn).map(x=>x.btn))];if(!btns.length){act={t:'press',sx:e.clientX,sy:e.clientY,vx:view.x,vy:view.y,moved:false,btn:e.button,id:e.pointerId,target:e.target,pan:true};svg.setPointerCapture(e.pointerId);return;}
   let btn=btns[0];
@@ -49,6 +57,7 @@ function simPanel(box){
   const brks=S.devices.filter(d=>simElems(d).some(e=>e.k==='brk')).sort((a,b)=>natCmp(a.tag,b.tag));
   const opE=d=>simElems(d).filter(e=>e.btn&&(e.by!=='trip'||d.thReset==='auto'));
   const ops=S.devices.filter(d=>opE(d).length).sort((a,b)=>natCmp(a.tag,b.tag));
+  const alts=S.devices.filter(d=>(tplOf(d).op||{}).k==='alt').sort((a,b)=>natCmp(a.tag,b.tag)),sels=S.devices.filter(d=>(tplOf(d).op||{}).k==='sel').sort((a,b)=>natCmp(a.tag,b.tag));
   const ths=S.devices.filter(d=>d.thReset!=='auto'&&simElems(d).some(e=>e.by==='trip')).sort((a,b)=>natCmp(a.tag,b.tag));
   const Y=r.Y.filter(y=>y.wired),X=r.X.filter(x=>S.wires.some(w=>wiredAt(w,x.d.id,x.t)));
   const act=Object.entries(r.dev).filter(([id,s])=>s.coil||s.latch||s.on.length).map(([id,s])=>`${esc(tagOf(id))}${s.coil?'（線圈）':s.latch?'（保持）':'（'+esc(s.on.join('、'))+'）'}`);
@@ -57,6 +66,8 @@ function simPanel(box){
   const noSim=S.devices.filter(d=>!hasSim(d)&&S.wires.some(w=>w.a.d===d.id||w.b.d===d.id)&&!['端子台／接地'].includes((resolveTpl(d.tpl,d.count)||{}).cat)).map(d=>d.tag);
   box.innerHTML=`<div class="big">模擬</div><p class="note">圖上按著按鈕、感測器才算按下；點斷路器切換 ON／OFF。有電的線：＋紅、−藍、AC 橘；流動的虛線是有電流的迴路。</p>${msg}
   <div class="sub-h">斷路器</div><div class="sim-chips">${brks.map(d=>`<button class="sim-chip${SIMST.on[d.id]?' on':''}" data-sim-brk="${d.id}">${esc(d.tag)}</button>`).join('')}</div>
+  ${alts.length?`<div class="sub-h">保持型開關（點一下切換）</div><div class="sim-chips">${alts.map(d=>`<button class="sim-chip${SIMST.on[d.id]?' on':''}" data-sim-alt="${d.id}">${esc(d.tag)}${SIMST.on[d.id]?' 動作中':''}</button>`).join('')}</div>`:''}
+  ${sels.length?`<div class="sub-h">選擇開關（圖上點左半邊／右半邊切換）</div><div class="sim-chips">${sels.map(d=>{const op=tplOf(d).op,cur=SIMST.sel[d.id]||op.def;return (op.n===3?['L','C','R']:['L','R']).map(q=>`<button class="sim-chip${cur===q?' on':''}" data-sim-sel="${d.id}|${q}">${esc(d.tag)} ${q}</button>`).join('');}).join('')}</div>`:''}
   ${ths.length?`<div class="sub-h">積熱電驛（點一下跳脫／復歸）</div><div class="sim-chips">${ths.map(d=>`<button class="sim-chip${SIMST.trip[d.id]?' on':''}" data-sim-trip="${d.id}">${esc(d.tag)}${SIMST.trip[d.id]?' 跳脫中':''}</button>`).join('')}</div>`:''}
   <div class="row" style="justify-content:flex-start"><button class="tool" data-sim-all="1">全部 ON</button><button class="tool" data-sim-all="0">全部 OFF</button><button class="tool" id="simReset">全部重置</button></div>
   ${Y.length?`<div class="sub-h">PLC 輸出（點一下切換）</div><div class="sim-chips">${Y.map(y=>`<button class="sim-chip y${y.on?' on':''}" data-sim-y="${y.d.id}|${y.y}">${esc(y.name)}</button>`).join('')}</div>`:''}
@@ -71,6 +82,8 @@ function simPanel(box){
 document.addEventListener('pointerdown',e=>{if(mode!=='sim')return;const b=e.target.closest&&e.target.closest('[data-sim-op]');if(!b)return;const [id,btn]=b.dataset.simOp.split('|');simPress(id,btn,true);
   const up=()=>{simPress(id,btn,false);document.removeEventListener('pointerup',up);document.removeEventListener('pointercancel',up);};document.addEventListener('pointerup',up);document.addEventListener('pointercancel',up);});
 document.addEventListener('click',e=>{if(mode!=='sim')return;const t=e.target;
+  const tg=t.closest&&t.closest('[data-sim-alt]');if(tg){SIMST.on[tg.dataset.simAlt]=!SIMST.on[tg.dataset.simAlt];simRefresh();return;}
+  const se=t.closest&&t.closest('[data-sim-sel]');if(se){const [id,q]=se.dataset.simSel.split('|');SIMST.sel[id]=q;simRefresh();return;}
   const tp=t.closest&&t.closest('[data-sim-trip]');if(tp){SIMST.trip[tp.dataset.simTrip]=!SIMST.trip[tp.dataset.simTrip];simRefresh();return;}
   const bk=t.closest&&t.closest('[data-sim-brk]');if(bk){SIMST.on[bk.dataset.simBrk]=!SIMST.on[bk.dataset.simBrk];simRefresh();return;}
   const al=t.closest&&t.closest('[data-sim-all]');if(al){S.devices.filter(d=>simElems(d).some(x=>x.k==='brk')).forEach(d=>SIMST.on[d.id]=al.dataset.simAll==='1');simRefresh();return;}
@@ -87,8 +100,8 @@ function simLeave(){SIMST=null;simOv='';simTest=null;const g=$('wires');if(g)g.c
 
 /* ---------- 自動測試 ----------
    以目前的斷路器與自我保持狀態為起點（建議先把斷路器打開、按過啟動），Y 全部 OFF、不按任何東西，逐一測試後恢復原狀。 */
-const simSnap=()=>({on:{...SIMST.on},press:new Set(SIMST.press),y:new Set(SIMST.y),coil:{...SIMST.coil},latch:{...SIMST.latch},trip:{...(SIMST.trip||{})}});
-const simRestore=s=>{Object.assign(SIMST,{on:{...s.on},press:new Set(s.press),y:new Set(s.y),coil:{...s.coil},latch:{...s.latch},trip:{...(s.trip||{})}});};
+const simSnap=()=>({on:{...SIMST.on},press:new Set(SIMST.press),y:new Set(SIMST.y),coil:{...SIMST.coil},latch:{...SIMST.latch},trip:{...(SIMST.trip||{})},sel:{...(SIMST.sel||{})}});
+const simRestore=s=>{Object.assign(SIMST,{on:{...s.on},press:new Set(s.press),y:new Set(s.y),coil:{...s.coil},latch:{...s.latch},trip:{...(s.trip||{})},sel:{...(s.sel||{})}});};
 const actSet=r=>{const m=new Map();Object.entries(r.dev).forEach(([id,s])=>{const n=[s.coil?'線圈':null,s.latch?'保持':null,...s.on.filter(x=>x!=='線圈')].filter(Boolean);if(n.length)m.set(id,n.join('、'));});return m;};
 function simAutoY(){
   const s1=simSnap();SIMST.y=new Set();SIMST.press=new Set();simRun();const s0=simSnap(),r0=simRun(),base=actSet(r0),rows=[];

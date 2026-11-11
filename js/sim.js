@@ -12,7 +12,7 @@
      {k:'load',a,b,name,polar}      負載：有電就動作；polar 表示有極性，接反顯示「極性相反」
      {k:'coil',a,b}                 線圈：有電時這台的接點（by:'coil'）切換
      {k:'pwr',a,b}                  器具本身的電源：有電時 PLC 輸出、感測器才會動作
-     {k:'sw',a,b,nc,by,btn,g}       接點：by='coil'（自己的線圈；g 是一台多組線圈時的組名）、'hostbrk'（裝在哪台斷路器上就跟它的 ON／OFF）、'host'（裝在哪台上就跟哪台的線圈）、'btn'（使用者按著）、'latch'（安全繼電器）、'trip'（積熱電驛跳脫）；nc 是常閉
+     {k:'sw',a,b,nc,by,btn,g}       接點：by='coil'（自己的線圈；g 是一台多組線圈時的組名）、'hostbrk'（裝在哪台斷路器上就跟它的 ON／OFF）、'host'（裝在哪台上就跟哪台的線圈）、'btn'（使用者按著）、'latch'（安全繼電器）、'trip'（積熱電驛跳脫）、'op'（IDEC 接點塊跟著操作部）；nc 是常閉
      {k:'sens',out,to,btn}          感測器輸出：器具有電且觸發時，out 和 to（棕＝PNP、藍＝NPN）導通
      {k:'plcX',com,pts:[…]}         PLC 輸入：輸入點和 com 分別是同一電源的 ＋／− 就 ON
      {k:'plcY',pairs:[[Y,COM]…]}    PLC 輸出：該 Y 點 ON 且 PLC 有電時 Y 和 COM 導通
@@ -93,7 +93,7 @@ const hasSim=d=>simElems(d).length>0;
 
 /* ---------- 引擎 ---------- */
 let SIMST=null; // 模擬狀態：{on:{斷路器}, press:Set('器具|按鈕'), y:Set('器具|Y0'), coil:{}, latch:{}, res}
-function simReset(){SIMST={on:{},press:new Set(),y:new Set(),coil:{},latch:{},trip:{},res:null};}
+function simReset(){SIMST={on:{},press:new Set(),y:new Set(),coil:{},latch:{},trip:{},sel:{},res:null};}
 function simRun(){
   if(!SIMST)simReset();
   const st=SIMST,devs=S.devices,E=new Map();devs.forEach(d=>E.set(d.id,simElems(d)));
@@ -113,6 +113,11 @@ function simRun(){
     if(e.ins)r.insK=e.ins.map(t=>tk(d,t));if(e.auto)r.autoK=e.auto.map(t=>tk(d,t));els.push(r);}));
   const pressed=(d,btn)=>st.press.has(d.id+'|'+btn);
   // 積熱電驛跳脫：手動復歸是點一下切換（跳脫後保持）；自動復歸是按著才跳脫
+  // IDEC YW 接點塊：跟著裝在哪個操作部動作。按鈕瞬時＝按著、交替／緊急停止＝點一下切換；
+  // 選擇開關照位置：凸輪在哪些位置壓下這個插槽的接點（常開閉合、常閉打開）
+  const opAct=b=>{const h=b.on&&devOf(b.on),op=h&&tplOf(h).op;if(!op)return false;
+    if(op.k==='mom')return pressed(h,'按下');if(op.k==='alt')return !!st.on[h.id];
+    if(op.k==='sel'){const pos=(st.sel&&st.sel[h.id])||op.def;return ((op.act||{})[b.rack]||[]).includes(pos);}return false;};
   // 線圈鍵：一台一組線圈用器具 id；一台多組線圈（LC2K）用 器具 id#組名
   const ck=e=>e.d.id+(e.g?'#'+e.g:'');
   const tripped=d=>d.thReset==='auto'?pressed(d,'跳脫'):!!(st.trip&&st.trip[d.id]);
@@ -130,7 +135,7 @@ function simRun(){
     els.forEach(e=>{let on=false;
       if(e.k==='pass')on=true;
       else if(e.k==='brk')on=!!st.on[e.d.id];
-      else if(e.k==='sw'){const act=e.by==='coil'?coil[ck(e)]:e.by==='host'?coil[e.d.on]:e.by==='hostbrk'?!!(e.d.on&&st.on[e.d.on]):e.by==='latch'?latch[e.d.id]:e.by==='btn'?pressed(e.d,e.btn):e.by==='trip'?tripped(e.d):false;on=e.nc?!act:!!act;}
+      else if(e.k==='sw'){const act=e.by==='coil'?coil[ck(e)]:e.by==='host'?coil[e.d.on]:e.by==='hostbrk'?!!(e.d.on&&st.on[e.d.on]):e.by==='op'?opAct(e.d):e.by==='latch'?latch[e.d.id]:e.by==='btn'?pressed(e.d,e.btn):e.by==='trip'?tripped(e.d):false;on=e.nc?!act:!!act;}
       else if(e.k==='sens')on=!!(sensOn[e.d.id+'|'+e.out]);
       if(on){u(e.aK||e.outK,e.bK||e.toK);conducting.push(e);}
       if(e.k==='plcY')e.pairsK.forEach(([y,yk,ck])=>{if((powered[e.d.id]||!pwrDev.has(e.d.id)||hostFed(e.d))&&st.y.has(e.d.id+'|'+y)){u(yk,ck);conducting.push({k:'plcY',d:e.d,aK:yk,bK:ck,y});}});});

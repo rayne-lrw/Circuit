@@ -136,6 +136,7 @@ svg.addEventListener('pointermove',e=>{
   if(!act){hoverUpdate(e);return;}
   const dx=e.clientX-act.sx,dy=e.clientY-act.sy;
   if(act.t==='simpress') return;
+  if(act.t==='simsel') return;
   if(!act.moved&&Math.hypot(dx,dy)<4) return;
   if(!act.moved){act.moved=true;try{svg.setPointerCapture(act.id);}catch(_){}$('tip').hidden=true;}
   if(act.t==='note'){const p=toWorld(e);act.n.x=Math.round(p.x-act.ox);act.n.y=Math.round(p.y-act.oy);renderOverlay();return;}
@@ -203,6 +204,7 @@ svg.addEventListener('pointerup',e=>{
   if(!a) return;
   if(railHit){railHit=null;renderWires();}
   if(a.t==='simpress'){const i=a.key.indexOf('|');simPress(a.key.slice(0,i),a.key.slice(i+1),false);return;}
+  if(a.t==='simsel'){SIMST.sel[a.id]=a.back;simRefresh();return;} // 選擇開關有彈簧的那一邊：放開回去
   if(a.t==='note'){noteSel=a.n.id;if(a.moved)commit();tab='rev';renderList();renderOverlay();return;}
   if(a.t==='box'){endBox(a);return;}
   if(a.t==='multi'){endMultiDrag(a);return;}
@@ -221,7 +223,7 @@ svg.addEventListener('pointerup',e=>{
   if(a.moved||a.btn!==0) return;
   if(mode==='wire') clickWire(e,a); else if(mode==='view') viewClick(a); else {picked=null;multi=[];sel=null;selCab=null;renderWires();renderDetail();updateHint();}
 });
-svg.addEventListener('pointercancel',()=>{const a=act;act=null;if(a&&a.t==='simpress'){const i=a.key.indexOf('|');simPress(a.key.slice(0,i),a.key.slice(i+1),false);}if(a&&a.t==='wp'){dragPrev=null;recompute();}
+svg.addEventListener('pointercancel',()=>{const a=act;act=null;if(a&&a.t==='simsel'){SIMST.sel[a.id]=a.back;simRefresh();}if(a&&a.t==='simpress'){const i=a.key.indexOf('|');simPress(a.key.slice(0,i),a.key.slice(i+1),false);}if(a&&a.t==='wp'){dragPrev=null;recompute();}
   if(a&&a.t==='seg'&&a.moved){dragPrev=null;if(a.g.kind==='wire')a.g.w.wps=a.g.wps;else{if(a.g.wps.length)a.g.c.wps=a.g.wps;else delete a.g.c.wps;}recompute();}});
 svg.addEventListener('pointerenter',()=>{cursorIn=true;});
 svg.addEventListener('pointerleave',()=>{cursorIn=false;});
@@ -863,6 +865,8 @@ function placeDrop(){
   const o=placing.o,base=resolveTpl(o.tpl);let i=1;while(tagUsed(base.pre+i))i++;
   const d={...o,id:base.pre+i,tag:base.pre+i};
   S.devices.push(d);if(d.on)placeOn(d,devOf(d.on));zoneDrop(d);
+  // IDEC YW 標準組合：放下操作部時，照型錄的接點結構把接點塊裝進 ①②③
+  if(base.cbHost&&base.cbs)base.cbs.forEach((cb,i)=>{if(!cb)return;const kb=resolveTpl(cb);let j=1;while(tagUsed(kb.pre+j))j++;const k={id:kb.pre+j,tag:kb.pre+j,tpl:cb,x:d.x,y:d.y,sheet:d.sheet,on:d.id,rack:i};S.devices.push(k);placeOn(k,d);});
   // 可逆組：放下機械互鎖時，左右各放一台接觸器
   if(base.ilock&&base.pair){const mk=()=>{const kb=resolveTpl(base.pair);let j=1;while(tagUsed(kb.pre+j))j++;const k={id:kb.pre+j,tag:kb.pre+j,tpl:base.pair,x:d.x,y:d.y,sheet:d.sheet};S.devices.push(k);return k;};
     const L=mk(),R=mk(),lt=tplOf(L);L.x=r1(d.x-lt.w);L.y=r1(d.y-(lt.h-tplOf(d).h)/2);d.pair=[L.id,R.id];ilockPlace(d,L,R);

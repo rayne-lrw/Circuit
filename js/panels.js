@@ -335,14 +335,15 @@ function rackHtml(d){
     if(m&&m.rack!==i)return '';
     const mt=m&&tplOf(m),a=m&&qAddr(m),n=m?rackN(mt):1;
     const nm=`${rackName(t,i)}${n>1?'～'+rackName(t,i+n-1):''}`;
-    const addr=s.k==='io'?(m?addrText(m):isAhBase(d)?'—':`${qHex(qAddrAt(d,i))}～${qHex(qAddrAt(d,i)+15)}`):'';
+    const addr=t.cbHost?'':s.k==='io'?(m?addrText(m):isAhBase(d)?'—':`${qHex(qAddrAt(d,i))}～${qHex(qAddrAt(d,i)+15)}`):'';
     const body=m?`<button class="tool rack-mod" data-rack-pick="${m.id}">${esc(m.tag)}　${esc(mt.n)}</button>`
       :`<select data-rack-add="${i}" aria-label="${esc(nm)} 槽裝模組"><option value="">空槽（選模組裝上）</option>${rackTpls(s.k).map(id=>`<option value="${id}">${esc(resolveTpl(id).n)}</option>`).join('')}</select>`;
     return `<tr><th>${esc(nm)}</th><td>${body}</td><td class="mono">${addr}</td></tr>`;}).join('');
+  if(t.cbHost)return `<div class="sub-h">接點塊（① ② ③）</div><table class="rack-tb"><thead><tr><th>位置</th><th>接點塊</th><th></th></tr></thead><tbody>${rows}</tbody></table><p class="note">把 YW 接點塊拖到操作部上會裝進最近的空位置，拖離就拆下；空的位置可以直接選接點塊裝上。${t.noDbl?'緊急停止不能裝雙接點塊。':''}${t.rack.some(x=>x.k==='fa')?'② 固定裝全電壓轉接器（照光用）。':''}端子編號依 IDEC 慣例推定（常閉 1-2、常開 3-4）。</p>`;
   return (t.qext?qExtHtml(d):'')+`<div class="sub-h">槽位（I/O 位址依槽位自動編號${isAhBase(d)?'：X、Y 各自連續，只算數位模組':'，空槽算 16 點'}）</div><table class="rack-tb"><thead><tr><th>槽</th><th>模組</th><th>位址</th></tr></thead><tbody>${rows}</tbody></table><p class="note">從器具庫把模組拖到基板上會自動吸到最近的空槽；選取基板時點器具庫的模組會裝到第一個空槽。</p>`;
 }
 function rackInfo(d){
-  const h=d.on&&devOf(d.on);if(!h||d.rack==null)return `<p class="note">${esc(RACK_KIND[tplOf(d).rackKind])}模組：拖到基板上會裝進${esc(RACK_KIND[tplOf(d).rackKind])}槽${tplOf(d).rackKind==='io'?'，位址依槽位自動編號':''}。</p>`;
+  const h=d.on&&devOf(d.on);if(['cb','fa'].includes(tplOf(d).rackKind))return `<p class="note">${h?`裝在 ${esc(h.tag)} 的 ${esc(rackName(tplOf(h),d.rack))} 位置，跟著操作部動作。`:'拖到 YW 操作部（按鈕、選擇開關、緊急停止）上會裝進空的位置。'}</p>`;if(!h||d.rack==null)return `<p class="note">${esc(RACK_KIND[tplOf(d).rackKind])}模組：拖到基板上會裝進${esc(RACK_KIND[tplOf(d).rackKind])}槽${tplOf(d).rackKind==='io'?'，位址依槽位自動編號':''}。</p>`;
   const a=addrText(d);
   return `<dl><dt>裝在</dt><dd>${esc(h.tag)} 的 ${esc(rackName(tplOf(h),d.rack))}${tplOf(d).rackKind==='io'?' 槽':' 槽位'}</dd>${a?`<dt>位址</dt><dd class="mono">${esc(a)}</dd>`:''}</dl>`;
 }

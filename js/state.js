@@ -160,17 +160,17 @@ function syncCoilWires(){
   S.wires=S.wires.filter(w=>w.auto!=='coil'||(devOf(w.a.d)&&tplOf(devOf(w.a.d)).coil&&devOf(w.a.d).on===w.b.d));
 }
 /* ---------- 底座插槽（三菱 Q 系列）：基板 t.rack=[{k:'pwr'|'cpu'|'io',x,w}]，模組 t.rackKind 是能裝的槽種類，d.rack 記住裝在第幾槽 ---------- */
-const RACK_KIND={pwr:'電源',spwr:'電源',rpwr:'電源',cpu:'CPU',io:'I/O'};
+const RACK_KIND={pwr:'電源',spwr:'電源',rpwr:'電源',cpu:'CPU',io:'I/O',cb:'接點塊',fa:'轉接器'};
 const rackN=t=>t.rackKind==='io'?Math.max(1,Math.round(t.w/27.4)):1;
 // 基板上每一槽被哪一台模組佔用（寬的模組佔好幾槽）
 function rackUse(h,except){const m=new Map();riders(h).forEach(r=>{if(r===except||r.rack==null)return;for(let i=0;i<rackN(tplOf(r));i++)m.set(r.rack+i,r);});return m;}
-function rackFit(h,o,i){const R=tplOf(h).rack,ot=tplOf(o),n=rackN(ot),use=rackUse(h,o);if(!R||!ot.rackKind)return false;for(let k=0;k<n;k++){const s=R[i+k];if(!s||s.k!==ot.rackKind||use.has(i+k))return false;}return true;}
+function rackFit(h,o,i){const R=tplOf(h).rack,ot=tplOf(o),n=rackN(ot),use=rackUse(h,o);if(!R||!ot.rackKind)return false;if(tplOf(h).noDbl&&ot.dbl)return false;/* 緊急停止不能裝雙接點塊 */for(let k=0;k<n;k++){const s=R[i+k];if(!s||s.k!==ot.rackKind||use.has(i+k))return false;}return true;}
 // 離指標最近、種類對、還空著的槽
 function rackPick(h,o,cx){const R=tplOf(h).rack||[],w=tplOf(o).w;let best=null;R.forEach((s,i)=>{if(!rackFit(h,o,i))return;const dd=Math.abs(h.x+s.x+w/2-cx);if(!best||dd<best.d)best={i,d:dd};});return best?best.i:null;}
 // 槽的顯示名稱：電源、CPU、I/O 槽從 0 開始編號
-function rackName(t,i){const R=t.rack,s=R&&R[i];if(!s)return '';if(s.k!=='io'){const same=R.filter(x=>x.k===s.k);return RACK_KIND[s.k]+(same.length>1?same.indexOf(s)+1:'');}return String(R.slice(0,i).filter(x=>x.k==='io').length);}
+function rackName(t,i){const R=t.rack,s=R&&R[i];if(!s)return '';if(t.cbHost)return '①②③'[i]||String(i+1);/* IDEC 接點塊位置 */if(s.k!=='io'){const same=R.filter(x=>x.k===s.k);return RACK_KIND[s.k]+(same.length>1?same.indexOf(s)+1:'');}return String(R.slice(0,i).filter(x=>x.k==='io').length);}
 // I/O 位址：主基板從 0 槽開始，每槽依裝的模組點數佔位址（空槽算 16 點）；擴展基板接在主基板後面，依擴展級數排列
-const isMainBase=h=>!!(h&&tplOf(h).rack&&!tplOf(h).qext);
+const isMainBase=h=>!!(h&&tplOf(h).rack&&!tplOf(h).qext&&!tplOf(h).cbHost); // 按鈕開關的接點塊插槽不是 PLC 基板
 // 擴展基板接在哪個主基板：有指定就用指定的，沒有就用專案裡第一個主基板
 function qMainOf(h){if(!tplOf(h).qext)return h;const m=h.main&&devOf(h.main);if(isMainBase(m))return m;return S.devices.find(isMainBase)||null;}
 // 擴展級數：有指定就用，沒有就依擴展基板在專案裡的順序（1 起）
@@ -206,7 +206,7 @@ function addrText(d){
 
 // 模組的接點 X00～X0F 換成依槽位算出的實際位址（沒裝在基板上就回傳 null）
 function qName(d,t){
-  const h=d&&d.on&&devOf(d.on);
+  const h=d&&d.on&&devOf(d.on);if(h&&tplOf(h).cbHost)return null;
   if(isAhBase(h)){const m=/^([XY])(\d+)\.(\d+)$/.exec(t);if(!m||!(m[1]==='X'?tplOf(d).xw:tplOf(d).yw))return null;const st=ahStart(d);return st?`${m[1]}${(m[1]==='X'?st.x:st.y)+(+m[2])}.${m[3]}`:null;}
   const m=/^([XY])([0-9A-F]+)$/.exec(t);if(!m)return null;const a=qAddr(d);return a?m[1]+qHex(a.start+parseInt(m[2],16)):null;}
 /* ---------- 往右／往左串接（三菱 FX5、FX3U，台達 AS、DVP）：主機 t.chain={r:族,l:族}；模組 t.chainKind='r'|'l'、t.chainFam=族（或族清單）
