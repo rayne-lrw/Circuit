@@ -48,6 +48,15 @@ const {chromium}=require('playwright'),path=require('path');
     ok(termLabel(dv('N1'),'X0')==='X20'&&termLabel(dv('N1'),'Y0')==='Y20','FX3U-32M ＋ FX2N-8ER：X20～、Y20～');
     ok(termLabel(dv('N2'),'Y0')==='Y30'&&termLabel(dv('N2'),'Y17')==='Y47','再接 FX2N-16EYR：8ER 佔 8 點後 Y30～Y47');
     ok(!chainOk(c3,{tpl:'fx5-8ex-es'}),'FX5 的模組不能接到 FX3U');
+    // 台達 DVP：主機起始位址（擴充模組手冊還沒做，用測試用的暫時模組驗證規則）
+    TPL['t-dvp8']={...TPL['fx5-8ex-es'],id:'t-dvp8',chainKind:'r',chainFam:'dvp-s'};TPL['t-dvp8e']={...TPL['fx5-8ex-es'],id:'t-dvp8e',chainKind:'r',chainFam:'dvp-e'};
+    S=normalize({box:{w:1400,h:900,d:300,back:20},plate:{w:1360,h:860},door:{w:900,h:700},ducts:[],glands:[],wires:[],
+      devices:[D('SV','dvp28sv311t',100,100),D('E1','t-dvp8',600,500),D('ES','dvp48es300r',100,400),D('E2','t-dvp8e',600,600),D('E3','t-dvp8e',700,600)]}).state;resetUi();
+    const sv=dv('SV');hostSnap(dv('E1'),sv.x+tplOf(sv).w+5,sv.y+10);ok(dv('E1').on==='SV'&&termLabel(dv('E1'),'X0')==='X20','DVP28SV3 右側擴充：從 X20 開始（手冊 5.2）');
+    const es=dv('ES');hostSnap(dv('E2'),es.x+tplOf(es).w+5,es.y+10);hostSnap(dv('E3'),dv('E2').x+tplOf(dv('E2')).w+5,es.y+10);
+    ok(termLabel(dv('E2'),'X0')==='X30'&&termLabel(dv('E3'),'X0')==='X40','DVP48ES3（X0～X27）：擴充從 X30 開始，第二台 X40');
+    ok(!chainOk(sv,{tpl:'t-dvp8e'})&&!chainOk(es,{tpl:'fx5-8ex-es'}),'磚型模組不能接薄型、FX5 模組不能接 DVP');
+    delete TPL['t-dvp8'];delete TPL['t-dvp8e'];
     return out;
   });
   await b.close();
