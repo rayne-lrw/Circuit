@@ -221,15 +221,24 @@ function feed(lab,f,a,b,polar){
 function potOf(ls){let p=false,n=false,a=false;ls.forEach(l=>{const [t,,pole]=l.split('|');if(t==='A'){if(pole!=='N')a=true;else n=true;}else if(pole==='+')p=true;else n=true;});return p?'p':a?'ac':n?'n':'none';}
 // 有電流的線：每個動作中的負載，兩端各自沿導線和導通的接點，找最近的電源 ＋（另一端找 −；AC 找任一相）；路上的線就有電流（平行的線只標最短那條）
 function currentWires(res,wireKeys,loads){
-  const {conducting,srcOn}=res,els=res.els,adj=new Map(),link=(a,b,id)=>{if(!adj.has(a))adj.set(a,[]);if(!adj.has(b))adj.set(b,[]);adj.get(a).push([b,id]);adj.get(b).push([a,id]);};
-  wireKeys.forEach((wk,id)=>wk.pairs.forEach(([a,b])=>link(a,b,id)));
-  conducting.forEach(e=>link(e.aK||e.outK,e.bK||e.toK,null));
-  const goal=new Map(),mark=(k,tag)=>{if(!goal.has(k))goal.set(k,new Set());goal.get(k).add(tag);};
-  srcOn.forEach(e=>{mark(e.pK,e.d.id+'|+');mark(e.nK,e.d.id+'|-');});
-  els.filter(e=>e.k==='ac').forEach(e=>{e.phK.forEach(k=>mark(k,e.d.id+'|ac'));if(e.nK)mark(e.nK,e.d.id+'|ac');});
-  const out=new Set();
-  const bfs=(start,tag)=>{const prev=new Map([[start,null]]),q=[start];while(q.length){const x=q.shift();if(goal.has(x)&&goal.get(x).has(tag)){let y=x;while(prev.get(y)){const [p,id]=prev.get(y);if(id)out.add(id);y=p;}return;}(adj.get(x)||[]).forEach(([y,id])=>{if(!prev.has(y)){prev.set(y,[x,id]);q.push(y);}});}};
-  loads.filter(l=>l.on&&l.src).forEach(l=>{const s=l.src;if(l.v==='AC'){bfs(l.e.aK,s+'|ac');bfs(l.e.bK,s+'|ac');}else{const rev=l.rev;bfs(l.e.aK,s+'|+');bfs(l.e.bK,s+'|-');bfs(l.e.aK,s+'|-');bfs(l.e.bK,s+'|+');}});
+  /* 有電流的線：負載（含電源供應器的 AC 輸入）與電源形成的迴路上的每一條線都算，並聯（短路片、跨接、兩條線接同一點）的每一條都會標出來。
+     作法：接點當節點，導線、導通中的接點、有電的負載當邊，每個電源加一個虛擬節點把 ＋／−（或各相、N）接起來；
+     求雙連通分量（任兩條邊都在同一個簡單迴路上），含有負載的分量裡的導線就是有電流的線 */
+  const {conducting,srcOn}=res,els=res.els,E=[],add=(a,b,id,L)=>{if(a==null||b==null||a===b)return;E.push([a,b,id,!!L]);};
+  wireKeys.forEach((wk,id)=>wk.pairs.forEach(([a,b])=>add(a,b,id)));
+  conducting.forEach(e=>add(e.aK||e.outK,e.bK||e.toK,null));
+  srcOn.forEach(e=>{const v='V|'+e.d.id;add(e.pK,v,null);add(v,e.nK,null);if(e.inK)add(e.inK[0],e.inK[1],null,true);});
+  els.filter(e=>e.k==='ac').forEach(e=>{const v='A|'+e.d.id;e.phK.forEach(k=>add(k,v,null));if(e.nK)add(e.nK,v,null);});
+  loads.filter(l=>l.on).forEach(l=>add(l.e.aK,l.e.bK,null,true));
+  const idx=new Map(),N=[],nid=k=>{let i=idx.get(k);if(i==null){i=N.length;idx.set(k,i);N.push([]);}return i;};
+  E.forEach((e,j)=>{const a=nid(e[0]),b=nid(e[1]);N[a].push([b,j]);N[b].push([a,j]);});
+  const disc=new Int32Array(N.length).fill(-1),low=new Int32Array(N.length),es=[],out=new Set();let t=0;
+  const pop=j=>{const c=[];let x;do{x=es.pop();c.push(x);}while(x!==j);if(c.some(i=>E[i][3]))c.forEach(i=>{if(E[i][2])out.add(E[i][2]);});};
+  for(let s0=0;s0<N.length;s0++){if(disc[s0]>=0)continue;disc[s0]=low[s0]=t++;const st=[[s0,-1,0]];
+    while(st.length){const fr=st[st.length-1],v=fr[0];
+      if(fr[2]<N[v].length){const [w,j]=N[v][fr[2]++];if(j===fr[1])continue;
+        if(disc[w]<0){es.push(j);disc[w]=low[w]=t++;st.push([w,j,0]);}else if(disc[w]<disc[v]){es.push(j);if(disc[w]<low[v])low[v]=disc[w];}}
+      else{st.pop();if(st.length){const u=st[st.length-1][0];if(low[v]<low[u])low[u]=low[v];if(low[v]>=disc[u])pop(fr[1]);}}}}
   return out;
 }
 

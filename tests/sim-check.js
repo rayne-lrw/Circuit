@@ -60,6 +60,12 @@ const {chromium}=require('playwright'),path=require('path');
       ok(ids.every(id=>R.wires[id]&&R.wires[id].cur)&&R.dev.SV.on.filter(x=>x==='主電源').length===1,`${sv} 三相主電源：L1、L2、L3 三條線都有電流，主電源只顯示一次`);
       S.wires=S.wires.filter(w=>w.id!==ids[1]);recompute();R=simRun();ok(R.dev.SV&&R.dev.SV.on.includes('主電源')&&R.wires[ids[0]].cur&&R.wires[ids[2]].cur,`${sv} 單相接 L1、L3：主電源有電`);
       S.wires=keep;S.devices=kd;commit();recompute();});
+    // 電流走並聯：同一相兩條線分別進短路片兩邊的端子，兩條都有電流；沒接負載的分支沒有電流
+    {const keep=S.wires.slice(),kd=S.devices.slice();S.devices.push(D('TBX','w2202-1401',600,500,'plate',{count:3,jumpers:[{at:1,p:2,row:1}]}),D('LX','lamp',700,-300,'field'),D('LY','lamp',760,-300,'field'));
+      const a=W('Q1','2','TBX','1A'),b2=W('Q1','2','TBX','2A');const ids=S.wires.slice(-2).map(w=>w.id);W('TBX','2C','LX','L/+');W('LX','N/−','Q1','4');W('TBX','3A','LY','L/+');const dead=S.wires[S.wires.length-1].id;
+      commit();recompute();simReset();SIMST.on.Q1=true;const R=simRun();
+      ok(R.dev.LX&&R.dev.LX.on.length&&ids.every(id=>R.wires[id].cur),'短路片兩邊各進一條線：兩條都有電流');ok(!R.wires[dead].cur,'沒接回去的分支沒有電流');
+      S.wires=keep;S.devices=kd;commit();recompute();}
     // 自訂器具的動作資料：存檔讀回
     S.tpls.cx={...cleanTpl({n:'自訂燈',w:20,h:20,terms:[{id:'J',x:5,y:5,side:'top'}],sim:[{k:'grp',t:'J',sub:['+','-']},{k:'load',a:'J.+',b:'J.-',name:'燈',polar:true},{k:'bad'}]})};
     ok(JSON.stringify(S.tpls.cx.sim)==='[{"k":"grp","t":"J","sub":["+","-"]},{"k":"load","a":"J.+","b":"J.-","name":"燈","polar":true}]','自訂器具動作資料：不合格的元素會被拿掉');
