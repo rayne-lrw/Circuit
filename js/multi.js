@@ -71,15 +71,16 @@ function shiftSel(dx,dy){applyShift(baseOf(moveSet()),dx,dy);commit();recompute(
 
 /* 刪除、旋轉 */
 function deleteMulti(){
-  const ids=new Set(multi.filter(s=>s.k==='dev').map(s=>s.id));
-  S.devices.forEach(d=>{if(d.on&&ids.has(d.on)&&!ids.has(d.id))delete d.on;});
+  const ids=new Set(multi.filter(s=>s.k==='dev').map(s=>s.id)),n0=ids.size; // 附件跟著本體一起刪
+  [...ids].forEach(id=>{const d=devOf(id);if(d)kidsOf(d).forEach(k=>ids.add(k.id));});const nk=ids.size-n0;
+  const hosts=[...new Set(S.devices.filter(d=>ids.has(d.id)&&d.on&&!ids.has(d.on)&&tplOf(d).chainKind).map(d=>d.on))];
   const n=multi.length;
   S.devices=S.devices.filter(d=>!ids.has(d.id));
   S.wires=S.wires.filter(w=>!ids.has(w.a.d)&&!ids.has(w.b.d));
   S.ducts=S.ducts.filter(d=>!inMulti('duct',d.id));
   S.glands=S.glands.filter(g=>!inMulti('gland',g.id));
-  if(ids.has(filt.dev))filt.dev='';
-  multi=[];commit();recompute();toast(`已刪除 ${n} 個物件；可按復原`);
+  if(ids.has(filt.dev))filt.dev='';hosts.forEach(h=>{const x=devOf(h);if(x)chainReflow(x);});
+  multi=[];commit();recompute();toast(`已刪除 ${n} 個物件${nk?`，連同 ${nk} 個附件一起刪除`:''}；可按復原`);
 }
 function rotateDev(d){
   const a=tplOf(d),cx=d.x+a.w/2,cy=d.y+a.h/2;

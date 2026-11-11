@@ -339,7 +339,7 @@ function rackHtml(d){
     const body=m?`<button class="tool rack-mod" data-rack-pick="${m.id}">${esc(m.tag)}　${esc(mt.n)}</button>`
       :`<select data-rack-add="${i}" aria-label="${esc(nm)} 槽裝模組"><option value="">空槽（選模組裝上）</option>${rackTpls(s.k).map(id=>`<option value="${id}">${esc(resolveTpl(id).n)}</option>`).join('')}</select>`;
     return `<tr><th>${esc(nm)}</th><td>${body}</td><td class="mono">${addr}</td></tr>`;}).join('');
-  if(t.cbHost)return `<div class="sub-h">接點塊（① ② ③）</div><table class="rack-tb"><thead><tr><th>位置</th><th>接點塊</th><th></th></tr></thead><tbody>${rows}</tbody></table><p class="note">把 YW 接點塊拖到操作部上會裝進最近的空位置，拖離就拆下；空的位置可以直接選接點塊裝上。${t.noDbl?'緊急停止不能裝雙接點塊。':''}${t.rack.some(x=>x.k==='fa')?'② 固定裝全電壓轉接器（照光用）。':''}端子編號依 IDEC 慣例推定（常閉 1-2、常開 3-4）。</p>`;
+  if(t.cbHost)return `<div class="sub-h">接點塊（① ② ③）</div><table class="rack-tb"><thead><tr><th>位置</th><th>接點塊</th><th></th></tr></thead><tbody>${rows}</tbody></table><p class="note">把 YW 接點塊拖到操作部上會裝進最近的空位置，拖離就拆下；空的位置可以直接選接點塊裝上。${t.noDbl?'緊急停止不能裝雙接點塊。':''}${t.rack.some(x=>x.k==='fa')?'② 固定裝全電壓轉接器（照光用）。':''}接點塊本體印常閉 1-2、常開 3-4（依 IDEC 慣例推定）；裝上後照位置編號：① 1x、② 2x、③ 3x（例如 ① 常開 13-14、③ 常閉 31-32），雙接點塊後面那個接點 ① 4x、② 5x、③ 6x。</p>`;
   return (t.qext?qExtHtml(d):'')+`<div class="sub-h">槽位（I/O 位址依槽位自動編號${isAhBase(d)?'：X、Y 各自連續，只算數位模組':'，空槽算 16 點'}）</div><table class="rack-tb"><thead><tr><th>槽</th><th>模組</th><th>位址</th></tr></thead><tbody>${rows}</tbody></table><p class="note">從器具庫把模組拖到基板上會自動吸到最近的空槽；選取基板時點器具庫的模組會裝到第一個空槽。</p>`;
 }
 function rackInfo(d){

@@ -475,7 +475,9 @@ function deleteSel(){
   if(!sel&&!picked&&selCab&&cabOf(selCab)){askDelCable(cabOf(selCab));return true;} // 選取整條電纜：問一次再刪
   if(sel){S.wires=S.wires.filter(w=>w.id!==sel);sel=null;commit();recompute();return true;}
   if(picked){
-    if(picked.k==='dev'){const dd=devOf(picked.id),hh=dd&&dd.on&&tplOf(dd).chainKind&&devOf(dd.on);riders(dd).forEach(r=>delete r.on);S.devices=S.devices.filter(d=>d.id!==picked.id);S.wires=S.wires.filter(w=>w.a.d!==picked.id&&w.b.d!==picked.id);if(hh)chainReflow(hh);if(filt.dev===picked.id)filt.dev='';}
+    if(picked.k==='dev'){const dd=devOf(picked.id),hh=dd&&dd.on&&tplOf(dd).chainKind&&devOf(dd.on),kids=dd?kidsOf(dd):[],ids=new Set([picked.id,...kids.map(k=>k.id)]);
+      S.devices=S.devices.filter(d=>!ids.has(d.id));S.wires=S.wires.filter(w=>!ids.has(w.a.d)&&!ids.has(w.b.d));if(hh)chainReflow(hh);if(ids.has(filt.dev))filt.dev='';
+      if(kids.length)toast(`${dd.tag} 連同 ${kids.length} 個附件（${kids.slice(0,4).map(k=>k.tag).join('、')}${kids.length>4?'…':''}）一起刪除，按 Ctrl＋Z 可以復原`);}
     else if(picked.k==='gland') S.glands=S.glands.filter(g=>g.id!==picked.id);
     else if(picked.k==='zone'){
       const z=S.fields.find(x=>x.id===picked.id),n=S.devices.filter(d=>inZone(z,d)).length;

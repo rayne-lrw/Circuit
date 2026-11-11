@@ -50,6 +50,26 @@ const {chromium}=require('playwright'),path=require('path');
     ok(!hostOk(LP,{tpl:'yw-e10',sheet:'door'})||rackPick(LP,{tpl:'yw-e10'},LP.x+15)!==1,'照光型的 ② 不能裝一般接點塊');
     // 存檔讀回
     commit();const n=normalize(JSON.parse(JSON.stringify(S))).state;ok(n.devices.filter(d=>d.on===LP.id).length===3&&n.devices.find(d=>d.id===fa.id).rack===1,'存檔讀回：接點塊位置保留');
+    // ---------- 裝在操作部上：端子照位置編號（① 1x、② 2x、③ 3x，雙接點塊後面那個 4x 5x 6x） ----------
+    fresh([]);const NB=put('yw1b-m1e21',100,100),[n1,n2,n3]=riders(NB).sort((a,b)=>a.rack-b.rack);
+    ok(termLabel(n1,'3')==='13'&&termLabel(n1,'4')==='14','① 常開 13-14');ok(termLabel(n2,'1')==='21'&&termLabel(n2,'2')==='22','② 常閉 21-22');ok(termLabel(n3,'3')==='33'&&termLabel(n3,'4')==='34','③ 常開 33-34');
+    k=0;W('PS','+V1',n3.id,'3');commit();recompute();ok(epText(S.wires[0].b).endsWith('·33'),'接線表顯示 33');
+    hostSnap(n2,600,600);ok(!n2.on&&termLabel(n2,'1')==='1','拆下來回到本體的 1-2');
+    S.devices.push({id:'DB',tag:'DB',tpl:'yw-ew11',x:600,y:600,sheet:'door'});hostSnap(dv('DB'),NB.x+12,NB.y+5);
+    ok(dv('DB').rack===1&&termLabel(dv('DB'),'3')==='23'&&termLabel(dv('DB'),'1')==='51'&&termLabel(dv('DB'),'2')==='52','雙接點塊裝在 ②：前面 23-24、後面 51-52');
+    // ---------- 刪除操作部：接點塊和接在上面的線一起刪掉，可以復原 ----------
+    fresh([]);const DL=put('yw1l-m2e11',100,100),kids=riders(DL).map(r=>r.id);k=0;W('PS','+V1',kids[0],'3');W('PS','-V1','KA','13');commit();recompute();
+    picked={k:'dev',id:DL.id};sel=null;multi=[];deleteSel();
+    ok(!S.devices.some(d=>d.id===DL.id||kids.includes(d.id)),'刪除按鈕：3 個接點塊一起刪掉');ok(S.wires.length===1,'接在接點塊上的線一起刪掉，別的線留著');
+    ok(/連同 3 個附件/.test($('toast').textContent),'「'+$('toast').textContent+'」'+'跳出提示「連同 3 個附件一起刪除」');
+    $('undo').click();ok(S.devices.filter(d=>d.on===DL.id).length===3&&S.wires.length===2,'Ctrl＋Z 復原：按鈕、接點塊、線都回來');
+    fresh([]);const M1=put('yw1b-m1e11',100,100),M2=put('yw1s-2e20',300,100),k1=riders(M1).length+riders(M2).length;
+    multi=[{k:'dev',id:M1.id},{k:'dev',id:M2.id}];deleteMulti();ok(!S.devices.some(d=>d.on)&&S.devices.length===4,'框選刪除：兩個操作部的接點塊都一起刪掉');ok(new RegExp(`連同 ${k1} 個附件`).test($('toast').textContent),'框選刪除也跳出提示');
+    // 其他附件比照辦理：PLC 基板上的模組、接觸器下方的熱電驛
+    S=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:860,h:660},door:{w:900,h:700},ducts:[],glands:[],wires:[],devices:[{id:'B',tag:'B',tpl:'q35b',x:100,y:100,sheet:'plate'},{id:'P',tag:'P',tpl:'q61p',x:100,y:100,sheet:'plate',on:'B',rack:0},{id:'X1',tag:'X1',tpl:'qx40',x:100,y:100,sheet:'plate',on:'B',rack:2},
+      {id:'K',tag:'K',tpl:'lc1d09m7',x:500,y:300,sheet:'plate'},{id:'F',tag:'F',tpl:'lrd10',x:500,y:400,sheet:'plate',on:'K'}]}).state;resetUi();
+    picked={k:'dev',id:'B'};deleteSel();ok(!dv('P')&&!dv('X1'),'刪基板：上面的模組一起刪掉');picked={k:'dev',id:'K'};deleteSel();ok(!dv('F'),'刪接觸器：下方的熱電驛一起刪掉');
+    picked={k:'dev',id:'__none'};
     return out;
   });
   await b.close();

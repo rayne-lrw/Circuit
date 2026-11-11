@@ -112,6 +112,7 @@ const SLOT_RE=/^(\d+)([A-D])$/;
 const hasSlots=t=>!!(t&&t.gen&&t.cntLabel==='片數');
 // 接點顯示名稱：接點別名（使用者依公司習慣改的名稱，器具還是原本的）優先，端子台用片上標籤
 function termLabel(d,t){if(d&&d.alias&&d.alias[t])return d.alias[t];
+  { const y=ywNo(d,t);if(y)return y; }
   // 連接器針腳：CN1-B20（三菱 Q 再附實際位址），針腳名稱就是訊號的直接換成實際位址
   if(typeof cnSub==='function'){const s=cnSub(d,t);if(s){const g=s.c.sig[s.key],a=(d.rack!=null&&typeof qName==='function'&&qName(d,g))||(d.on&&d.chain!=null&&typeof chainName==='function'&&chainName(d,g))||null;
     return g===s.key?`${s.cid}-${a||g}`:`${s.cid}-${s.key}${a||/^[XY]/.test(g)?`(${a||g})`:''}`;}}if(d&&d.rack!=null&&typeof qName==='function'){const q=qName(d,t);if(q)return q;}if(d&&d.on&&d.chain!=null&&typeof chainName==='function'){const q=chainName(d,t);if(q)return q;}if(!d||!d.labels)return t;const m=SLOT_RE.exec(t);return (m&&d.labels[m[1]-1])||t;}
@@ -134,6 +135,13 @@ function glandTo(g,p){
 }
 /* 正面附件（例如 LADN 輔助接點）：d.on 記住裝在哪個接觸器上，跟著接觸器移動 */
 const riders=d=>S.devices.filter(x=>x.on===d.id);
+// 本體和它身上所有附件（附件上的附件也算）：刪本體時一起刪
+const kidsOf=d=>{const out=[],q=[d];while(q.length){riders(q.shift()).forEach(r=>{if(r!==d&&!out.includes(r)){out.push(r);q.push(r);}});}return out;};
+/* IDEC YW 接點塊裝在操作部上：端子照位置編序號（IEC 60947-5-1）① 1x、② 2x、③ 3x，常開尾數 3-4、常閉 1-2；
+   雙接點塊後面那個接點 ① 4x、② 5x、③ 6x；拆下來回到本體印的 3-4／1-2 */
+function ywNo(d,t){if(!d||!d.on||d.rack==null)return null;const h=typeof devOf==='function'&&devOf(d.on);if(!h||!tplOf(h).cbHost||tplOf(d).rackKind!=='cb')return null;
+  const m=/^([1-4])(\(2\))?$/.exec(t),T=tplOf(d),td=m&&T.terms.find(x=>x.id===t);if(!m||!td)return null;
+  return `${d.rack+1+(T.dbl&&td.x>5?3:0)}${m[1]}`;} // 雙接點塊：後面（右側）那個接點
 // 附件種類：front 疊在接觸器正面中央（深度相加）；below 掛在伺服驅動器下方（深度不相加）
 const attachOf=d=>tplOf(d).attach||null;
 /* 線圈：接點說明有「線圈」的兩個接點；A1、14、8 是 +，A2、13、7 是 −（器具資料可以對調） */
