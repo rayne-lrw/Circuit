@@ -229,7 +229,7 @@ function chainName(d,t){const m=/^([XY])(\d+)(?:\.(\d+))?$/.exec(t);if(!m)return
   if(st.rule==='word')return m[3]==null?null:`${m[1]}${st.a+(+m[2])}.${m[3]}`;if(!/^[0-7]+$/.test(m[2])||m[3]!=null)return null;return m[1]+(st.a+parseInt(m[2],8)).toString(8);}
 function chainText(d){const p=[];['X','Y'].forEach(L=>{const st=chainStart(d,L),t=tplOf(d);if(!st)return;const n=chainUse(t,L,st.rule);if(!n)return;
   p.push(st.rule==='word'?`${L}${st.a}.0～${L}${st.a+n-1}.15`:`${L}${st.a.toString(8)}～${L}${(st.a+n-1).toString(8)}`);});return p.join('、');}
-function hostOk(h,o){if(!h||h===o||h.on||h.sheet!==o.sheet)return false;const t=tplOf(h);if(t.attach||t.noOv)return false;const ot=tplOf(o);if(ot.chainKind)return chainOk(h,o);if(ot.rackKind)return !!t.rack&&rackPick(h,o,h.x)!=null;if(ot.coil)return !!coilOf(h);if(ot.attach==='under')return (ot.fits||[]).includes(h.tpl);if(ot.attach==='side')return t.cat===C2&&(!ot.fits||ot.fits.includes(h.tpl))&&!riders(h).some(r=>r!==o&&attachOf(r)==='side');if(ot.at&&!ot.at[h.tpl])return false;return attachOf(o)==='below'?t.cat===C5:t.cat===(ot.hostCat||C2);}
+function hostOk(h,o){if(!h||h===o||h.on||h.sheet!==o.sheet)return false;const t=tplOf(h);if(t.attach||t.noOv)return false;const ot=tplOf(o);if(ot.chainKind)return chainOk(h,o);if(ot.rackKind)return !!t.rack&&rackPick(h,o,h.x)!=null;if(ot.coil)return !!coilOf(h);if(ot.attach==='under')return (ot.fits||[]).includes(h.tpl);if(ot.attach==='side')return t.cat===(ot.hostCat||C2)&&(!ot.fits||ot.fits.includes(h.tpl))&&!riders(h).some(r=>r!==o&&attachOf(r)==='side'&&!!tplOf(r).sideL===!!ot.sideL);if(ot.fits&&!ot.fits.includes(h.tpl))return false;if(ot.at&&!ot.at[h.tpl])return false;return attachOf(o)==='below'?t.cat===C5:t.cat===(ot.hostCat||C2);}
 // 伺服電池的安裝位置：預設掛在下方距左緣 6 mm（MR-J4-200B 外型圖）；
 // MR-J4-700B 依外型圖直立裝在正面右側區塊中間（CN1A、CN1B 左邊），露出 21×69.3 那一面；
 // MR-JE-40B 依外型圖裝在正面電池座（CN4 下方、CN1A／CN1B 左邊）
@@ -252,7 +252,7 @@ function placeOn(r,h){
     const t=tplOf(r),a=t.under&&t.under[h.tpl]||{x:(ht.w-t.w)/2,y:ht.h-2};delete r.rot;r.x=r1(h.x+a.x);r.y=r1(h.y+a.y);
   }else if(attachOf(r)==='side'){
     // 側裝輔助接點：貼在接觸器右側，上下置中
-    const t=tplOf(r);delete r.rot;r.x=r1(h.x+ht.w);r.y=r1(h.y+(ht.h-t.h)/2);
+    const t=tplOf(r);delete r.rot;r.x=r1(t.sideL?h.x-t.w:h.x+ht.w);r.y=r1(h.y+(ht.h-t.h)/2); // sideL：貼在左側（GV2 的 GVAN）
   }else if(tplOf(r).coil){
     // 線圈二極體：橫放在器具下邊緣的線上（不蓋住接點），水平位置對齊線圈兩個接點，K 朝向線圈 + 那一側
     const c=coilOf(h),P=ht.terms.find(p=>p.id===c.p),M=ht.terms.find(p=>p.id===c.m);
@@ -269,7 +269,7 @@ function placeOn(r,h){
     // 插槽模組：沒有指定槽或那一槽不能裝，就裝到第一個能裝的槽
     if(r.rack==null||!rackFit(h,r,r.rack)){const i=rackPick(h,r,h.x);if(i!=null)r.rack=i;}
     const s=(ht.rack||[])[r.rack];if(s){r.x=r1(h.x+s.x);r.y=r1(h.y+(ht.h-tplOf(r).h)/2);}
-  }else{const t=tplOf(r),a=t.at&&t.at[h.tpl];if(a){r.x=r1(h.x+a.x);r.y=r1(h.y+a.y);}else{r.x=r1(h.x+(ht.w-t.w)/2);r.y=r1(h.y+(ht.h-t.h)/2);}} // 指定位置的附件（例如 PLC 擴充板）照位置裝，其他置中
+  }else{const t=tplOf(r),a=t.at&&t.at[h.tpl]||(t.frontAt&&{x:(ht.w-t.w)/2,y:t.frontAt.y});if(a){r.x=r1(h.x+a.x);r.y=r1(h.y+a.y);}else{r.x=r1(h.x+(ht.w-t.w)/2);r.y=r1(h.y+(ht.h-t.h)/2);}} // 指定位置的附件（例如 PLC 擴充板）照位置裝，其他置中
 }
 const famIds=id=>{const d=devOf(id);if(!d)return [id];return [d.id,...(d.on?[d.on]:[]),...riders(d).map(r=>r.id)];};
 const effDepth=d=>Math.max(tplOf(d).d+Math.max(0,...riders(d).filter(r=>attachOf(r)==='front').map(r=>tplOf(r).d)),...riders(d).filter(r=>attachOf(r)==='slot').map(r=>tplOf(r).d)); // 插槽模組的深度是從底板量起的整體深度

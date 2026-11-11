@@ -40,6 +40,32 @@ const {chromium}=require('playwright'),path=require('path');
     k=0;W('PWR','R','PS','L');W('PWR','S','PS','N');W('PS','+V1','K4','A1');W('K4','A2','PS','-V1');W('PS','+V1','K4','L4');W('K4','T4','KA','14');W('KA','13','PS','-V1');
     commit();recompute();simReset();r=simRun();ok(r.dev.K4&&r.dev.K4.coil&&r.dev.KA&&r.dev.KA.coil,'LC1DT200A：線圈吸合，第 4 極 7L4-8T4 導通');
     ok(!!termOf(dv('K4'),'L4')&&!!termOf(dv('K4'),'T4')&&tplOf(dv('K4')).w===132,'LC1DT200A 有 7L4／8T4，寬 132');
+    // ---------- LC2K 一體式正逆轉：兩組線圈、機械互鎖、內部換相 ----------
+    S=normalize({...box,wires:[],devices:[D('PWR','field-power',0,-300,{sheet:'field'}),D('PS','drl120',900,600),D('R2','lc2k0610bd',300,200),D('KA','my2n-24',900,300)]}).state;resetUi();
+    ok(nodeKey({d:'R2',t:'L1'})===nodeKey({d:'R2',t:'L1(2)'})&&nodeKey({d:'R2',t:'T1'})===nodeKey({d:'R2',t:'T3(2)'}),'LC2K 內部：上排 L1 並聯、下排左 T1 接右 T3（換相）');
+    k=0;W('PWR','R','PS','L');W('PWR','S','PS','N');W('PS','+V1','R2','A1');W('R2','A2','PS','-V1');W('PS','+V1','R2','A1(2)');W('R2','A2(2)','PS','-V1');
+    W('PS','+V1','R2','L1');W('R2','T1','KA','14');W('KA','13','PS','-V1');commit();recompute();simReset();r=simRun();
+    ok(r.dev.R2&&r.dev.R2.coil&&r.dev.R2.groups&&r.dev.R2.groups.length===1,'LC2K 兩組線圈同時通電：機械互鎖只讓一組吸合');
+    ok(r.dev.KA&&r.dev.KA.coil,'正轉吸合：L1 → 2/T1 有電');
+    // ---------- LC2D：放下時左右各一台 LC1D、自動接好並聯與換相線 ----------
+    S=normalize({...box,wires:[],devices:[]}).state;resetUi();
+    placing={tpl:'lc2d09m7',rot:0,o:{id:'__place',tag:'',tpl:'lc2d09m7',x:400,y:300,sheet:'plate'},bad:null};placeDrop();
+    const M=S.devices.find(d=>d.tpl==='lc2d09m7'),[KL,KR]=(M&&M.pair||[]).map(dv);
+    ok(KL&&KR&&KL.tpl==='lc1d09m7'&&Math.abs((KR.x+45)-KL.x-90.6)<0.01,'LC2D09M7：兩台 LC1D09M7 並排，整組寬約 90');
+    ok(S.wires.length===6&&S.wires.some(w=>w.a.t==='T1'&&w.b.t==='T3'),'自動接好原廠主迴路 6 條：上排並聯、下排換相');
+    // ---------- LRD325 插在 LC1D40AM7 下方 ----------
+    S=normalize({...box,wires:[],devices:[D('K','lc1d40am7',300,200),D('F','lrd325',600,500),D('F2','lrd10',700,500),D('B','lc1d09bne',300,500)]}).state;resetUi();
+    hostSnap(dv('F'),dv('K').x,dv('K').y+130);ok(dv('F').on==='K'&&dv('F').y===dv('K').y+115,'LRD325 拖到 LC1D40AM7 下方：裝上（裝上後高度 185）');
+    hostSnap(dv('F2'),dv('B').x,dv('B').y+80);ok(dv('F2').on==='B','LRD10 也能裝到 Deca Advanced LC1D09BNE');
+    // ---------- 正面附件：LADN11、LADT2 跟著接觸器 ----------
+    S=normalize({...box,wires:[],devices:[D('PWR','field-power',0,-300,{sheet:'field'}),D('PS','drl120',900,600),D('K','lc1d18bd',300,200),D('AN','ladn11',600,500),D('AT','ladt2',700,500),D('KA','my2n-24',900,300),D('Q','gv2me10',100,200),D('GE','gvae11',600,600),D('GN','gvan11',700,600)]}).state;resetUi();
+    hostSnap(dv('AN'),dv('K').x+20,dv('K').y+40);ok(dv('AN').on==='K','LADN11 拖到接觸器上：裝在正面');
+    k=0;W('PWR','R','PS','L');W('PWR','S','PS','N');W('PS','+V1','AN','53');W('AN','54','KA','14');W('KA','13','PS','-V1');W('PS','+V1','K','A1');W('K','A2','PS','-V1');
+    commit();recompute();simReset();r=simRun();ok(r.dev.KA&&r.dev.KA.coil,'LADN11 的 53-54 跟著接觸器閉合');
+    hostSnap(dv('GE'),dv('Q').x+20,dv('Q').y+20);ok(dv('GE').on==='Q','GVAE11 拖到 GV2ME10 上：裝在正面');
+    hostSnap(dv('GN'),dv('Q').x+20,dv('Q').y+40);ok(dv('GN').on==='Q'&&dv('GN').x===dv('Q').x-9.3,'GVAN11 拖到 GV2ME10 上：貼在左側');
+    S.wires=S.wires.filter(w=>w.a.d!=='AN'&&w.b.d!=='AN'&&w.b.d!=='KA');W('PS','+V1','GE','13');W('GE','14','KA','14');W('KA','13','PS','-V1');commit();recompute();simReset();r=simRun();
+    ok(!(r.dev.KA&&r.dev.KA.coil),'GVAE11 的 13-14：斷路器 OFF 時打開');SIMST.on.Q=true;r=simRun();ok(r.dev.KA&&r.dev.KA.coil,'斷路器 ON：13-14 閉合');
     return out;
   });
   await b.close();

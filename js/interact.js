@@ -865,7 +865,9 @@ function placeDrop(){
   S.devices.push(d);if(d.on)placeOn(d,devOf(d.on));zoneDrop(d);
   // 可逆組：放下機械互鎖時，左右各放一台接觸器
   if(base.ilock&&base.pair){const mk=()=>{const kb=resolveTpl(base.pair);let j=1;while(tagUsed(kb.pre+j))j++;const k={id:kb.pre+j,tag:kb.pre+j,tpl:base.pair,x:d.x,y:d.y,sheet:d.sheet};S.devices.push(k);return k;};
-    const L=mk(),R=mk(),lt=tplOf(L);L.x=r1(d.x-lt.w);L.y=r1(d.y-(lt.h-tplOf(d).h)/2);d.pair=[L.id,R.id];ilockPlace(d,L,R);}
+    const L=mk(),R=mk(),lt=tplOf(L);L.x=r1(d.x-lt.w);L.y=r1(d.y-(lt.h-tplOf(d).h)/2);d.pair=[L.id,R.id];ilockPlace(d,L,R);
+    // 原廠預先接好的主迴路（施耐德 LC2D：上排並聯、下排交叉）
+    (base.prewire||[]).forEach(([ta,tb])=>{const n=nextWireNo();S.nextNo=n+1;S.wires.push({id:'w'+n+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),no:'W'+String(n).padStart(3,'0'),a:{d:L.id,t:ta},b:{d:R.id,t:tb},wps:[],gauge:2,color:'black',direct:true});});}
   placing=null;placeGhost();sel=null;picked={k:'dev',id:d.id};
   commit();recompute();toast(`已放置 ${d.tag}`+(d.rack!=null&&d.on?`（${tagOf(d.on)} 的 ${rackName(tplOf(devOf(d.on)),d.rack)} 槽）`:''));
 }
