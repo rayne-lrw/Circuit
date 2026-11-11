@@ -26,7 +26,7 @@ sd('ic60-2P4A',()=>pairs([['1','2'],['3','4']],(a,b)=>({k:'brk',a,b})));
 sd(['ic60-1P6A','ic60-1P4A','ic60-1P2A','ic60-1P1A'],()=>[{k:'brk',a:'1',b:'2'}]);
 // 接觸器：線圈 A1／A2，主接點與輔助接點
 const CONT=[{k:'coil',a:'A1',b:'A2'},...pairs([['L1','T1'],['L2','T2'],['L3','T3'],['13','14']],(a,b)=>({k:'sw',a,b,by:'coil'})),{k:'sw',a:'21',b:'22',nc:true,by:'coil'}];
-sd(['lc1d09','lc1d18','lc1d38','sp16'],()=>CONT);
+sd(['lc1d09','lc1d18','lc1d38'],()=>CONT);
 sd('cu11',()=>CONT.filter(e=>e.a!=='21'));
 sd('lc1d258',()=>[{k:'coil',a:'A1',b:'A2'},{k:'sw',a:'1',b:'2',by:'coil'},{k:'sw',a:'3',b:'4',by:'coil'},{k:'sw',a:'R1',b:'R2',nc:true,by:'coil'},{k:'sw',a:'R3',b:'R4',nc:true,by:'coil'}]);
 sd('ladn40',()=>pairs([['53','54'],['63','64'],['73','74'],['83','84']],(a,b)=>({k:'sw',a,b,by:'host'})));
