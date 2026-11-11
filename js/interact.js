@@ -396,10 +396,10 @@ function mountedOn(r){
   });
 }
 // 移動器具時要一起帶走的：鋁軌上的器具，以及這些器具（含自己）的正面附件
-function carried(d){const base=isRail(d)?mountedOn(d):[];return [...base,...[d,...base].flatMap(riders)];}
+function carried(d){const base=isRail(d)?mountedOn(d):[],g=ilockGroup(d).filter(x=>!base.includes(x));return [...new Set([...base,...g,...[d,...base,...g].flatMap(riders)])].filter(x=>x!==d);}
 // 正面附件拖到電磁接觸器上：置中裝上；離開就拆下
 function hostSnap(o,x,y){
-  const t=tplOf(o),c={x:x+t.w/2,y:y+t.h/2},below=attachOf(o)==='below';
+  const t=tplOf(o),c={x:x+t.w/2,y:y+t.h/2},below=attachOf(o)==='below'||attachOf(o)==='under';
   // 掛在下方的附件：拖到驅動器上或驅動器正下方都算
   // 串接模組：拖到主機右邊（或左邊）的串接區就插進那個位置；離開就拆下，原本那串重新排
   if(t.chainKind){const prev=o.on&&devOf(o.on),p=x+t.w/2,q=y+t.h/2;
@@ -863,6 +863,9 @@ function placeDrop(){
   const o=placing.o,base=resolveTpl(o.tpl);let i=1;while(tagUsed(base.pre+i))i++;
   const d={...o,id:base.pre+i,tag:base.pre+i};
   S.devices.push(d);if(d.on)placeOn(d,devOf(d.on));zoneDrop(d);
+  // 可逆組：放下機械互鎖時，左右各放一台接觸器
+  if(base.ilock&&base.pair){const mk=()=>{const kb=resolveTpl(base.pair);let j=1;while(tagUsed(kb.pre+j))j++;const k={id:kb.pre+j,tag:kb.pre+j,tpl:base.pair,x:d.x,y:d.y,sheet:d.sheet};S.devices.push(k);return k;};
+    const L=mk(),R=mk(),lt=tplOf(L);L.x=r1(d.x-lt.w);L.y=r1(d.y-(lt.h-tplOf(d).h)/2);d.pair=[L.id,R.id];ilockPlace(d,L,R);}
   placing=null;placeGhost();sel=null;picked={k:'dev',id:d.id};
   commit();recompute();toast(`已放置 ${d.tag}`+(d.rack!=null&&d.on?`（${tagOf(d.on)} 的 ${rackName(tplOf(devOf(d.on)),d.rack)} 槽）`:''));
 }
@@ -874,7 +877,9 @@ function placeGhost(){
   const o=placing.o,t=tplOf(o),bad=!!placing.bad,a=o.on&&o.rack!=null?addrText(o):'';
   const info=placing.bad||(o.on?`裝到 ${tagOf(o.on)}`+(o.rack!=null?` 的 ${rackName(tplOf(devOf(o.on)),o.rack)} 槽`+(a?`（${a}）`:''):''):t.n);
   const fs=Math.max(4,Math.min(9,t.w/10));
-  g.innerHTML=`<rect class="ghost${bad?' bad':''}" x="${o.x}" y="${o.y}" width="${t.w}" height="${t.h}" rx="1.5"/>`+
+  // 可逆組：預覽也畫出左右兩台接觸器
+  const pt=t.ilock&&t.pair&&resolveTpl(t.pair),side=pt?[o.x-pt.w,o.x+t.w].map(x=>`<rect class="ghost${bad?' bad':''}" x="${x}" y="${o.y-(pt.h-t.h)/2}" width="${pt.w}" height="${pt.h}" rx="1.5"/>`).join(''):'';
+  g.innerHTML=side+`<rect class="ghost${bad?' bad':''}" x="${o.x}" y="${o.y}" width="${t.w}" height="${t.h}" rx="1.5"/>`+
     (t.terms||[]).slice(0,200).map(p=>`<circle class="ghost-t" cx="${o.x+p.x}" cy="${o.y+p.y}" r="1"/>`).join('')+
     `<text class="ghost-l${bad?' bad':''}" x="${o.x+t.w/2}" y="${o.y-3}" text-anchor="middle" style="font-size:${fs}px">${esc(info)}</text>`;
 }

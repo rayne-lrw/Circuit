@@ -40,6 +40,12 @@ function reviewIssues(){
     // 同一台、同一種線徑合併成一則
     const bad=new Map();S.wires.filter(w=>(w.a.d===d.id||w.b.d===d.id)&&w.gauge>0).forEach(w=>{const a=ampOf(w.gauge);if(a&&a<A){if(!bad.has(w.gauge))bad.set(w.gauge,[]);bad.get(w.gauge).push(w);}});
     bad.forEach((ws,g)=>out.push({t:`${d.tag}（${A}A）接的 ${[...new Set(ws.map(w=>w.no))].sort(natCmp).join('、')} 是 ${g}mm²（約 ${ampOf(g)}A），線徑可能太細`,k:'wire',id:ws[0].id}));});
+  // 可逆組：只靠機械互鎖不夠，兩台都要有常閉輔助接點接進對方的線圈迴路（這裡只檢查常閉接點兩端有沒有接線）
+  const wiredT=(d,t)=>S.wires.some(w=>(w.a.d===d.id&&w.a.t===t)||(w.b.d===d.id&&w.b.t===t));
+  const ncWired=d=>[d,...riders(d)].some(x=>simElems(x).some(e=>e.k==='sw'&&e.nc&&(e.by==='coil'||e.by==='host')&&wiredT(x,e.a)&&wiredT(x,e.b)));
+  S.devices.forEach(m=>{if(!tplOf(m).ilock||!Array.isArray(m.pair))return;const ks=m.pair.map(devOf).filter(Boolean);if(ks.length!==2)return;
+    if(!S.wires.some(w=>ks.some(k=>w.a.d===k.id||w.b.d===k.id)))return;
+    const bad=ks.filter(k=>!ncWired(k));if(bad.length)out.push({t:`可逆組 ${ks.map(k=>k.tag).join('／')}：${bad.map(k=>k.tag).join('、')} 的常閉輔助接點沒有接線，只靠機械互鎖（建議加電氣互鎖）`,k:'dev',id:m.id});});
   return out;
 }
 

@@ -12,7 +12,7 @@
      {k:'load',a,b,name,polar}      負載：有電就動作；polar 表示有極性，接反顯示「極性相反」
      {k:'coil',a,b}                 線圈：有電時這台的接點（by:'coil'）切換
      {k:'pwr',a,b}                  器具本身的電源：有電時 PLC 輸出、感測器才會動作
-     {k:'sw',a,b,nc,by,btn}         接點：by='coil'（自己的線圈）、'host'（裝在哪台上就跟哪台的線圈）、'btn'（使用者按著）、'latch'（安全繼電器）；nc 是常閉
+     {k:'sw',a,b,nc,by,btn}         接點：by='coil'（自己的線圈）、'host'（裝在哪台上就跟哪台的線圈）、'btn'（使用者按著）、'latch'（安全繼電器）、'trip'（積熱電驛跳脫）；nc 是常閉
      {k:'sens',out,to,btn}          感測器輸出：器具有電且觸發時，out 和 to（棕＝PNP、藍＝NPN）導通
      {k:'plcX',com,pts:[…]}         PLC 輸入：輸入點和 com 分別是同一電源的 ＋／− 就 ON
      {k:'plcY',pairs:[[Y,COM]…]}    PLC 輸出：該 Y 點 ON 且 PLC 有電時 Y 和 COM 導通
@@ -93,7 +93,7 @@ const hasSim=d=>simElems(d).length>0;
 
 /* ---------- 引擎 ---------- */
 let SIMST=null; // 模擬狀態：{on:{斷路器}, press:Set('器具|按鈕'), y:Set('器具|Y0'), coil:{}, latch:{}, res}
-function simReset(){SIMST={on:{},press:new Set(),y:new Set(),coil:{},latch:{},res:null};}
+function simReset(){SIMST={on:{},press:new Set(),y:new Set(),coil:{},latch:{},trip:{},res:null};}
 function simRun(){
   if(!SIMST)simReset();
   const st=SIMST,devs=S.devices,E=new Map();devs.forEach(d=>E.set(d.id,simElems(d)));
@@ -112,6 +112,10 @@ function simRun(){
     if(e.in)r.inK=e.in.map(t=>tk(d,t));if(e.ph)r.phK=e.ph.map(t=>tk(d,t));if(e.pts)r.ptsK=e.pts.map(t=>[t,tk(d,t)]);if(e.pairs)r.pairsK=e.pairs.map(([y,c])=>[y,tk(d,y),tk(d,c)]);
     if(e.ins)r.insK=e.ins.map(t=>tk(d,t));if(e.auto)r.autoK=e.auto.map(t=>tk(d,t));els.push(r);}));
   const pressed=(d,btn)=>st.press.has(d.id+'|'+btn);
+  // 積熱電驛跳脫：手動復歸是點一下切換（跳脫後保持）；自動復歸是按著才跳脫
+  const tripped=d=>d.thReset==='auto'?pressed(d,'跳脫'):!!(st.trip&&st.trip[d.id]);
+  // 機械互鎖：兩台線圈同時有電時，原本就吸合的那台保持，另一台吸不進去（同時通電時左邊那台優先）
+  const locks=S.devices.filter(m=>tplOf(m).ilock&&Array.isArray(m.pair)&&m.pair.every(id=>devOf(id)));
   // 有自己電源接點的器具（PLC CPU、感測器）要有電才動作；增設模組沒有電源接點，跟著 CPU 走，不另外判斷
   const pwrDev=new Set(els.filter(e=>e.k==='pwr').map(e=>e.d.id));
   // 左側串接的電源模組（台達 AS-PS02）有電時，主機也有電
@@ -124,7 +128,7 @@ function simRun(){
     els.forEach(e=>{let on=false;
       if(e.k==='pass')on=true;
       else if(e.k==='brk')on=!!st.on[e.d.id];
-      else if(e.k==='sw'){const act=e.by==='coil'?coil[e.d.id]:e.by==='host'?coil[e.d.on]:e.by==='latch'?latch[e.d.id]:e.by==='btn'?pressed(e.d,e.btn):false;on=e.nc?!act:!!act;}
+      else if(e.k==='sw'){const act=e.by==='coil'?coil[e.d.id]:e.by==='host'?coil[e.d.on]:e.by==='latch'?latch[e.d.id]:e.by==='btn'?pressed(e.d,e.btn):e.by==='trip'?tripped(e.d):false;on=e.nc?!act:!!act;}
       else if(e.k==='sens')on=!!(sensOn[e.d.id+'|'+e.out]);
       if(on){u(e.aK||e.outK,e.bK||e.toK);conducting.push(e);}
       if(e.k==='plcY')e.pairsK.forEach(([y,yk,ck])=>{if((powered[e.d.id]||!pwrDev.has(e.d.id)||hostFed(e.d))&&st.y.has(e.d.id+'|'+y)){u(yk,ck);conducting.push({k:'plcY',d:e.d,aK:yk,bK:ck,y});}});});
@@ -137,6 +141,7 @@ function simRun(){
     const nc={},np={},ns={},loads=[];let nl={...latch};
     els.forEach(e=>{
       if(e.k==='load'||e.k==='coil'||e.k==='pwr'){const r=feed(lab,f,e.aK,e.bK,e.polar);if(e.k==='coil'&&r.on)nc[e.d.id]=true;if(e.k==='pwr'&&r.on)np[e.d.id]=true;loads.push({e,...r});}});
+    locks.forEach(m=>{const [a,b]=m.pair;if(nc[a]&&nc[b]){if(coil[b]&&!coil[a])delete nc[a];else delete nc[b];}});
     els.forEach(e=>{if(e.k==='sens'&&np[e.d.id]&&pressed(e.d,e.btn))ns[e.d.id+'|'+e.out]=true;});
     els.forEach(e=>{if(e.k!=='pnoz')return;const R=e.insK.map(f),chOk=R.every((r,i)=>R.some((q,j)=>j!==i&&q===r)),pw=np[e.d.id];
       if(!pw||!chOk)nl[e.d.id]=false;else if((e.autoK&&f(e.autoK[0])===f(e.autoK[1]))||pressed(e.d,e.btn))nl[e.d.id]=true;});
@@ -163,6 +168,7 @@ function simRun(){
   const cur=currentWires(res,wireKeys,loads);cur.forEach(id=>{if(wires[id])wires[id].cur=true;});
   const devState={};loads.forEach(l=>{const d=l.e.d;if(!devState[d.id])devState[d.id]={on:[],rev:[]};if(l.on)devState[d.id].on.push(l.e.name||(l.e.k==='coil'?'線圈':'電源'));if(l.rev)devState[d.id].rev.push(l.e.name||'電源');});
   Object.keys(coil).forEach(id=>{if(coil[id]){devState[id]=devState[id]||{on:[],rev:[]};devState[id].coil=true;}});
+  locks.forEach(m=>m.pair.forEach(id=>{const s=devState[id];if(s&&!coil[id]){const i=s.on.indexOf('線圈');if(i>=0)s.on[i]='線圈有電但被機械互鎖擋住';}}));
   Object.keys(latch).forEach(id=>{if(latch[id]){devState[id]=devState[id]||{on:[],rev:[]};devState[id].latch=true;}});
   st.res={wires,dev:devState,X,Y,shorts:shorts.length,unstable,warn,conducting};
   return st.res;

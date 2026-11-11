@@ -225,7 +225,7 @@ function chainName(d,t){const m=/^([XY])(\d+)(?:\.(\d+))?$/.exec(t);if(!m)return
   if(st.rule==='word')return m[3]==null?null:`${m[1]}${st.a+(+m[2])}.${m[3]}`;if(!/^[0-7]+$/.test(m[2])||m[3]!=null)return null;return m[1]+(st.a+parseInt(m[2],8)).toString(8);}
 function chainText(d){const p=[];['X','Y'].forEach(L=>{const st=chainStart(d,L),t=tplOf(d);if(!st)return;const n=chainUse(t,L,st.rule);if(!n)return;
   p.push(st.rule==='word'?`${L}${st.a}.0～${L}${st.a+n-1}.15`:`${L}${st.a.toString(8)}～${L}${(st.a+n-1).toString(8)}`);});return p.join('、');}
-function hostOk(h,o){if(!h||h===o||h.on||h.sheet!==o.sheet)return false;const t=tplOf(h);if(t.attach||t.noOv)return false;const ot=tplOf(o);if(ot.chainKind)return chainOk(h,o);if(ot.rackKind)return !!t.rack&&rackPick(h,o,h.x)!=null;if(ot.coil)return !!coilOf(h);if(ot.at&&!ot.at[h.tpl])return false;return attachOf(o)==='below'?t.cat===C5:t.cat===(ot.hostCat||C2);}
+function hostOk(h,o){if(!h||h===o||h.on||h.sheet!==o.sheet)return false;const t=tplOf(h);if(t.attach||t.noOv)return false;const ot=tplOf(o);if(ot.chainKind)return chainOk(h,o);if(ot.rackKind)return !!t.rack&&rackPick(h,o,h.x)!=null;if(ot.coil)return !!coilOf(h);if(ot.attach==='under')return (ot.fits||[]).includes(h.tpl);if(ot.attach==='side')return t.cat===C2&&(!ot.fits||ot.fits.includes(h.tpl))&&!riders(h).some(r=>r!==o&&attachOf(r)==='side');if(ot.at&&!ot.at[h.tpl])return false;return attachOf(o)==='below'?t.cat===C5:t.cat===(ot.hostCat||C2);}
 // 伺服電池的安裝位置：預設掛在下方距左緣 6 mm（MR-J4-200B 外型圖）；
 // MR-J4-700B 依外型圖直立裝在正面右側區塊中間（CN1A、CN1B 左邊），露出 21×69.3 那一面；
 // MR-JE-40B 依外型圖裝在正面電池座（CN4 下方、CN1A／CN1B 左邊）
@@ -243,6 +243,12 @@ function placeOn(r,h){
     delete r.rot;
     const t=tplOf(r);
     if(a){r.x=r1(h.x+a.x);r.y=r1(h.y+a.y);}else{r.x=r1(h.x+Math.min(6,Math.max(0,ht.w-t.w)));r.y=r1(h.y+ht.h);}
+  }else if(attachOf(r)==='under'){
+    // 熱電驛插在接觸器下方：三支銅片插進 2/T1、4/T2、6/T3（位置依原廠 MSO 組合圖）
+    const t=tplOf(r),a=t.under&&t.under[h.tpl]||{x:(ht.w-t.w)/2,y:ht.h-2};delete r.rot;r.x=r1(h.x+a.x);r.y=r1(h.y+a.y);
+  }else if(attachOf(r)==='side'){
+    // 側裝輔助接點：貼在接觸器右側，上下置中
+    const t=tplOf(r);delete r.rot;r.x=r1(h.x+ht.w);r.y=r1(h.y+(ht.h-t.h)/2);
   }else if(tplOf(r).coil){
     // 線圈二極體：橫放在器具下邊緣的線上（不蓋住接點），水平位置對齊線圈兩個接點，K 朝向線圈 + 那一側
     const c=coilOf(h),P=ht.terms.find(p=>p.id===c.p),M=ht.terms.find(p=>p.id===c.m);
@@ -300,7 +306,14 @@ function parallelOf(w){
   return {a:pinEnd(w,'a')?[]:others.filter(x=>atNode(fa,x)),b:pinEnd(w,'b')?[]:others.filter(x=>atNode(fb,x))};
 }
 /* 電位：導線把兩端的接點連起來；端子台同一片的上下各點算同一點。回傳 線 id → 電位編號 */
-function nodeKey(e){const d=devOf(e.d);if(busOf(d))return e.d+'|*';const li=linkOf(d,e.t);if(li>=0)return e.d+'|~'+li;const m=d&&hasSlots(tplOf(d))&&SLOT_RE.exec(e.t);return e.d+'|'+(m?'#'+slotGroup(d,+m[1]):e.t);}
+// 插接：附件的接點直接插在主機的接點上（士林 TH-P 的 2/T1 經熱元件接到接觸器的 2/T1），兩邊算同一點
+function plugTo(d,t){if(!d||!d.on)return null;const m=tplOf(d).plug;if(!m||!m[t])return null;const h=devOf(d.on);return h?{d:h.id,t:m[t]}:null;}
+// 可逆組：機械互鎖記住左右兩台接觸器（d.pair）；拖其中一台三台一起動
+const ilockOf=d=>d&&(tplOf(d).ilock?d:S.devices.find(m=>tplOf(m).ilock&&m.pair&&m.pair.includes(d.id)))||null;
+function ilockGroup(d){const m=ilockOf(d);if(!m)return [];return [m,...(m.pair||[]).map(devOf).filter(Boolean)].filter(x=>x!==d);}
+// 機械互鎖的位置：左邊接觸器右緣，右邊接觸器接在互鎖右邊，三台上緣對齊
+function ilockPlace(m,L,R){const lt=tplOf(L),mt=tplOf(m);m.x=r1(L.x+lt.w);m.y=r1(L.y+(lt.h-mt.h)/2);R.x=r1(m.x+mt.w);R.y=L.y;R.sheet=m.sheet=L.sheet;}
+function nodeKey(e){const d=devOf(e.d);const pk=plugTo(d,e.t);if(pk)return nodeKey(pk);if(busOf(d))return e.d+'|*';const li=linkOf(d,e.t);if(li>=0)return e.d+'|~'+li;const m=d&&hasSlots(tplOf(d))&&SLOT_RE.exec(e.t);return e.d+'|'+(m?'#'+slotGroup(d,+m[1]):e.t);}
 function netsOf(){
   const P=new Map(),f=k=>{while(P.get(k)!==k){P.set(k,P.get(P.get(k)));k=P.get(k);}return k;};
   const add=k=>{if(!P.has(k))P.set(k,k);};

@@ -117,6 +117,7 @@ function renderDetailInner(){
       ${t.model?`<div class="fields"><label for="dModel" style="grid-column:1/-1">型號（材料表照這個列，空白就寫「二極體」）<input id="dModel" maxlength="30" value="${esc(d.model||'')}" placeholder="例如 1N4007"></label></div>`:''}
       ${(d.sheet==='field'||outBox({dev:d.id,sheet:d.sheet}))&&S.glands.length?`<div class="fields"><label for="dGland" style="grid-column:1/-1">預設出線口（接到這台的外線、電纜都走這個）<select id="dGland"><option value="">自動選最近</option>${S.glands.map(g=>`<option value="${g.id}"${d.gland===g.id?' selected':''}>${esc(g.id)}　${esc(g.spec)}</option>`).join('')}</select></label></div>`:''}
       ${t.sym==='diode'?`<label class="check"><input type="checkbox" id="dShowNo"${d.hideNo?'':' checked'}>顯示接到這個二極體的線號</label>`:''}
+      ${tplOf(d).trip?`<label class="check"><input type="checkbox" id="dThAuto"${d.thReset==='auto'?' checked':''}>自動復歸（A）：模擬時按著才跳脫；不勾是手動復歸（H），點一下跳脫、再點一下復歸</label>`:''}
       ${coilOf(d)?`<label class="check"><input type="checkbox" id="dCoilSwap"${d.coilSwap?' checked':''}>線圈極性對調（目前 ${esc(coilOf(d).p)} 是 +、${esc(coilOf(d).m)} 是 −）</label>`:''}
       ${t.gen?`<div class="fields"><label for="dCount">${esc(t.cntLabel)}<input id="dCount" type="number" min="1" value="${d.count||t.cnt}"></label></div>`:''}
       ${t.userLinks?linkHtml(d):''}${hasSlots(t)?slotHtml(d)+(t.jumper?jumperHtml(d):''):slotSource(d)?`<div class="revert"><p class="note">這組端子台之前用「編輯器具」改過，變成了自訂器具，所以不能每片填端子號，也不能改片數。換回 WAGO 端子台後，原本改的編號會變成每片的端子號，接好的線都會保留。</p><button class="tool" id="slotRevert">換回 ${esc(TPL[slotSource(d)].n)}</button></div>`:''}
@@ -147,6 +148,7 @@ function renderDetailInner(){
       if($('dModel'))$('dModel').onchange=e=>{const v=e.target.value.trim().slice(0,30);if(v)d.model=v;else delete d.model;commit();recompute();};
       if($('dGland'))$('dGland').onchange=e=>{if(e.target.value)d.gland=e.target.value;else delete d.gland;commit();recompute();};
       if($('dShowNo'))$('dShowNo').onchange=e=>{if(e.target.checked)delete d.hideNo;else d.hideNo=true;commit();recompute();};
+      if($('dThAuto'))$('dThAuto').onchange=e=>{if(e.target.checked)d.thReset='auto';else delete d.thReset;commit();recompute();};
       if($('dCoilSwap'))$('dCoilSwap').onchange=e=>{if(e.target.checked)d.coilSwap=true;else delete d.coilSwap;commit();recompute();};
       if(t.gen) $('dCount').onchange=e=>{const v=Number(e.target.value);if(!(v>=1))return;const before=S.wires.length;d.count=Math.min(t.cntLabel.includes('mm')?2000:96,Math.round(v));commit();recompute();snapshotPrev=JSON.stringify(S);save();if(S.wires.length<before)toast(`接點變少，移除了 ${before-S.wires.length} 條線；可按復原`);};
     }else if(picked.k==='zone'){
