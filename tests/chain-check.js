@@ -82,6 +82,13 @@ const {chromium}=require('playwright'),path=require('path');
     S=normalize({box:{w:1400,h:900,d:300,back:20},plate:{w:1360,h:860},door:{w:900,h:700},ducts:[],glands:[],wires:[],
       devices:[D('X3','ax-308ea0ma1t',100,100),D('N1','as16an01r-a',600,500)]}).state;resetUi();
     hostSnap(dv('N1'),dv('X3').x+tplOf(dv('X3')).w+5,dv('X3').y+10);ok(dv('N1').on==='X3'&&termLabel(dv('N1'),'Y0.9')==='Y1.9','AX-308E ＋ AS16AN01R：Y1.0～Y1.15');
+    // 舊檔：串接功能之前貼齊主機擺好的模組（沒有 on），讀檔時自動串上；沒貼齊、族別不對的不動
+    {const w=TPL.fx5u32.w,n=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:860,h:660},door:{w:900,h:700},ducts:[],glands:[],wires:[],
+      devices:[D('C','fx5u32',100,100),D('M1','fx516ex',100+w,100),D('M2','fx540ssc',100+w+TPL.fx516ex.w,100),D('M3','fx516ex',600,100),D('A','fx54ad',100-TPL.fx54ad.w,100),D('Q','fx3u-4ad',100+w+TPL.fx516ex.w+TPL.fx540ssc.w,100)]}).state;
+     const g=id=>n.devices.find(d=>d.id===id);
+     ok(g('M1').on==='C'&&g('M1').chain===0&&g('M2').on==='C'&&g('M2').chain===1,'舊檔貼齊的 16EX、40SSC 讀檔後串到主機右邊（順序 0、1）');
+     ok(g('A').on==='C','貼在主機左邊的 4AD-ADP 串成左側轉接器');ok(!g('M3').on,'沒貼齊的模組不串');ok(!g('Q').on,'族別不對（FX3U 模組）不串');
+     }
     return out;
   });
   await b.close();
