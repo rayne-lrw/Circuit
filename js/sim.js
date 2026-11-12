@@ -84,6 +84,12 @@ sd('dc5521f-tb',()=>[{k:'grp',t:'5521母',sub:['+','-']},{k:'pass',a:'5521母.+'
 sd('dc5525m-tb',()=>[{k:'grp',t:'5525公',sub:['+','-']},{k:'pass',a:'5525公.+',b:'V+'},{k:'pass',a:'5525公.-',b:'V-'}]);
 sd('laser-dot',()=>[{k:'grp',t:'5525母',sub:['+','-']},{k:'load',a:'5525母.+',b:'5525母.-',name:'雷射',polar:true}]);
 
+/* 電晶體輸出的驅動電源（AH 的 UP／ZP、DVP-EX3 的 UP／ZP、QY80 的 COM／0V）：輸出共點只用其中一顆，另一顆沒寫進資料，
+   接了線也不會跑電流。補一個「輸出電源」負載（aux：只算電流顯示，不擋輸出動作、也不算模組的外部電源） */
+Object.keys(TPL).forEach(id=>{const t=TPL[id];if(!Array.isArray(t.sim)||t.cnDef||!t.sim.some(e=>e.k==='plcY'))return;
+  const ids=new Set((t.t||t.terms||[]).map(x=>x.id||x[0])),used=new Set();t.sim.forEach(e=>[e.a,e.b,e.com,...((e.pairs||[]).flat())].forEach(v=>v&&used.add(v)));
+  const pr=[['UP','ZP'],['COM','0V']].find(([a,b])=>ids.has(a)&&ids.has(b)&&(!used.has(a)||!used.has(b)));
+  if(pr&&!t.sim.some(e=>e.aux))t.sim.push({k:'load',a:pr[0],b:pr[1],name:'輸出電源',polar:true,aux:true});});
 // 這台器具的動作資料：自訂器具用 t.sim，從內建器具複製來的（src）用原本的
 function simElems(d){
   const t=tplOf(d);if(!t)return [];
@@ -134,7 +140,7 @@ function simRun(){
      - 要外部 24V 的模組（類比、定位等，動作資料是 load）：上游有電而且 24V 也有電才算有電
      - 沒裝到主機或基板上的模組沒有電 */
   const busKind=d=>{if(pwrDev.has(d.id))return false;const t=tplOf(d);return !!(t.chainKind||['io','cpu'].includes(t.rackKind));};
-  const extEls=new Map();els.forEach(e=>{if(e.k==='load'&&busKind(e.d)){if(!extEls.has(e.d.id))extEls.set(e.d.id,[]);extEls.get(e.d.id).push(e);}});
+  const extEls=new Map();els.forEach(e=>{if(e.k==='load'&&!e.aux&&busKind(e.d)){if(!extEls.has(e.d.id))extEls.set(e.d.id,[]);extEls.get(e.d.id).push(e);}});
   const busSrc=d=>{const h=d.on&&devOf(d.on);if(!h)return [];const t=tplOf(d);
     if(t.chainKind==='r'){const L=chainOf(h,'r'),i=L.indexOf(d);for(let j=i-1;j>=0;j--)if(pwrDev.has(L[j].id))return [L[j]];return [h];}
     if(t.chainKind)return [h];
@@ -191,12 +197,13 @@ function simRun(){
   // 點位名稱：連接器針腳先換成訊號（三菱 Q 的 B20 → X00），再換成實際位址
   const pName=(e,t)=>{const g=typeof cnSig==='function'?cnSig(e.d,t):t;return qName(e.d,g)||chainName(e.d,g)||(e.cpu?g:`${e.d.tag}·${g}`);};
   const live=d=>!!powered['L|'+d.id];
-  const X=[];els.filter(e=>e.k==='plcX').forEach(e=>e.ptsK.forEach(([t,k])=>X.push({d:e.d,t,name:pName(e,t),on:live(e.d)&&feed(lab,f,k,e.comK).on,...(live(e.d)?{}:{nopwr:true})})));
+  const xLoads=[]; // 亮著的輸入點：X ↔ 共點 算進電流迴路（輸入迴路的線會顯示電流）
+  const X=[];els.filter(e=>e.k==='plcX').forEach(e=>e.ptsK.forEach(([t,k])=>{const on=live(e.d)&&feed(lab,f,k,e.comK).on;if(on)xLoads.push([k,e.comK]);X.push({d:e.d,t,name:pName(e,t),on,...(live(e.d)?{}:{nopwr:true})});}));
   const Y=[];els.filter(e=>e.k==='plcY').forEach(e=>e.pairsK.forEach(([y])=>{if(termOf(e.d,y))Y.push({d:e.d,y,name:pName(e,y),on:st.y.has(e.d.id+'|'+y),...(live(e.d)?{}:{nopwr:true}),wired:S.wires.some(w=>wiredAt(w,e.d.id,y))});}));
   // 每條線：電位、有沒有電流
   const wires={};S.wires.forEach(w=>{const wk=wireKeys.get(w.id);if(!wk||!wk.keys.length){wires[w.id]={pot:'none'};return;}
     const ls=new Set();wk.keys.forEach(k=>labOf(k).forEach(l=>ls.add(l)));wires[w.id]={pot:potOf(ls),ls:[...ls],short:wk.keys.some(k=>shortSet.has(f(k)))};});
-  const cur=currentWires(res,wireKeys,loads);cur.forEach(id=>{if(wires[id])wires[id].cur=true;});
+  const cur=currentWires(res,wireKeys,loads,xLoads);cur.forEach(id=>{if(wires[id])wires[id].cur=true;});
   const devState={};loads.forEach(l=>{const d=l.e.d;if(!devState[d.id])devState[d.id]={on:[],rev:[]};const nm=l.e.name||(l.e.k==='coil'?'線圈':'電源'),S2=devState[d.id];if(l.on&&!S2.on.includes(nm))S2.on.push(nm);if(l.rev&&!S2.rev.includes(l.e.name||'電源'))S2.rev.push(l.e.name||'電源');});
   Object.keys(coil).forEach(k=>{if(coil[k]){const id=k.split('#')[0];devState[id]=devState[id]||{on:[],rev:[]};devState[id].coil=true;if(k.includes('#'))(devState[id].groups=devState[id].groups||[]).push(k.split('#')[1]);}});
   locks.forEach(m=>m.pair.forEach(id=>{const s=devState[id];if(s&&!coil[id]){const i=s.on.indexOf('線圈');if(i>=0)s.on[i]='線圈有電但被機械互鎖擋住';}}));
@@ -220,7 +227,7 @@ function feed(lab,f,a,b,polar){
 // 電位分類：p（DC ＋）、n（DC −）、ac（AC 相）、none
 function potOf(ls){let p=false,n=false,a=false;ls.forEach(l=>{const [t,,pole]=l.split('|');if(t==='A'){if(pole!=='N')a=true;else n=true;}else if(pole==='+')p=true;else n=true;});return p?'p':a?'ac':n?'n':'none';}
 // 有電流的線：每個動作中的負載，兩端各自沿導線和導通的接點，找最近的電源 ＋（另一端找 −；AC 找任一相）；路上的線就有電流（平行的線只標最短那條）
-function currentWires(res,wireKeys,loads){
+function currentWires(res,wireKeys,loads,xLoads){
   /* 有電流的線：負載（含電源供應器的 AC 輸入）與電源形成的迴路上的每一條線都算，並聯（短路片、跨接、兩條線接同一點）的每一條都會標出來。
      作法：接點當節點，導線、導通中的接點、有電的負載當邊，每個電源加一個虛擬節點把 ＋／−（或各相、N）接起來；
      求雙連通分量（任兩條邊都在同一個簡單迴路上），含有負載的分量裡的導線就是有電流的線 */
@@ -229,7 +236,7 @@ function currentWires(res,wireKeys,loads){
   conducting.forEach(e=>add(e.aK||e.outK,e.bK||e.toK,null));
   srcOn.forEach(e=>{const v='V|'+e.d.id;add(e.pK,v,null);add(v,e.nK,null);if(e.inK)add(e.inK[0],e.inK[1],null,true);});
   els.filter(e=>e.k==='ac').forEach(e=>{const v='A|'+e.d.id;e.phK.forEach(k=>add(k,v,null));if(e.nK)add(e.nK,v,null);});
-  loads.filter(l=>l.on).forEach(l=>add(l.e.aK,l.e.bK,null,true));
+  loads.filter(l=>l.on).forEach(l=>add(l.e.aK,l.e.bK,null,true));(xLoads||[]).forEach(([a,b])=>add(a,b,null,true));
   const idx=new Map(),N=[],nid=k=>{let i=idx.get(k);if(i==null){i=N.length;idx.set(k,i);N.push([]);}return i;};
   E.forEach((e,j)=>{const a=nid(e[0]),b=nid(e[1]);N[a].push([b,j]);N[b].push([a,j]);});
   const disc=new Int32Array(N.length).fill(-1),low=new Int32Array(N.length),es=[],out=new Set();let t=0;

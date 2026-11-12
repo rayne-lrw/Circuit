@@ -26,7 +26,7 @@ const {chromium}=require('playwright'),path=require('path');
       const pw=sim.find(e=>e.k==='pwr'),ac=pw&&pw.a==='L';
       const D=(i,tpl,x,y,sheet='plate')=>({id:i,tag:i,tpl,x,y,sheet});
       // 沒有自己電源的模組：找裝得上的主機（串接）或基板＋電源模組（插槽）
-      const bus=!pw&&(t.chainKind||['io','cpu'].includes(t.rackKind)),ext=bus&&sim.find(e=>e.k==='load');
+      const bus=!pw&&(t.chainKind||['io','cpu'].includes(t.rackKind)),ext=bus&&sim.find(e=>e.k==='load'&&!e.aux);
       const mount=bus?mountOf(id):null;if(bus&&!mount){bad.push(`${id}：找不到可以裝的主機或基板`);return;}
       const build=()=>{S=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:860,h:660},door:{w:900,h:700},
         devices:[D('PWR','field-power',0,-300,'field'),D('PS','drl120',20,20),D('P',id,120,20),D('KA','my2n-24',20,400),...(mount?mount.devs.map(([i,tp])=>D(i,tp,300,300)):[])],ducts:[],glands:[],wires:[]}).state;resetUi();

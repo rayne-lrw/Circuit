@@ -41,7 +41,8 @@ const {chromium}=require('playwright'),path=require('path');
     SIMST.press.add('SB2|按下');R=r();ok(!dev(R,'KM').coil,'按 SB2（常閉斷開）：KM 跳脫');
     SIMST.press.clear();R=r();ok(!dev(R,'KM').coil,'放開 SB2：不會自己再吸合');
     ok(!R.X.find(x=>x.name==='X0').on,'感測器沒觸發：X0 OFF');
-    SIMST.press.add('PX|觸發');R=r();ok(R.X.find(x=>x.name==='X0').on,'感測器觸發（PNP）：X0 ON');SIMST.press.clear();
+    {const wx=S.wires.find(w=>w.a.d==='PX'&&w.a.t==='黑'&&w.b.t==='X0'),wsS=S.wires.find(w=>w.a.d==='PLC'&&w.a.t==='S/S');ok(!R.wires[wx.id].cur,'X0 OFF：輸入線沒有電流');
+    SIMST.press.add('PX|觸發');R=r();ok(R.X.find(x=>x.name==='X0').on,'感測器觸發（PNP）：X0 ON');ok(R.wires[wx.id].cur&&R.wires[wsS.id].cur,'X0 ON：感測器 → X0、S/S → 0V 的輸入迴路有電流');SIMST.press.clear();}
     ok(!dev(R,'LA').on.length,'Y0 OFF：雷射不亮');
     SIMST.y.add('PLC|Y0');R=r();ok(dev(R,'KA').coil,'Y0 ON：KA 吸合');ok(dev(R,'LP').on.includes('燈'),'KA 接點：燈亮（AC 兩相）');
     ok(dev(R,'LA').on.includes('雷射'),'KA 接點：雷射亮（插座 → 變壓電源 → 成組接頭 → 繼電器 → 雷射）');

@@ -150,6 +150,8 @@ const {chromium}=require('playwright'),path=require('path');
     commit();recompute();simReset();let r4=simRun();
     ok(r4.X.some(x=>x.name==='X2.3'&&x.on)&&r4.X.filter(x=>x.on).length===1,'模擬：32 點模組右欄 X1.3 接上 → 實際 X2.3 ON，只有一點');
     SIMST.y.add('E1|Y0.4');r4=simRun();ok(r4.Y.some(y=>y.name==='Y2.4')&&r4.dev.KA&&r4.dev.KA.coil,'模擬：延伸背板 Y2.4 ON，繼電器吸合');
+    {const wu=S.wires.find(w=>w.b.d==='E1'&&w.b.t==='UP');ok(r4.wires[wu.id].cur&&r4.dev.E1.on.includes('輸出電源'),'電晶體輸出的 UP 線（驅動電源）有電流');
+     const keep=S.wires.slice();S.wires=S.wires.filter(w=>w!==wu);recompute();const r5=simRun();ok(r5.dev.KA&&r5.dev.KA.coil,'UP 沒接：輸出照樣動作（輸出電源只算電流顯示）');S.wires=keep;recompute();r4=simRun();}
     // 電源：延伸背板的電源模組斷電 → 上面的模組沒電，輸出不動作；主背板照常
     S.wires=S.wires.filter(w=>w.b.d!=='PE');recompute();r4=simRun();ok(!(r4.dev.KA&&r4.dev.KA.coil)&&r4.dev.E1.nopwr&&r4.X.some(x=>x.name==='X2.3'&&x.on),'延伸背板電源模組沒電：E1 沒電、Y2.4 不動作；主背板 X2.3 照常');
     S.wires=S.wires.filter(w=>w.b.d!=='PA');recompute();r4=simRun();ok(!r4.X.some(x=>x.on)&&r4.dev.A2.nopwr&&!(r4.dev.A0.on||[]).length,'主背板電源模組也沒電：輸入不亮、模組不亮');
