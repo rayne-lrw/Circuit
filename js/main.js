@@ -2,6 +2,6 @@
 /* 啟動 */
 $('ver2').textContent=$('ver').textContent;setLeft(leftPrefs()[mode]);
 renderPalette();recompute();syncUndo();fit();save();
-// 沿用上次離開時的模式（只記在這台電腦的瀏覽器）
-try{const m=localStorage.getItem('wiring-sim-mode');if(m==='place'||m==='view')setMode(m);}catch(_){}
+// 打開時一律是檢視模式（只看不改，避免誤動）；要配線、擺放再切換
+setMode('view');
 new ResizeObserver(()=>{if(!view.manual)fit();}).observe($('stage'));

@@ -7,7 +7,11 @@ const {chromium}=require('playwright'),path=require('path'),fs=require('fs');
   for(const f of files.length?files:[null]){
     const p=await b.newPage({viewport:{width:1500,height:950}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
     await p.goto('file://'+path.join(__dirname,'..','index.html'));
-    const res=await p.evaluate(j=>{
+    // 打開時是檢視模式，而且檢視模式可以匯入專案（從選單的「匯入專案」選檔）
+    const pre=[];const v0=await p.evaluate(()=>({mode,dis:$('importB').disabled}));pre.push((v0.mode==='view'?'✓ ':'✗ ')+'打開時是檢視模式');pre.push((!v0.dis?'✓ ':'✗ ')+'檢視模式的「匯入專案」可以按');
+    if(f){const n0=await p.evaluate(()=>S.devices.length);await p.setInputFiles('#importF',f);await p.waitForFunction(n0=>S.devices.length!==n0,n0,{timeout:5000}).catch(()=>{});
+      const v1=await p.evaluate(()=>({mode,n:S.devices.length,t:$('toast').textContent}));pre.push((v1.mode==='view'&&v1.n>0&&/已匯入/.test(v1.t)?'✓ ':'✗ ')+`檢視模式匯入專案檔：${v1.n} 台器具，還在檢視模式（${v1.t}）`);}
+    const res=pre.concat(await p.evaluate(j=>{
       const out=[],ok=(c,m)=>out.push((c?'✓ ':'✗ ')+m),tryit=(m,fn)=>{try{const r=fn();ok(r!==false,m);}catch(e){ok(false,m+'：'+e.message);}};
       const n=normalize(j?JSON.parse(j):sampleState());S=n.state;resetUi();commit();
       let t0=performance.now();recompute();const ms=Math.round(performance.now()-t0);
@@ -48,7 +52,7 @@ const {chromium}=require('playwright'),path=require('path'),fs=require('fs');
       setMode('wire');ok(SIMST===null,'離開模擬');
       out.push(`  檢查清單 ${ISSUES.length} 項`+(ISSUES.length?'：'+ISSUES.slice(0,4).map(i=>i.t).join('；'):''));
       return out;
-    },f?fs.readFileSync(f,'utf8'):null);
+    },f?fs.readFileSync(f,"utf8"):null));
     console.log(`\n== ${f?path.basename(f):'內建範例'} ==`);res.forEach(l=>console.log(l));errs.forEach(e=>console.log('✗ 頁面錯誤：'+e));
     fail+=res.filter(l=>l.startsWith('✗')).length+errs.length;await p.close();
   }

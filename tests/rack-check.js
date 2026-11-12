@@ -6,7 +6,7 @@ const {chromium}=require('playwright'),path=require('path');
   const b=await chromium.launch(),p=await b.newPage({viewport:{width:1400,height:900}});
   const errs=[];p.on('pageerror',e=>errs.push(e.message));
   await p.goto('file://'+path.join(__dirname,'..','index.html'));
-  const res=await p.evaluate(()=>{
+  const res=await p.evaluate(()=>{setMode('wire'); // 打開時是檢視模式；這裡要編輯
     const out=[],ok=(c,m)=>out.push((c?'✓ ':'✗ ')+m);
     const D=(id,tpl,x,y,sheet='plate')=>({id,tag:id,tpl,x,y,sheet});
     S=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:860,h:660},door:{w:900,h:700},ducts:[],glands:[],wires:[],

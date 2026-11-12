@@ -600,7 +600,7 @@ $('importF').onchange=e=>{
     let n=null;try{n=normalize(JSON.parse(r.result));}catch(_){}
     if(!n){toast('這不是配線專案檔，盤面沒有變更');return;}
     S=n.state;resetUi();commit();recompute();renderPalette();fit();
-    toast(n.dropped?`已匯入，略過 ${n.dropped} 筆無法辨識的資料；可按復原`:'已匯入專案；可按復原');
+    const ud=mode==='view'||mode==='sim'?'切到配線或擺放模式可按復原':'可按復原';toast(n.dropped?`已匯入，略過 ${n.dropped} 筆無法辨識的資料；${ud}`:`已匯入專案；${ud}`);
   };
   r.readAsText(f);
 };
