@@ -12,7 +12,7 @@ const S={
   hgsr702:'HG-SR 伺服馬達',hgsr202:'HG-SR 伺服馬達',hgkn43:'HG-KN 伺服馬達',gs2107:'GOT GS 人機',
   // 施耐德
   'ic60-3P40A':'Acti9 iC60N','ic60-3P16A':'Acti9 iC60N','ic60-3P4A':'Acti9 iC60N','ic60-2P4A':'Acti9 iC60N','ic60-1P6A':'Acti9 iC60N','ic60-1P4A':'Acti9 iC60N','ic60-1P2A':'Acti9 iC60N','ic60-1P1A':'Acti9 iC60N',
-  gv2me16:'TeSys GV2 馬達保護',gv2me32:'TeSys GV2 馬達保護',lc1d09:'TeSys D 接觸器',lc1d18:'TeSys D 接觸器',lc1d38:'TeSys D 接觸器',lc1d258:'TeSys D 接觸器',ladn40:'TeSys D 接觸器',
+  gv2me16:'TeSys GV2 馬達保護',gv2me32:'TeSys GV2 馬達保護',lc1d09:'TeSys D 接觸器',lc1d18:'TeSys D 接觸器',lc1d38:'TeSys D 接觸器',lc1d258:'TeSys D 接觸器',ladn40:'TeSys D 附件',
   // OMRON
   'my2n-24':'MY 繼電器','my2n-220':'MY 繼電器',pyf14a:'MY 繼電器',ly4n:'LY 繼電器',ly2j:'LY 繼電器',e2e:'E2E 近接開關',d4mc:'D4MC 極限開關',
   // 其他廠牌

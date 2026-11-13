@@ -71,6 +71,21 @@ const {chromium}=require('playwright'),path=require('path');
     S=normalize({...box,wires:[],devices:[D('PWR','field-power',0,-300,{sheet:'field'}),D('Q1','ic60-1PN16A',300,200),D('KA','my2n-220',900,300)]}).state;resetUi();
     k=0;W('PWR','R','Q1','1');W('Q1','2','KA','14');W('PWR','S','Q1','N');W('Q1','N(2)','KA','13');commit();recompute();simReset();r=simRun();
     ok(!(r.dev.KA&&r.dev.KA.coil),'iC60N 1P+N OFF：負載沒電');SIMST.on.Q1=true;r=simRun();ok(r.dev.KA&&r.dev.KA.coil,'iC60N 1P+N ON：相線與 N 一起接通');
+    // ---------- 正面輔助接點 LADN／LADC 全系列：裝到 LC1D 上，每個接點跟著線圈動作（常開吸合閉合、常閉吸合打開） ----------
+    {const ids=Object.keys(TPL).filter(id=>/^lad[nc]\d/.test(id));ok(ids.length===18,`LADN／LADC 正面輔助接點 ${ids.length} 種`);
+     ok(['ladn20','ladn02','ladn13','ladn04','ladn31','ladn11r','ladn20r','ladn22r','ladn40r','ladn31r','ladn11g','ladn22g','ladn11p','ladn22p'].every(id=>TPL[id]),'型錄 B8/43 的型號都有（LADN10／01 要 D80 以上，庫裡還沒有）');
+     ok(TPL.ladn40.ser==='TeSys D 附件','舊的 LADN40 也歸到 TeSys D 附件');
+     const top=id=>tplOf({tpl:id}).terms.filter(x=>x.side==='top').sort((a,b)=>a.x-b.x).map(x=>x.id).join(' ');
+     ok(top('ladn22r')==='61 53 83 71'&&top('ladn31r')==='53 73 83 61'&&top('ladn22g')==='31 41 53 63','R 型、G 型的接點順序照型錄接線圖');
+     const bad=[];ids.forEach(id=>{const t=tplOf({tpl:id});
+       t.terms.filter(x=>x.side==='top').forEach(x=>{const a=x.id,bb=String(+a+1),no=/[34]$/.test(a)||/NO/.test(x.desc||'')&&!/常閉/.test(x.desc);
+         S=normalize({...box,wires:[],devices:[D('PWR','field-power',0,-300,{sheet:'field'}),D('PS','drl120',20,20),D('K','lc1d09bd',300,200),D('A',id,700,600),D('KA','my2n-24',600,20)]}).state;resetUi();
+         hostSnap(devOf('A'),devOf('K').x+10,devOf('K').y+10);if(devOf('A').on!=='K'){bad.push(id+' 裝不上 LC1D09');return;}
+         let k=0;const W=(p1,t1,p2,t2)=>S.wires.push({id:'z'+(++k),no:'Z'+k,a:{d:p1,t:t1},b:{d:p2,t:t2},wps:[],gauge:.75,color:'black'});
+         W('PWR','R','PS','L');W('PWR','S','PS','N');W('PS','+V1','A',a);W('A',bb,'KA','14');W('KA','13','PS','-V1');commit();recompute();simReset();
+         const nc=/常閉/.test(x.desc),off=!!(simRun().dev.KA||{}).coil;W('PS','+V1','K','A1');W('K','A2','PS','-V1');recompute();const on=!!(simRun().dev.KA||{}).coil;
+         if(on!==!nc||off!==nc)bad.push(`${id} ${a}-${bb}（${nc?'NC':'NO'}）：線圈放開 ${off?'閉':'開'}、吸合 ${on?'閉':'開'}`);});});
+     ok(!bad.length,'每一種的每個接點：常開吸合才閉合、常閉吸合打開'+(bad.length?'：'+bad.slice(0,4).join('；'):''));}
     return out;
   });
   await b.close();
