@@ -61,6 +61,27 @@ const {chromium}=require('playwright'),path=require('path');
     const K6=dv('K6');hostSnap(dv('F9'),K6.x,K6.y+60);ok(dv('F9').on==='K6'&&nodeKey({d:'F9',t:'T1'})===nodeKey({d:'K6',t:'T1'}),'TH-P09 插在 S-P06 下方：銅片插進 2/T1，算同一點');
     ok(!tplOf({tpl:'thp09'}).fits.includes('sp16'),'TH-P09 不能裝到 S-P16');
     const t12=tplOf({tpl:'thp12'}).terms.filter(t=>/^9/.test(t.id)).sort((a,b)=>a.x-b.x).map(t=>t.id).join(',');ok(t12==='98,97,95,96','TH-P12 輔助端子左到右 98、97、95、96（實物照片）');
+    // ========== 士林斷路器：NF、NV、BH、NVB ==========
+    {const ser=x=>Object.keys(TPL).filter(id=>TPL[id].ser===x).length,T=id=>tplOf({tpl:id}),sz=id=>[T(id).w,T(id).h,T(id).d].join('×'),xs=(id,re)=>T(id).terms.filter(t=>re.test(t.id)).sort((a,b)=>a.x-b.x).map(t=>t.id).join(' ');
+     ok(ser('NF 無熔線')===211&&ser('NV 漏電')===104&&ser('BH 分電盤')===69&&ser('NVB 住宅漏電')===50,`士林斷路器：NF ${ser('NF 無熔線')}、NV ${ser('NV 漏電')}、BH ${ser('BH 分電盤')}、NVB ${ser('NVB 住宅漏電')}`);
+     ok(sz('nf100-3p50')==='75×130×90'&&sz('nf100h-3p50')==='90×155×90'&&sz('nf125c-3p100')==='75×130×90'&&sz('nf125-3p100')==='90×155×90','同框架不同型式的外形：NF100-CN 75×130、NF100-HN 90×155；NF125-CT 小框、NF125-SN 大框');
+     ok(sz('nf250-3p200')==='105×165×92'&&sz('nf400-4p300')==='185×257×155'&&sz('nf800-3p800')==='210×275×155'&&sz('nv400-3p300')==='140×257×155','NF250、NF400、NF800、NV400 外形照型錄');
+     ok(xs('nf125-4p100',/^(N|1|3|5)$/)==='N 1 3 5'&&xs('nv800-4p700',/\(2\)$|^[246]$/)==='N(2) 2 4 6','4P 左極是 N（照外形圖）：上 N 1 3 5、下 N 2 4 6');
+     {const t=T('nf400-2p300'),a=t.terms.find(x=>x.id==='1'),c=t.terms.find(x=>x.id==='3');ok(t.w===140&&Math.abs(c.x-a.x-88)<0.5,'NF400 2P 用 3P 框架，端子在左右兩極');}
+     ok(!Object.keys(TPL).some(id=>/^nv\d+.*-2p/.test(id))&&!Object.keys(TPL).some(id=>/^nf(630|800)-2p/.test(id)),'NV 只有 3P、4P；NF630、NF800 只有 3P、4P');
+     ok(sz('bh100-1p20')==='25×95×77.5'&&sz('bpl100-3p50')==='75×74×74'&&sz('bah100-2p30')==='50×79×77.5','BH 螺栓式、BPL 插入式、BAH 外形照型錄');
+     ok(xs('nvb50-1w15',/./)==='N N(2) 1 2'&&T('nvb50-1w15').w===25&&T('nvbh50-1n20').w===50&&T('nvbh50-2p20').w===75,'NVB 1P 2 線式（寬 25，N 在左）、NVB-50H 1P+N 寬 50、2P 寬 75');
+     // 模擬：NF 主迴路、NV 測試按鈕漏電跳脫、4P 的 N 極也開閉
+     S=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:860,h:660},door:{w:900,h:700},ducts:[],glands:[],wires:[],
+       devices:[{id:'PWR',tag:'PWR',tpl:'field-power',x:0,y:-300,sheet:'field'},{id:'Q',tag:'Q',tpl:'nf125-3p50',x:100,y:100,sheet:'plate'},{id:'E',tag:'E',tpl:'nv100-4p50',x:300,y:100,sheet:'plate'},
+         {id:'LP',tag:'LP',tpl:'lamp',x:400,y:-300,sheet:'field'}]}).state;resetUi();
+     let kk=0;const WW=(a,at,bb,bt)=>S.wires.push({id:'q'+(++kk),no:'Q'+kk,a:{d:a,t:at},b:{d:bb,t:bt},wps:[],gauge:.75,color:'black'});
+     WW('PWR','R','Q','1');WW('PWR','S','Q','3');WW('Q','2','E','1');WW('Q','4','E','N');WW('E','2','LP','L/+');WW('E','N(2)','LP','N/−');commit();recompute();simReset();
+     const lamp=()=>{const r=simRun();return !!(r.dev.LP&&r.dev.LP.on.length);};
+     ok(!lamp(),'NF、NV 都 OFF：燈不亮');brkClick('Q');ok(!lamp(),'只有 NF ON：燈不亮');brkClick('E');ok(lamp(),'NF、NV 都 ON：燈亮（NV 4P 的 N 極也導通）');
+     ok(simElems(devOf('E')).some(e=>e.k==='eltest'),'NV 有「測試」按鈕');SIMST.press.add('E|測試');lamp();SIMST.press.delete('E|測試');
+     ok(!SIMST.on.E&&SIMST.btrip.E==='el'&&!lamp(),'按測試：NV 漏電跳脫，燈熄');brkClick('E');brkClick('E');ok(lamp(),'復歸後再 ON：燈亮');
+     picked=null;}
     return out;
   });
   await b.close();

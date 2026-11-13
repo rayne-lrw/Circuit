@@ -135,7 +135,7 @@ node tests/chain-check.js
 node tests/shihlin-check.js
 ```
 
-士林接觸器檢查：TH-P 熱電驛裝在接觸器下方自動導通、跳脫／復歸（手動與自動）；S-2×P 可逆組放下自動帶兩台接觸器、三台一起移動、機械互鎖、審查提醒電氣互鎖；AP 上裝式與側裝式輔助接點跟著接觸器動作；存檔讀回。
+士林接觸器檢查：TH-P 熱電驛裝在接觸器下方自動導通、跳脫／復歸（手動與自動）；S-2×P 可逆組放下自動帶兩台接觸器、三台一起移動、機械互鎖、審查提醒電氣互鎖；AP 上裝式與側裝式輔助接點跟著接觸器動作；存檔讀回。另外檢查士林斷路器：NF／NV／BH／NVB 數量、同框架不同型式的外形、4P 左極 N、3P 框架的 2P、NVB 1P 2 線式與 1P+N；模擬 NF 主迴路、NV 4P 的 N 極導通、按「測試」漏電跳脫與復歸。
 
 ```
 node tests/tesys-check.js
@@ -232,6 +232,7 @@ js/devices-gtwin.js 富士 G-TWIN 無熔絲斷路器 BW32～BW800、漏電斷路
 js/devices-acti9.js 施耐德 Acti9 iC60N 斷路器
 js/devices-tesys.js 施耐德 TeSys：LC1D 接觸器、GV2 馬達保護、LRD／LR9D 過電流繼電器
 js/devices-shihlin.js 士林 S-P 接觸器、S-2×P 可逆組、TH-P 熱電驛、AP 輔助接點
+js/devices-shihlin-brk.js 士林斷路器：NF 無熔線、NV 漏電、BH 分電盤用、NVB／NVP 住宅用漏電（照外形組 × 框架 × 極數 × 電流）
 js/devices-as.js   台達 AS 系列（主機、數位 I/O、類比、特殊模組、電源、功能卡）與 AX-3 主機
 js/devices-chain.js 三菱 FX5、FX3U 的串接設定
 js/sample.js       範例電控箱
