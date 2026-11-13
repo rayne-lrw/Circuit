@@ -9,7 +9,7 @@ const INDEX='file://'+path.resolve(__dirname,'..','index.html');
   for(const [w,h] of [[390,844],[768,1024],[1024,768],[1280,800]]){
     const p=await b.newPage({viewport:{width:w,height:h}});
     await p.route(/fonts\.(googleapis|gstatic)/,r=>r.abort());
-    await p.goto(INDEX);await p.waitForTimeout(300);
+    await p.goto(INDEX);await p.waitForTimeout(300);await p.evaluate(()=>setMode('wire')); // 打開時是檢視模式；這裡要按編輯用的按鈕
     const out=[];
     const scan=async(label)=>{const bad=await p.evaluate(()=>{const W=innerWidth,H=innerHeight,res=[];
       document.querySelectorAll('.menu:not([hidden]),#pop:not([hidden]),#tip:not([hidden]),#toast:not([hidden]),#setDlg:not([hidden]) .card,#ed:not([hidden]) #edCard,#io:not([hidden]),#detail:not([hidden]),.totop:not([hidden])').forEach(el=>{const r=el.getBoundingClientRect();if(r.width&&(r.left<-0.5||r.right>W+0.5))res.push((el.id||el.className)+` x ${Math.round(r.left)}~${Math.round(r.right)} / ${W}`);});

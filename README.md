@@ -156,6 +156,12 @@ node tests/idec-sim-check.js
 IDEC YW 完整模擬：206 種操作部逐一放下，每個接點塊的每個接點在每個位置／狀態下接繼電器模擬，和型錄接點動作表比對（3 位置 13 種接點結構）；各種復歸方式的點擊、照光燈、雙接點塊兩個接點、緊急停止不能裝雙接點塊。
 
 ```
+node tests/gtwin-check.js
+```
+
+富士 G-TWIN 檢查：型號數量與尺寸、2P（3P 框架拿掉中間極）與 4P 端子位置；內部附件拖到斷路器上自動貼在左側或右側、一側一個；主迴路導通、輔助開關跟著 ON／OFF、警報開關跟著跳脫、分激脫扣有電跳脫、欠電壓脫扣沒電跳脫且合不上、跳脫後點一下復歸；存檔讀回、刪除斷路器時附件一起刪。
+
+```
 node tests/label-check.js [器具 id 片段]
 ```
 
@@ -222,6 +228,7 @@ js/devices-dvp.js  台達 DVP-ES3／EX3／SV3／SX3 主機
 js/connectors.js   連接器：把連接器的針腳收成一個接點（CN1），排線、散線接單一針腳、針腳訊號查詢
 js/devices-ser.js  原本內建器具的系列分組（器具庫依「廠牌 系列」收合）；隨機配置測試固定用的器具組
 js/devices-idec.js IDEC YW 系列：操作部＋可拆裝接點塊
+js/devices-gtwin.js 富士 G-TWIN 無熔絲斷路器 BW32～BW800（每個框架 × 極數 × 電流一種）＋內部附件（輔助、警報、分激、欠電壓，裝在左右側）
 js/devices-acti9.js 施耐德 Acti9 iC60N 斷路器
 js/devices-tesys.js 施耐德 TeSys：LC1D 接觸器、GV2 馬達保護、LRD／LR9D 過電流繼電器
 js/devices-shihlin.js 士林 S-P 接觸器、S-2×P 可逆組、TH-P 熱電驛、AP 輔助接點

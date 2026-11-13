@@ -23,7 +23,7 @@ const S={
   fn3270:'EMC 濾波器',fn2010:'EMC 濾波器',drl120:'DRL 電源供應器',
   pzg102:'PZ-G 光電開關',pzg101:'PZ-G 光電開關',glr22:'GL-R 安全光柵','glr22-t':'GL-R 安全光柵',ga096:'GA0 量測光柵','ga096-t':'GA0 量測光柵',
   dms6015:'DM-S 一體化馬達',dms8015:'DM-S 一體化馬達',nht60:'NHT 電木端子台',mec10:'MEC 短路銅片',
-  'fuji-bw50':'BW 斷路器',cu11:'CU 接觸器',fotek:'MY 計時器',pnoz:'PNOZ X 安全繼電器',nextech:'AP 圖控',ac30:'AC30 軌道插座',eoab:'EO 軌道插座',
+  'fuji-bw50':'G-TWIN BW',cu11:'CU 接觸器',fotek:'MY 計時器',pnoz:'PNOZ X 安全繼電器',nextech:'AP 圖控',ac30:'AC30 軌道插座',eoab:'EO 軌道插座',
   tb10:'TB-PG 接線盒',tb15:'TB-PG 接線盒',fan4:'散熱風扇',lk3214:'LK 插座',rxlg:'RXLG 再生電阻',g6d:'繼電器模組',
   // 沒有廠牌的通用器具
   h66:'鋁軌',diode:'二極體','diode-coil':'二極體',lamp:'照明',qlnp:'訊號轉換',ths62:'吊掛式按鈕盒','field-power':'外部電源',

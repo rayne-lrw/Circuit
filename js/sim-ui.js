@@ -37,7 +37,7 @@ function simPointerDown(e,p){
   if(d&&d.on&&tplOf(d).rackKind&&devOf(d.on)&&tplOf(devOf(d.on)).op)d=devOf(d.on);
   if(!d){act={t:'press',sx:e.clientX,sy:e.clientY,vx:view.x,vy:view.y,moved:false,btn:e.button,id:e.pointerId,target:e.target,pan:true};svg.setPointerCapture(e.pointerId);return;}
   const els=simElems(d);
-  if(els.some(x=>x.k==='brk')){SIMST.on[d.id]=!SIMST.on[d.id];simRefresh();return;}
+  if(els.some(x=>x.k==='brk')){brkClick(d.id);return;}
   const op=tplOf(d).op;
   if(op&&op.k==='alt'){SIMST.on[d.id]=!SIMST.on[d.id];simRefresh();return;}
   if(op&&op.k==='sel'){const R=rectOf('dev',d),left=p.x<R.x+R.w/2,side=left?'L':'R',cur=SIMST.sel[d.id]||op.def,spring=(op.ret||'').includes(side);
@@ -66,7 +66,7 @@ function simPanel(box){
   const msg=[r.shorts?`<p class="sim-bad">短路 ${r.shorts} 處（桃紅色的線），請檢查配線</p>`:'',r.unstable?'<p class="sim-bad">迴路一直切換停不下來（不穩定），可能是自我保持或互鎖接錯</p>':'',rev.length?`<p class="sim-warn">極性相反：${rev.join('、')}</p>`:'',...r.warn.map(t=>`<p class="sim-warn">${esc(t)}</p>`),np.length?`<p class="sim-warn">模組沒電（輸入輸出不動作）：${np.map(x=>`${esc(x.d.tag)}（${esc(x.why)}）`).join('、')}</p>`:''].join('');
   const noSim=S.devices.filter(d=>!hasSim(d)&&S.wires.some(w=>w.a.d===d.id||w.b.d===d.id)&&!['端子台／接地'].includes((resolveTpl(d.tpl,d.count)||{}).cat)).map(d=>d.tag);
   box.innerHTML=`<div class="big">模擬</div><p class="note">圖上按著按鈕、感測器才算按下；點斷路器切換 ON／OFF。有電的線：＋紅、−藍、AC 橘；流動的虛線是有電流的迴路。</p>${msg}
-  <div class="sub-h">斷路器</div><div class="sim-chips">${brks.map(d=>`<button class="sim-chip${SIMST.on[d.id]?' on':''}" data-sim-brk="${d.id}">${esc(d.tag)}</button>`).join('')}</div>
+  <div class="sub-h">斷路器</div><div class="sim-chips">${brks.map(d=>`<button class="sim-chip${SIMST.on[d.id]?' on':''}${SIMST.btrip&&SIMST.btrip[d.id]?' trip':''}" data-sim-brk="${d.id}">${esc(d.tag)}${SIMST.btrip&&SIMST.btrip[d.id]?' 跳脫（點一下復歸）':''}</button>`).join('')}</div>
   ${alts.length?`<div class="sub-h">保持型開關（點一下切換）</div><div class="sim-chips">${alts.map(d=>`<button class="sim-chip${SIMST.on[d.id]?' on':''}" data-sim-alt="${d.id}">${esc(d.tag)}${SIMST.on[d.id]?' 動作中':''}</button>`).join('')}</div>`:''}
   ${sels.length?`<div class="sub-h">選擇開關（圖上點左半邊／右半邊切換）</div><div class="sim-chips">${sels.map(d=>{const op=tplOf(d).op,cur=SIMST.sel[d.id]||op.def;return (op.n===3?['L','C','R']:['L','R']).map(q=>`<button class="sim-chip${cur===q?' on':''}" data-sim-sel="${d.id}|${q}">${esc(d.tag)} ${q}</button>`).join('');}).join('')}</div>`:''}
   ${ths.length?`<div class="sub-h">積熱電驛（點一下跳脫／復歸）</div><div class="sim-chips">${ths.map(d=>`<button class="sim-chip${SIMST.trip[d.id]?' on':''}" data-sim-trip="${d.id}">${esc(d.tag)}${SIMST.trip[d.id]?' 跳脫中':''}</button>`).join('')}</div>`:''}
@@ -86,8 +86,8 @@ document.addEventListener('click',e=>{if(mode!=='sim')return;const t=e.target;
   const tg=t.closest&&t.closest('[data-sim-alt]');if(tg){SIMST.on[tg.dataset.simAlt]=!SIMST.on[tg.dataset.simAlt];simRefresh();return;}
   const se=t.closest&&t.closest('[data-sim-sel]');if(se){const [id,q]=se.dataset.simSel.split('|');SIMST.sel[id]=q;simRefresh();return;}
   const tp=t.closest&&t.closest('[data-sim-trip]');if(tp){SIMST.trip[tp.dataset.simTrip]=!SIMST.trip[tp.dataset.simTrip];simRefresh();return;}
-  const bk=t.closest&&t.closest('[data-sim-brk]');if(bk){SIMST.on[bk.dataset.simBrk]=!SIMST.on[bk.dataset.simBrk];simRefresh();return;}
-  const al=t.closest&&t.closest('[data-sim-all]');if(al){S.devices.filter(d=>simElems(d).some(x=>x.k==='brk')).forEach(d=>SIMST.on[d.id]=al.dataset.simAll==='1');simRefresh();return;}
+  const bk=t.closest&&t.closest('[data-sim-brk]');if(bk){brkClick(bk.dataset.simBrk);return;}
+  const al=t.closest&&t.closest('[data-sim-all]');if(al){S.devices.filter(d=>simElems(d).some(x=>x.k==='brk')).forEach(d=>{SIMST.on[d.id]=al.dataset.simAll==='1';if(SIMST.btrip)delete SIMST.btrip[d.id];});simRefresh();return;}
   const y=t.closest&&t.closest('[data-sim-y]');if(y){const k=y.dataset.simY;if(SIMST.y.has(k))SIMST.y.delete(k);else SIMST.y.add(k);simRefresh();return;}
   if(t.id==='simReset'){simReset();simTest=null;simRefresh();return;}
   if(t.id==='simTestY'){simTest=simAutoY();simRefresh();return;}
@@ -101,8 +101,8 @@ function simLeave(){SIMST=null;simOv='';simTest=null;const g=$('wires');if(g)g.c
 
 /* ---------- 自動測試 ----------
    以目前的斷路器與自我保持狀態為起點（建議先把斷路器打開、按過啟動），Y 全部 OFF、不按任何東西，逐一測試後恢復原狀。 */
-const simSnap=()=>({on:{...SIMST.on},press:new Set(SIMST.press),y:new Set(SIMST.y),coil:{...SIMST.coil},latch:{...SIMST.latch},trip:{...(SIMST.trip||{})},sel:{...(SIMST.sel||{})}});
-const simRestore=s=>{Object.assign(SIMST,{on:{...s.on},press:new Set(s.press),y:new Set(s.y),coil:{...s.coil},latch:{...s.latch},trip:{...(s.trip||{})},sel:{...(s.sel||{})}});};
+const simSnap=()=>({on:{...SIMST.on},press:new Set(SIMST.press),y:new Set(SIMST.y),coil:{...SIMST.coil},latch:{...SIMST.latch},trip:{...(SIMST.trip||{})},btrip:{...(SIMST.btrip||{})},sel:{...(SIMST.sel||{})}});
+const simRestore=s=>{Object.assign(SIMST,{on:{...s.on},press:new Set(s.press),y:new Set(s.y),coil:{...s.coil},latch:{...s.latch},trip:{...(s.trip||{})},btrip:{...(s.btrip||{})},sel:{...(s.sel||{})}});};
 const actSet=r=>{const m=new Map();Object.entries(r.dev).forEach(([id,s])=>{const n=[s.coil?'線圈':null,s.latch?'保持':null,...s.on.filter(x=>x!=='線圈')].filter(Boolean);if(n.length)m.set(id,n.join('、'));});return m;};
 function simAutoY(){
   const s1=simSnap();SIMST.y=new Set();SIMST.press=new Set();simRun();const s0=simSnap(),r0=simRun(),base=actSet(r0),rows=[];
@@ -126,3 +126,5 @@ function simTestHtml(){const t=simTest;return `<div class="sim-test"><div class=
 function simTestCsv(){const t=simTest;if(!t)return;const d=new Date(),p=n=>String(n).padStart(2,'0');saveFile(`${t.k==='Y'?'輸出測試':'輸入測試'}-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}.csv`,toCsv([t.head,...t.rows]),'已匯出測試結果');}
 let printSimOnly=false;
 function printSimTest(){printSimOnly=true;try{window.print();}finally{setTimeout(()=>{printSimOnly=false;},500);}}
+// 斷路器：跳脫中點一下是復歸（還是 OFF），再點一下才 ON
+function brkClick(id){if(SIMST.btrip&&SIMST.btrip[id]){delete SIMST.btrip[id];SIMST.on[id]=false;toast(`${tagOf(id)} 已復歸，再點一下 ON`);}else SIMST.on[id]=!SIMST.on[id];simRefresh();}
