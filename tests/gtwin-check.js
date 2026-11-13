@@ -1,5 +1,5 @@
-// 富士 G-TWIN 檢查：型號數量與尺寸、2P／4P 端子位置、內部附件裝在左右側、主迴路導通、
-// 輔助開關跟著 ON／OFF、警報開關跟著跳脫、分激脫扣有電跳脫、欠電壓脫扣沒電跳脫與合不上、跳脫後復歸、存檔讀回
+// 富士 G-TWIN 檢查（無熔絲 BW、漏電 EW）：型號數量與尺寸、2P／4P 端子位置、內部附件裝在左右側、主迴路導通、
+// 輔助開關跟著 ON／OFF、警報開關跟著跳脫、分激脫扣有電跳脫、欠電壓脫扣沒電跳脫與合不上、跳脫後復歸、存檔讀回；EW 的型號與尺寸、測試按鈕漏電跳脫、漏電警報開關只對漏電跳脫動作
 // 用法：node tests/gtwin-check.js
 const {chromium}=require('playwright'),path=require('path');
 (async()=>{
@@ -55,6 +55,30 @@ const {chromium}=require('playwright'),path=require('path');
     commit();const n2=normalize(JSON.parse(JSON.stringify(S))).state;ok(n2.devices.filter(d=>d.on==='Q').length===2,'存檔讀回：左右兩側附件都還裝在斷路器上');
     // 刪除斷路器：附件一起刪
     picked={k:'dev',id:'Q'};deleteSel();ok(!dv('WL')&&!dv('R'),'刪除斷路器：左右兩側附件一起刪掉');
+    // ========== 漏電斷路器 EW ==========
+    const ew=Object.keys(TPL).filter(id=>/^ew\d+-\dp\d+$/.test(id)),m=k=>ew.filter(id=>id.includes('-'+k+'p')).length;
+    ok(ew.length===86&&m(2)===19&&m(3)===47&&m(4)===20,`EW 主體 ${ew.length} 種（2P ${m(2)}、3P ${m(3)}、4P ${m(4)}）`);
+    ok(sz('ew32-2p10')==='50×100×84'&&sz('ew125-3p50')==='90×155×95'&&sz('ew400-4p300')==='185×257×146'&&sz('ew800-3p700')==='210×275×146','EW 外形與同框架的 BW 相同');
+    {const T=t('ew100-2p75'),a=T.terms.find(x=>x.id==='1'),c=T.terms.find(x=>x.id==='3');ok(T.w===75&&Math.abs(c.x-a.x-50)<0.5,'EW100 的 2P 是 75 mm 的 3P 框架拿掉中間極');}
+    ok(!ew.some(id=>/^ew(125|160|250|400|630|800)-2p/.test(id))&&!ew.some(id=>/^ew(32|50|63|100|630|800)-4p/.test(id)),'2P 只有 EW32／50／100，4P 只有 EW125～400（照型錄）');
+    ok(TPL['ew-l'].fits.includes('ew125-3p100')&&!TPL['ew-l'].fits.includes('ew100-3p100')&&!TPL['ew-l'].fits.some(id=>/^bw/.test(id)),'漏電警報開關只能裝 EW125 以上');
+    S=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:860,h:660},door:{w:900,h:700},ducts:[],glands:[],wires:[],
+      devices:[D('PWR','field-power',0,-300,'field'),D('PS','drl120',20,20),D('E','ew125-3p100',300,200),D('KA','my2n-24',600,20),D('KB','my2n-24',700,20),D('LP','lamp',400,-300,'field'),
+        D('K','bw-kl',50,500),D('L','ew-l',150,500),D('X','ew-l',250,500),D('E2','ew100-3p75',600,300)]}).state;resetUi();
+    const E=dv('E');hostSnap(dv('K'),E.x+20,E.y+40);hostSnap(dv('L'),E.x+60,E.y+40);hostSnap(dv('X'),dv('E2').x+40,dv('E2').y+40);
+    ok(dv('K').on==='E'&&dv('L').on==='E'&&dv('L').x===E.x+t('ew125-3p100').w,'BW 的警報開關裝到 EW 左側、漏電警報開關裝到右側');ok(!dv('X').on,'漏電警報開關裝不上 EW100');
+    k=0;W('PWR','R','E','1');W('PWR','S','E','3');W('E','2','LP','L/+');W('E','4','LP','N/−');W('PWR','R','PS','L');W('PWR','S','PS','N');
+    W('PS','+V1','K','91');W('K','94','KA','14');W('KA','13','PS','-V1');W('PS','+V1','L','71');W('L','74','KB','14');W('KB','13','PS','-V1');
+    commit();recompute();simReset();R=run();
+    ok(simElems(E).some(e=>e.k==='eltest'&&e.btn==='測試'),'EW 有「測試」按鈕（模擬面板的按著操作）');
+    brkClick('E');R=run();ok(lamp(R)&&!coil(R,'KA')&&!coil(R,'KB'),'EW ON：主迴路導通，警報、漏電警報都不動作');
+    SIMST.press.add('E|測試');R=run();SIMST.press.delete('E|測試');R=run();
+    ok(!SIMST.on.E&&SIMST.btrip.E==='el'&&!lamp(R)&&coil(R,'KA')&&coil(R,'KB'),'按測試：漏電跳脫，警報 91-94 和漏電警報 71-74 都閉合');
+    setMode('sim');SIMST.on={};SIMST.btrip={E:'el'};simRefresh();ok(/漏電跳脫/.test((document.querySelector('[data-sim-brk="E"]')||{}).textContent||''),'模擬面板顯示「漏電跳脫（點一下復歸）」');setMode('wire');
+    // 一般跳脫（過電流、分激、欠電壓）：警報動作、漏電警報不動作
+    simReset();SIMST.btrip={E:true};R=run();ok(coil(R,'KA')&&!coil(R,'KB'),'一般跳脫：警報 91-94 閉合，漏電警報 71-74 不動作');
+    brkClick('E');R=run();ok(!SIMST.on.E&&!SIMST.btrip.E&&!coil(R,'KA')&&!coil(R,'KB'),'點一下復歸：警報、漏電警報都回原位');
+    S.devices.push(D('F','bw-f',50,600));hostSnap(dv('F'),E.x+60,E.y+40);ok(!dv('F').on,'右側已經有漏電警報開關：分激裝不上（一側一個）');
     return out;
   });
   await b.close();

@@ -1,5 +1,5 @@
 "use strict";
-/* ---------- 富士 G-TWIN 系列無熔絲斷路器（BW32～BW800）＋內部附件 ----------
+/* ---------- 富士 G-TWIN 系列無熔絲斷路器（BW32～BW800）、漏電斷路器（EW32～EW800）＋內部附件 ----------
    資料來源：富士 G-TWIN 型錄 06 章（型號表 06/29～06/33、外形尺寸 06/39～06/45、內部附件 06/67～06/73）
    - 遮斷容量（AAG／EAG／SAG／RAG／JAG／HAG）外型與端子相同，這裡每個「框架 × 極數 × 電流」做一種，型號欄再改
    - 主端子：型錄只畫每極上下各一顆、沒印編號；依 IEC 慣例推定上排電源側 1 3 5 7、下排負載側 2 4 6 8，由左到右
@@ -21,23 +21,34 @@ const FR={
   400:{w:[140,140,185],h:257,d:146,p:44,ty:20,A:{2:[250,300,350,400],3:[250,300,350,400],4:[250,300,350,400]}},
   630:{w:[null,210,280],h:275,d:146,p:70,ty:22,A:{3:[500,600,630],4:[500,600,630]}},
   800:{w:[null,210,280],h:275,d:146,p:70,ty:22,A:{3:[700,800],4:[700,800]}}};
-const UP=['1','3','5','7'],DN=['2','4','6','8'],ids=[];
-Object.entries(FR).forEach(([af,f])=>Object.entries(f.A).forEach(([P,amps])=>{P=+P;
-  const W=f.w[P-2],big=+af>=125,
-    // 極的位置：以本體中心對稱；125AF 以上 2P 用 3P 框架的左右兩極
-    slots=big&&P===2?[-1,1]:[...Array(P)].map((_,i)=>i-(P-1)/2),xs=slots.map(s=>+(W/2+s*f.p).toFixed(1));
+const UP=['1','3','5','7'],DN=['2','4','6','8'],ids=[],ewIds=[];
+// 產生一個系列：A＝{框架:{極數:[電流…]}}；wide2＝這些框架的 2P 用 3P 框架拿掉中間極
+function mk(pre,A,o){Object.entries(A).forEach(([af,byP])=>{const f=FR[af];Object.entries(byP).forEach(([P,amps])=>{P=+P;
+  const wide=P===2&&(o.wide2(+af)),W=wide?f.w[1]:f.w[P-2],
+    // 極的位置：以本體中心對稱；3P 框架的 2P 用左右兩極
+    slots=wide?[-1,1]:[...Array(P)].map((_,i)=>i-(P-1)/2),xs=slots.map(s=>+(W/2+s*f.p).toFixed(1));
   const T=[...xs.map((x,i)=>[UP[i],x,f.ty,'top','電源側']),...xs.map((x,i)=>[DN[i],x,f.h-f.ty,'bottom','負載側'])];
-  const sim=xs.map((_,i)=>({k:'brk',a:UP[i],b:DN[i]}));
-  amps.forEach(a=>{const id=`bw${af}-${P}p${a}`;if(+af===50&&P===3&&a===50)return; // 庫裡已有 BW50EAG 3P50A（fuji-bw50）
-    def(id,null,C1,FJ,`BW${af} ${P}P ${a}A`,W,f.h,f.d,'Q','dark',T,{ser:'G-TWIN BW',model:true,sim,
-      note:`G-TWIN ${af}AF ${P}P ${a}A；遮斷容量（AAG／EAG／SAG／RAG／JAG／HAG）外型相同，在型號欄改（例如 BW${af}${+af<=100?'EAG':'SAG'}-${P}P${String(a).padStart(3,'0')}）；外形照型錄尺寸圖 ${W}×${f.h}×${f.d}；`+
-        `端子編號推定（上 ${UP.slice(0,P).join(' ')}、下 ${DN.slice(0,P).join(' ')}）${big&&P===2?'；2P 是 3P 框架拿掉中間極':''}${P===4?'；4P 不固定 N 極':''}；左右兩側可以裝內部附件（輔助、警報、分激、欠電壓）`});
-    ver(id);ids.push(id);});}));
+  const sim=[...xs.map((_,i)=>({k:'brk',a:UP[i],b:DN[i]})),...(o.el?[{k:'eltest',btn:'測試'}]:[])];
+  amps.forEach(a=>{const id=`${pre.toLowerCase()}${af}-${P}p${a}`;if(o.skip&&o.skip(+af,P,a))return;
+    def(id,null,C1,FJ,`${pre}${af} ${P}P ${a}A${o.el?' 漏電':''}`,W,f.h,f.d,o.el?'ELB':'Q','dark',T,{ser:o.ser,model:true,sim,
+      note:`G-TWIN ${o.el?'漏電斷路器':'無熔絲斷路器'} ${af}AF ${P}P ${a}A；${o.note(+af,P,a)}；外形照型錄尺寸圖 ${W}×${f.h}×${f.d}；`+
+        `端子編號推定（上 ${UP.slice(0,P).join(' ')}、下 ${DN.slice(0,P).join(' ')}）${wide?'；2P 是 3P 框架拿掉中間極':''}${P===4?'；4P 不固定 N 極':''}；左右兩側可以裝內部附件（輔助、警報、分激、欠電壓${o.el&&+af>=125?'、漏電警報':''}）`+
+        (o.el?'；模擬：ON 時在模擬面板按「測試」會漏電跳脫（漏電本身不模擬），點斷路器復歸':'')});
+    VER[id]=[2,o.src];(o.el?ewIds:ids).push(id);});});});}
+mk('BW',Object.fromEntries(Object.entries(FR).map(([af,f])=>[af,f.A])),{ser:'G-TWIN BW',src:SRC,wide2:af=>af>=125,skip:(af,P,a)=>af===50&&P===3&&a===50, // 庫裡已有 BW50EAG 3P50A（fuji-bw50）
+  note:(af,P,a)=>`遮斷容量（AAG／EAG／SAG／RAG／JAG／HAG）外型相同，在型號欄改（例如 BW${af}${af<=100?'EAG':'SAG'}-${P}P${String(a).padStart(3,'0')}）`});
+/* ---------- 漏電斷路器 EW（型錄 07 章）：外形與同框架的 BW 相同（07/36～07/41），正面多測試按鈕、漏電跳脫指示、感度切換
+   - 2P 只有 EW32／EW50（AAG）與 EW100（EAG）；EW100 的 2P 是 75 mm 的 3P 框架（07/37）；4P 只有 EW125～EW400
+   - 感度電流（A 15mA、B 30mA、C 100mA、D 50mA、J／K 切換式）與遮斷容量在型號欄改 */
+const C9A=[5,10,15,20,30,32],C50=[5,10,15,20,30,32,40,50],C100=[50,60,63,75,100],C125=[15,20,30,40,50,60,75,100,125],C160=[125,150,160],C250=[175,200,225,250],C400=[250,300,350,400];
+mk('EW',{32:{2:C9A,3:[3,...C9A]},50:{2:C50,3:C50},63:{3:[60,63]},100:{2:C100,3:C100},125:{3:C125,4:C125},160:{3:C160,4:C160},250:{3:C250,4:C250},400:{3:C400,4:C400},630:{3:[500,600,630]},800:{3:[700,800]}},
+  {ser:'G-TWIN EW',src:'富士 G-TWIN 漏電斷路器型錄 07 章',el:true,wide2:af=>af>=100,
+   note:(af,P,a)=>`遮斷容量與感度電流（A 15mA、B 30mA、C 100mA、D 50mA、J／K 切換）在型號欄改（例如 EW${af}${af===32&&P===2?'AAG':af<=100?'EAG':'SAG'}-${P}P${String(a).padStart(3,'0')}B）`});
 /* ---------- 內部附件：端子台在斷路器左側或右側 ----------
    輔助開關 W：常開 c-a（11-14／21-24）跟著 ON 閉合、常閉 c-b（11-12／21-22）；
    警報開關 K：只在跳脫時動作（91-94／01-04 閉合、91-92／01-02 打開）；
    分激脫扣 F：C1-C2 有電就跳脫；欠電壓脫扣 R：D1-D2 沒電時跳脫、合不上（型錄 06/69～06/70） */
-const FITS=[...ids,'fuji-bw50'];
+const FITS=[...ids,'fuji-bw50',...ewIds];
 const aux=(c,by)=>[{k:'sw',a:c+'1',b:c+'4',by},{k:'sw',a:c+'1',b:c+'2',by,nc:true}];
 const ACC=[
   ['bw-wl','輔助開關 SPDT（左側）','BZ6WL10CA 等',true,[['11','共點 c'],['12','常閉 b'],['14','常開 a']],aux('1','hostbrk')],
@@ -49,10 +60,13 @@ const ACC=[
   ['bw-kr','警報開關 SPDT（右側）','BZ6KR10CA 等',false,[['01','共點 c'],['02','常閉 b'],['04','常開 a']],aux('0','hosttrip')],
   ['bw-wkr','輔助＋警報開關（右側）','BZ6WKR10CA 等',false,[['21','輔助 共點 c'],['22','輔助 常閉 b'],['24','輔助 常開 a'],['01','警報 共點 c'],['02','警報 常閉 b'],['04','警報 常開 a']],[...aux('2','hostbrk'),...aux('0','hosttrip')]],
   ['bw-f','分激脫扣 F（右側）','BZ6FA10CA 等',false,[['C1','分激線圈 C1'],['C2','分激線圈 C2']],[{k:'load',a:'C1',b:'C2',name:'分激脫扣',act:'shunt'}]],
+  ['ew-l','漏電警報開關 L（右側，EW125 以上）','EW 用 L',false,[['71','共點 c'],['72','常閉 b'],['74','常開 a']],aux('7','hostel')],
   ['bw-r','欠電壓脫扣 R（右側）','BZ6R210C 等',false,[['D1','欠電壓線圈 D1'],['D2','欠電壓線圈 D2']],[{k:'load',a:'D1',b:'D2',name:'欠電壓線圈',act:'uvt'}]]];
 ACC.forEach(([id,name,mdl,L,terms,sim])=>{const h=Math.max(40,12+terms.length*9);
   def(id,null,C1,FJ,`G-TWIN ${name}`,12,h,40,'QX','dark',terms.map(([t,dsc],i)=>[t,6,10+i*9,L?'left':'right',dsc]),{ser:'G-TWIN 內部附件',attach:'side',...(L?{sideL:true}:{}),hostCat:C1,fits:FITS,sim,model:true,
     note:`裝在 G-TWIN 斷路器裡，端子台在${L?'左':'右'}側：拖到斷路器上會自動裝在${L?'左':'右'}側（左右各裝一個）；型號依框架不同（${mdl}，型錄 06/72～06/73），在型號欄改；`+
-      (/^bw-[wv]/.test(id)?'輔助開關跟著斷路器 ON／OFF（跳脫時算 OFF）；':'')+(/k|j/.test(id.slice(3))?'警報開關只在跳脫時動作，復歸後回原位；':'')+
-      (id==='bw-f'?'C1-C2 有電時斷路器跳脫；':'')+(id==='bw-r'?'D1-D2 沒電時斷路器跳脫、合不上（要先給電再合）；':'')+'端子編號照型錄，端子台外形依圖推估'});ver(id);});
+      (/^bw-[wv]/.test(id)?'輔助開關跟著斷路器 ON／OFF（跳脫時算 OFF）；':'')+(id!=='ew-l'&&/k|j/.test(id.slice(3))?'警報開關只在跳脫時動作，復歸後回原位；':'')+
+      (id==='ew-l'?'只在漏電跳脫時動作（過電流或分激、欠電壓跳脫、手動 OFF 都不動作）；型錄沒畫端子台在哪一側，推定右側；':'')+(id==='bw-f'?'C1-C2 有電時斷路器跳脫；':'')+(id==='bw-r'?'D1-D2 沒電時斷路器跳脫、合不上（要先給電再合）；':'')+'端子編號照型錄，端子台外形依圖推估'});ver(id);});
+// 漏電警報開關只有 EW125 以上
+TPL['ew-l'].fits=ewIds.filter(id=>+/^ew(\d+)/.exec(id)[1]>=125);
 })();

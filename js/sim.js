@@ -9,10 +9,11 @@
      {k:'brk',a,b}                  斷路器：器具 ON 才導通（模擬開始全部 OFF）
      {k:'ac',ph:[…],n}              AC 電源（一直有電）：各相接點，n 是中性線接點（可省略）
      {k:'src',p,n,v,in:[a,b]}       DC 電源：in 兩端有電才輸出（省略就一直有電）；v 是顯示用的電壓
+     {k:'eltest',btn}               漏電斷路器的測試按鈕：ON 時按著就漏電跳脫
      {k:'load',a,b,name,polar,act}  負載：有電就動作；polar 表示有極性，接反顯示「極性相反」；act='shunt'／'uvt' 是斷路器的分激／欠電壓脫扣
      {k:'coil',a,b}                 線圈：有電時這台的接點（by:'coil'）切換
      {k:'pwr',a,b}                  器具本身的電源：有電時 PLC 輸出、感測器才會動作
-     {k:'sw',a,b,nc,by,btn,g}       接點：by='coil'（自己的線圈；g 是一台多組線圈時的組名）、'hostbrk'（裝在哪台斷路器上就跟它的 ON／OFF）、'hosttrip'（裝在哪台斷路器上，那台跳脫時動作）、'host'（裝在哪台上就跟哪台的線圈）、'btn'（使用者按著）、'latch'（安全繼電器）、'trip'（積熱電驛跳脫）、'op'（IDEC 接點塊跟著操作部）；nc 是常閉
+     {k:'sw',a,b,nc,by,btn,g}       接點：by='coil'（自己的線圈；g 是一台多組線圈時的組名）、'hostbrk'（裝在哪台斷路器上就跟它的 ON／OFF）、'hosttrip'（裝在哪台斷路器上，那台跳脫時動作）、'hostel'（那台漏電跳脫時才動作）、'host'（裝在哪台上就跟哪台的線圈）、'btn'（使用者按著）、'latch'（安全繼電器）、'trip'（積熱電驛跳脫）、'op'（IDEC 接點塊跟著操作部）；nc 是常閉
      {k:'sens',out,to,btn}          感測器輸出：器具有電且觸發時，out 和 to（棕＝PNP、藍＝NPN）導通
      {k:'plcX',com,pts:[…]}         PLC 輸入：輸入點和 com 分別是同一電源的 ＋／− 就 ON
      {k:'plcY',pairs:[[Y,COM]…]}    PLC 輸出：該 Y 點 ON 且 PLC 有電時 Y 和 COM 導通
@@ -159,7 +160,7 @@ function simRun(){
     els.forEach(e=>{let on=false;
       if(e.k==='pass')on=true;
       else if(e.k==='brk')on=!!st.on[e.d.id];
-      else if(e.k==='sw'){const act=e.by==='coil'?coil[ck(e)]:e.by==='host'?coil[e.d.on]:e.by==='hostbrk'?!!(e.d.on&&st.on[e.d.on]):e.by==='hosttrip'?!!(e.d.on&&st.btrip&&st.btrip[e.d.on]):e.by==='op'?opAct(e.d):e.by==='latch'?latch[e.d.id]:e.by==='btn'?pressed(e.d,e.btn):e.by==='trip'?tripped(e.d):false;on=e.nc?!act:!!act;}
+      else if(e.k==='sw'){const act=e.by==='coil'?coil[ck(e)]:e.by==='host'?coil[e.d.on]:e.by==='hostbrk'?!!(e.d.on&&st.on[e.d.on]):e.by==='hosttrip'?!!(e.d.on&&st.btrip&&st.btrip[e.d.on]):e.by==='hostel'?!!(e.d.on&&st.btrip&&st.btrip[e.d.on]==='el'):e.by==='op'?opAct(e.d):e.by==='latch'?latch[e.d.id]:e.by==='btn'?pressed(e.d,e.btn):e.by==='trip'?tripped(e.d):false;on=e.nc?!act:!!act;}
       else if(e.k==='sens')on=!!(sensOn[e.d.id+'|'+e.out]);
       if(on){u(e.aK||e.outK,e.bK||e.toK);conducting.push(e);}
       if(e.k==='plcY')e.pairsK.forEach(([y,yk,ck])=>{if(powered['L|'+e.d.id]&&st.y.has(e.d.id+'|'+y)){u(yk,ck);conducting.push({k:'plcY',d:e.d,aK:yk,bK:ck,y});}});});
@@ -174,6 +175,8 @@ function simRun(){
       if(e.k==='load'||e.k==='coil'||e.k==='pwr'){const r=feed(lab,f,e.aK,e.bK,e.polar);if(e.k==='coil'&&r.on)nc[ck(e)]=true;if(e.k==='pwr'&&r.on)np[e.d.id]=true;loads.push({e,...r});}});
     // 斷路器內部附件：分激脫扣（有電就跳脫）、欠電壓脫扣（沒電就跳脫）；跳脫後斷路器 OFF、警報開關動作，要點一下復歸才能再 ON
     let bTrip=false;loads.forEach(l=>{const a=l.e.act,h=a&&l.e.d.on;if(!h||!st.on[h])return;if((a==='shunt'&&l.on)||(a==='uvt'&&!l.on)){st.on[h]=false;if(!st.btrip)st.btrip={};st.btrip[h]=true;bTrip=true;}});
+    // 漏電斷路器：ON 時按「測試」→ 漏電跳脫（btrip='el'，漏電警報開關只對這種跳脫動作）
+    els.forEach(e=>{if(e.k==='eltest'&&st.on[e.d.id]&&pressed(e.d,e.btn)){st.on[e.d.id]=false;if(!st.btrip)st.btrip={};st.btrip[e.d.id]='el';bTrip=true;}});
     locks.forEach(m=>{const [a,b]=m.pair;if(nc[a]&&nc[b]){if(coil[b]&&!coil[a])delete nc[a];else delete nc[b];}});
     // 同一台裡的機械互鎖（LC2K 一體式正逆轉）：兩組線圈同時有電時，原本吸合的那組保持
     els.forEach(e=>{if(e.k!=='mlock')return;const [a,b]=e.g.map(g=>e.d.id+'#'+g);if(nc[a]&&nc[b]){if(coil[b]&&!coil[a])delete nc[a];else delete nc[b];}});
