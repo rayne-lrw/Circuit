@@ -34,6 +34,9 @@ Object.entries(S).forEach(([id,ser])=>{if(TPL[id]&&!TPL[id].ser)TPL[id].ser=ser;
 ['h66','diode','diode-coil','lamp','field-power','gnd13','gnd15','laser-ps','dc5521f-tb','dc5525m-tb','laser-dot'].forEach(id=>{if(TPL[id]&&!TPL[id].b)TPL[id].b='通用';});
 // 外部電源進線不是馬達，放到「現場：接線盒與其他」
 if(TPL['field-power'])TPL['field-power'].cat='現場：接線盒與其他';
+// 使用者確認：THS-62 是天得；PY2201A、QL-NP 廠牌不明，放「其他」
+if(TPL.ths62&&!TPL.ths62.b)TPL.ths62.b='天得';
+['py2201-g','py2201-r','qlnp'].forEach(id=>{if(TPL[id]&&!TPL[id].b)TPL[id].b='其他';});
 // 線圈用二極體和一般二極體放在同一個大類
 if(TPL['diode-coil'])TPL['diode-coil'].cat='其他元件';
 // 舊版 YW（接點固定、不能拆裝接點塊）：名稱加「舊版」，和新的同型號分得出來
