@@ -16,7 +16,7 @@ const S={
   // OMRON
   'my2n-24':'MY 繼電器','my2n-220':'MY 繼電器',pyf14a:'MY 繼電器',ly4n:'LY 繼電器',ly2j:'LY 繼電器',e2e:'E2E 近接開關',d4mc:'D4MC 極限開關',
   // 其他廠牌
-  'yw1b':'YW 按鈕開關','yw1l-r':'YW 按鈕開關','yw1l-g':'YW 按鈕開關','yw1s':'YW 按鈕開關',
+  'yw1b':'YW 緊急停止','yw1l-r':'YW 按鈕開關','yw1l-g':'YW 按鈕開關','yw1s':'YW 選擇開關',
   'w2202-1401':'2202 TOPJOB S 端子台','w2202-1201':'2202 TOPJOB S 端子台','w2202-1611':'2202 TOPJOB S 端子台',
   'w231-604':'231 MCS 連接器','w231-104':'231 MCS 連接器','w231-606':'231 MCS 連接器','w231-106':'231 MCS 連接器','w231-612':'231 MCS 連接器','w231-112':'231 MCS 連接器',
   'w852-111':'852 工業交換器','w852-1111':'852 工業交換器',
@@ -30,6 +30,14 @@ const S={
   gnd13:'接地銅板',gnd15:'接地銅板','py2201-g':'PY2201A 金屬開關','py2201-r':'PY2201A 金屬開關',
   'laser-ps':'雷射砲台配件','dc5521f-tb':'雷射砲台配件','dc5525m-tb':'雷射砲台配件','laser-dot':'雷射砲台配件'};
 Object.entries(S).forEach(([id,ser])=>{if(TPL[id]&&!TPL[id].ser)TPL[id].ser=ser;});
+// 沒有廠牌的通用零件：廠牌填「通用」，器具庫才會和其他廠牌一樣顯示「廠牌 系列」
+['h66','diode','diode-coil','lamp','field-power','gnd13','gnd15','laser-ps','dc5521f-tb','dc5525m-tb','laser-dot'].forEach(id=>{if(TPL[id]&&!TPL[id].b)TPL[id].b='通用';});
+// 外部電源進線不是馬達，放到「現場：接線盒與其他」
+if(TPL['field-power'])TPL['field-power'].cat='現場：接線盒與其他';
+// 線圈用二極體和一般二極體放在同一個大類
+if(TPL['diode-coil'])TPL['diode-coil'].cat='其他元件';
+// 舊版 YW（接點固定、不能拆裝接點塊）：名稱加「舊版」，和新的同型號分得出來
+['yw1b','yw1l-r','yw1l-g','yw1s'].forEach(id=>{if(TPL[id]&&!/舊版/.test(TPL[id].n))TPL[id].n+='（舊版）';});
 // 柏叡的繼電器模組原本廠牌寫 bore，統一成柏叡
 if(TPL.g6d&&TPL.g6d.b==='bore')TPL.g6d.b='柏叡';
 })();

@@ -14,7 +14,7 @@
 const ID='IDEC',SRC='IDEC YW 系列型錄 TP1173';
 const ver=id=>{VER[id]=[2,SRC];};
 /* ---------- 接點塊 ---------- */
-const BLK=(id,name,T,sim,o={})=>{def(id,null,D1,ID,name,10,41.4,41.4,'CB','light',T,{sheet:'door',rackKind:o.fa?'fa':'cb',attach:'slot',...(o.dbl?{dbl:true}:{}),sim,
+const BLK=(id,name,T,sim,o={})=>{def(id,null,D1,ID,name,10,41.4,41.4,'CB','light',T,{sheet:'door',ser:'YW 接點塊',rackKind:o.fa?'fa':'cb',attach:'slot',...(o.dbl?{dbl:true}:{}),sim,
   note:`${o.fa?'全電壓型轉接器（照光按鈕、指示燈的燈，裝在 ② 的位置）':'接點塊'}：拖到 YW 操作部上會裝進空的位置，跟著操作部動作${o.fa?'':'，裝上後端子照位置編號（① 1x、② 2x、③ 3x）'}；端子編號依 IDEC 慣例推定${o.note?'；'+o.note:''}`});ver(id);};
 const C=(a,b,x,nc)=>[[a,x,10.7,'top',(nc?'常閉 ':'常開 ')+a.replace(/\(\d\)/,'')],[b,x,30.7,'bottom',(nc?'常閉 ':'常開 ')+b.replace(/\(\d\)/,'')]];
 const SW=(a,b,nc)=>({k:'sw',a,b,by:'op',...(nc?{nc:true}:{})});
