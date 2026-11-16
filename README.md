@@ -287,4 +287,4 @@ js/main.js         啟動
 
 ## 訪客統計
 
-index.html 載入 GoatCounter（https://rayne-circuit.goatcounter.com ）：只記錄網頁被打開（頁面、來源、國家、裝置），不用 cookie、不收集個人資料；盤面與專案內容都存在使用者自己的瀏覽器，不會送出。本機用 file:// 開或跑測試時不會計數。
+index.html 載入 GoatCounter（https://rayne-lrw.goatcounter.com ）：只記錄網頁被打開（頁面、來源、國家、裝置），不用 cookie、不收集個人資料；盤面與專案內容都存在使用者自己的瀏覽器，不會送出。本機用 file:// 開或跑測試時不會計數。
