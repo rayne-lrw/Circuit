@@ -498,7 +498,7 @@ window.addEventListener('blur',()=>{spaceDown=false;svg.classList.remove('pannin
 // 操作設定：存在這台電腦的瀏覽器，不跟著專案
 function opPref(){try{return Object.assign({drag:'cad'},JSON.parse(localStorage.getItem('wiring-sim-ops')||'{}'));}catch(_){return {drag:'cad'};}}
 function setOpPref(k,v){const p=opPref();p[k]=v;try{localStorage.setItem('wiring-sim-ops',JSON.stringify(p));}catch(_){}updateHint();}
-function opDialog(open){$('opDlg').hidden=!open;if(open){const p=opPref();document.querySelectorAll('[name="opDrag"]').forEach(r=>r.checked=r.value===p.drag);$('opClose').focus();}else $('opB').focus();}
+function opDialog(open){$('opDlg').hidden=!open;if(open){const p=opPref();document.querySelectorAll('[name="opLook"]').forEach(r=>r.checked=r.value===(p.look==='simple'?'simple':'real'));document.querySelectorAll('[name="opDrag"]').forEach(r=>r.checked=r.value===p.drag);$('opClose').focus();}else $('opB').focus();}
 // 全螢幕：不是每個人都知道 F11，給一個按鈕；瀏覽器不支援（例如 iPhone Safari）就不顯示
 {const de=document.documentElement,on=()=>document.fullscreenElement||document.webkitFullscreenElement;
  if(document.fullscreenEnabled||document.webkitFullscreenEnabled){const b=$('fsB');b.hidden=false;
@@ -507,6 +507,7 @@ function opDialog(open){$('opDlg').hidden=!open;if(open){const p=opPref();docume
   document.addEventListener('fullscreenchange',upd);document.addEventListener('webkitfullscreenchange',upd);upd();}}
 $('opB').onclick=()=>opDialog(true);$('opClose').onclick=()=>opDialog(false);
 $('opDlg').addEventListener('click',e=>{if(e.target===$('opDlg'))opDialog(false);});
+document.querySelectorAll('[name="opLook"]').forEach(r=>r.onchange=()=>{if(r.checked){setOpPref('look',r.value);renderBoard();renderWires();if(mode==='sim')simRefresh();toast(r.value==='simple'?'器具改成簡化圖':'器具改成實體圖');}});
 document.querySelectorAll('[name="opDrag"]').forEach(r=>r.onchange=()=>{if(r.checked){setOpPref('drag',r.value);toast(r.value==='cad'?'改成 CAD 方式：左鍵拖曳空白處框選，中鍵拖曳平移':'改成舊方式：左鍵拖曳空白處平移，Shift＋拖曳框選');}});
 document.addEventListener('keydown',e=>{
   if(!$('ed').hidden) return;

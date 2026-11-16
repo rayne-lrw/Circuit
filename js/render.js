@@ -111,6 +111,7 @@ function renderBoard(){
     h+=`<g class="dev${d.on&&attachOf(d)!=='slot'&&attachOf(d)!=='chain'?' rider':''}" data-dev="${d.id}">`; // 裝在接觸器正面的附件畫成半透明，看得到底下的線圈與輔助接點
     if(t.round) h+=`<rect class="body" x="${d.x}" y="${d.y}" width="${t.w}" height="${t.h}" rx="${Math.min(t.w,t.h)/2}" fill="${t.f}"/>`;
     else h+=`<rect class="body" x="${d.x}" y="${d.y}" width="${t.w}" height="${t.h}" rx="${t.rx||2.5}" fill="${t.f}"/>`;
+    h+=lookBase(d,t,Math.min(t.terms.length>30?1.3:t.terms.length>14?1.7:2.3,minGap(t)*.36)); // 實體圖基本層：立體感、端子台底座
     // 器具上的示意圖形（例如伺服的內置回生電阻）；旋轉的器具不畫
     // 二極體符號：依 A、K 接點的位置畫（旋轉後也對），三角形尖端指向 K，尖端畫一條橫線
     if(t.sym==='diode'){const A=t.terms.find(p=>p.id==='A'),K=t.terms.find(p=>p.id==='K');if(A&&K){
@@ -124,14 +125,16 @@ function renderBoard(){
         h+=`<g class="deco btn"><circle cx="${cx}" cy="${cy}" r="${r}"/><circle cx="${cx}" cy="${cy}" r="${r-2.2}"/><path d="M${tip} L${b1} L${b2} Z"/><line x1="${cx-v[0]*s*.2}" y1="${cy-v[1]*s*.2}" x2="${cx-v[0]*s}" y2="${cy-v[1]*s}"/></g>`;return;}
       if(g.k==='lamp'){const cx=d.x+g.x,cy=d.y+g.y,r=g.r,q=r*.707;h+=`<g class="deco lamp" style="stroke:${t.i}"><circle cx="${cx}" cy="${cy}" r="${r}"/><line x1="${cx-q}" y1="${cy-q}" x2="${cx+q}" y2="${cy+q}"/><line x1="${cx-q}" y1="${cy+q}" x2="${cx+q}" y2="${cy-q}"/></g>`;return;}
       if(g.k==='res'){const cx=d.x+g.x+g.w/2;h+=`<g class="deco"><line x1="${cx}" y1="${d.y+(g.a??g.y-4)}" x2="${cx}" y2="${d.y+g.y-.3}"/><line x1="${cx}" y1="${d.y+g.y+g.h+.3}" x2="${cx}" y2="${d.y+(g.b??g.y+g.h+4)}"/><rect x="${d.x+g.x}" y="${d.y+g.y}" width="${g.w}" height="${g.h}" rx=".6"/><text x="${cx+g.w/2+2}" y="${d.y+g.y+g.h/2}" dominant-baseline="central">${esc(g.label||'')}</text></g>`;}});
+    h+=lookDetail(d,t); // 實體圖細節層（核對過原廠圖的系列）
     const bodyEnd=h.length; // 短路片插在外殼後面，編號與接點畫在它上面
     const cy=d.y+t.h/2,small=t.w<28||t.h<26,tagSize=small?Math.max(4.5,Math.min(t.w/3.6,8)):10;
     if(d.on&&['cb','fa'].includes(t.rackKind)){} // IDEC 接點塊：屬於操作部，圖上不另外標編號（詳細資料、接線表照樣有）
-    else if(t.cbHost&&riders(d).length) h+=`<text class="tag" style="font-size:6px" x="${d.x+t.w/2}" y="${d.y-2.5}" text-anchor="middle" fill="#333">${esc(d.tag)}</text>`; // 操作部的編號被接點塊蓋住：放到上方
+    else if((t.cbHost&&riders(d).length)||lookTag(d,t)==='above') h+=`<text class="tag" style="font-size:6px" x="${d.x+t.w/2}" y="${d.y-2.5}" text-anchor="middle" fill="#333">${esc(d.tag)}</text>`; // 操作部的編號被接點塊蓋住：放到上方
     else if(d.on) h+=`<text class="tag" style="font-size:5px" x="${d.x+t.w/2}" y="${d.y+5.5}" text-anchor="middle" fill="${t.i}">${esc(d.tag)}</text>`; // 附件編號放上緣，不和接觸器的編號疊在一起
     else if(t.noOv) h+=`<text class="sub" x="${d.x+t.w/2}" y="${cy+1.5}" text-anchor="middle" fill="${t.i}">${esc(d.tag)} 鋁軌 ${t.w} mm</text>`;
     else{
       let L=t.tagAt&&!d.rot?{x:t.tagAt.x,y:t.tagAt.y,fs:tagSize}:tagPlace(d,t,tagSize,small); // 範本指定編號位置（例如按鈕盒的名牌）
+      {const lt=lookTag(d,t);if(lt&&lt!=='above')L={x:lt.x,y:lt.y,fs:Math.max(3.5,Math.min(tagSize,lt.room*.9)),sub:false};} // 實體圖：編號不要蓋到把手
       // 二極體：編號放在符號旁邊比較空的那一側
       if(t.sym==='diode'){const A=t.terms.find(p=>p.id==='A'),K=t.terms.find(p=>p.id==='K');if(A&&K){
         if(Math.abs(A.y-K.y)<.01){const y=A.y>t.h/2?A.y/2:(A.y+t.h)/2;L={x:t.w/2,y,fs:Math.min(tagSize,Math.abs(A.y-y)*1.1),sub:false};}
@@ -148,7 +151,7 @@ function renderBoard(){
     const LP=labPlan(d,t);
     for(const p of t.terms){
       const x=d.x+p.x,y=d.y+p.y;
-      h+=`<circle class="term" cx="${x}" cy="${y}" r="${tr}"/>`;
+      h+=`<circle class="term" cx="${x}" cy="${y}" r="${tr}"/>`+(t.cns?'':lookScrew(x,y,tr));
       if(t.sym) continue; // 二極體：方向看符號，不另外標 A、K 文字（滑鼠靠近接點會顯示）
       const lb=termLabel(d,p.id),al=!!(d.alias&&d.alias[p.id]),sm=lb!==p.id&&(SLOT_RE.exec(p.id)||(al&&[...lb].length>[...p.id].length?[0,0,'']:null));
       const L=LP.get(p.id),fz=L?` style="font-size:${L.fs.toFixed(2)}px"`:'';

@@ -487,3 +487,18 @@ span.sim-chip{cursor:default}
 #placeGhost .ghost-t{fill:#c6286c;opacity:.7}
 #placeGhost .ghost-l{fill:#c6286c;font-weight:600;paint-order:stroke;stroke:var(--bg);stroke-width:1.5px}
 #placeGhost .ghost-l.bad{fill:#d22}
+
+/* ---------- 器具實體圖（js/look.js） ---------- */
+.lk-hi{fill:#fff;opacity:.07;pointer-events:none}
+.lk-tb{fill:rgba(0,0,0,.32);pointer-events:none}
+.lk-slot{stroke:#4a3a12;stroke-width:.45;pointer-events:none}
+.lk-det *{pointer-events:none}
+.lk-well{fill:#15181b;stroke:#000;stroke-width:.3}
+.lk-knob{fill:#4a5058;stroke:#0b0c0d;stroke-width:.3}
+.lk-trip{fill:#c33;stroke:#611;stroke-width:.25}
+.lk-elind{fill:#5a5a5a;stroke:#222;stroke-width:.25}.lk-elind.on{fill:#ffd23c}
+.lk-test{fill:#8a8f94;stroke:#333;stroke-width:.25}
+.lk-bezel{fill:#c6cacd;stroke:#7b8085;stroke-width:.5}
+.lk-head{fill:#3b4046;stroke:#15181b;stroke-width:.4}.lk-head.pressed{fill:#2b8cff}
+.lk-lever{fill:#e6e8ea;stroke:#444;stroke-width:.3}
+.dev.rider .lk-det,.dev.rider .lk-tb{opacity:.5}
