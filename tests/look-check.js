@@ -35,6 +35,14 @@ const {chromium}=require('playwright'),path=require('path'),fs=require('fs');
     simReset();const ky=()=>{const m=/lk-knob[^>]*y="([\d.]+)"/.exec(lookSim(SIMST));return m?+m[1]:null;};const off=ky();SIMST.on.Q=true;const on=ky();ok(on!==null&&off!==null&&on<off,'模擬：斷路器 ON 時把手往上');
     const rot=()=>(/rotate\((-?\d+)/.exec(lookSim(SIMST).split('yw')[0]+lookSim(SIMST))||[])[1];SIMST.sel={S1:'L'};const a=lookSim(SIMST);SIMST.sel={S1:'R'};const c=lookSim(SIMST);
     ok(/rotate\(-45/.test(a)&&/rotate\(45/.test(c),'模擬：3 位置選擇開關 L 往左轉 45°、R 往右轉 45°');
+    // 旋轉的器具也畫細節：整組跟著轉，把手中心仍在器具中心附近
+    {const res=[];[90,180,270].forEach(rot=>{S=normalize({box:{w:600,h:400,d:300,back:20},plate:{w:560,h:360},door:{w:600,h:400},ducts:[],glands:[],wires:[],
+      devices:[{id:'R',tag:'R',tpl:'bw125-3p100',x:100,y:100,sheet:'plate',rot}]}).state;resetUi();recompute();renderBoard();
+      const g=document.querySelector('g.dev[data-dev="R"] .lk-det'),w=g&&g.querySelector('.lk-well'),d=devOf('R'),t=tplOf(d);
+      if(!w){res.push(rot+'° 沒畫');return;}const b=w.getBoundingClientRect(),B=document.querySelector('g.dev[data-dev="R"] rect.body').getBoundingClientRect();
+      const dx=Math.abs((b.left+b.right)/2-(B.left+B.right)/2)/B.width,dy=Math.abs((b.top+b.bottom)/2-(B.top+B.bottom)/2)/B.height;if(dx>.15||dy>.15)res.push(rot+'° 把手偏離中心');
+      if(rot!==180&&!(b.width>b.height))res.push(rot+'° 把手沒有跟著轉成橫的');});
+     ok(!res.length,'旋轉 90°／180°／270° 的器具也畫細節，把手跟著轉'+(res.length?'：'+res.join('；'):''));}
     // 簡化圖
     setOpPref('look','simple');renderBoard();ok(!document.querySelector('#board .lk-tb,#board .lk-det,#board .lk-slot,.lk-tb,.lk-det'),'簡化圖：不畫任何實體圖元素');setOpPref('look','real');renderBoard();
     ok(document.querySelector('.lk-det'),'實體圖：畫出細節層');

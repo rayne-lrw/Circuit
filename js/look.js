@@ -126,7 +126,12 @@ function lkYW(d,t,st){const cx=d.x+t.w/2,cy=d.y+t.h/2,R=Math.min(t.w,t.h)/2-1.5,
 // 編號放在上排端子和把手之間
 function lkTagAbove(t){const top=Math.max(0,...lookRows(t).filter(r=>r.s==='top'&&r.hz).map(r=>r.k)),g=LK_BRK(null,t);return {x:g.x+g.w/2,y:(top+g.y)/2+2,room:g.y-top-5};}
 // render.js 用：有細節層的器具，編號放在哪（'above'＝器具上方；{x,y,room}＝器具內、可用高度）
-function lookTag(d,t){if(!lookOn()||d.rot)return null;const L=lookOf(d.tpl,t);return L&&L.tag?L.tag(t):null;}
+// 旋轉的器具：細節照沒旋轉的外形畫在器具中心，再整組順時針轉（和 tplOf 的接點旋轉方向一樣）
+const lkRot=d=>((d.rot||0)%360+360)%360;
+function lkWrap(d,t,fn){const r=lkRot(d);if(!r)return fn(d,t);const t0=resolveTpl(d.tpl,d.count),cx=d.x+t.w/2,cy=d.y+t.h/2,d0={...d,x:cx-t0.w/2,y:cy-t0.h/2};
+  const h=fn(d0,t0);return h?`<g transform="rotate(${r} ${cx} ${cy})">${h}</g>`:'';}
+function lookTag(d,t){if(!lookOn())return null;const L=lookOf(d.tpl,t);if(!L||!L.tag)return null;const r=lkRot(d);if(!r)return L.tag(t);
+  const t0=resolveTpl(d.tpl,d.count),g=L.tag(t0);if(g==='above'||!g)return g;let x=g.x,y=g.y,w=t0.w,h=t0.h;for(let i=0;i<r/90;i++){[x,y]=[h-y,x];[w,h]=[h,w];}return {...g,x,y};}
 const lookOf=(id,t)=>LOOKS.find(L=>L.m(id,t))||null;
-function lookDetail(d,t){if(!lookOn()||d.rot)return '';const L=lookOf(d.tpl,t);return L?`<g class="lk-det">${L.draw(d,t)}</g>`:'';}
-function lookSim(st){if(!lookOn()||!st)return '';let h='';S.devices.forEach(d=>{if(d.rot)return;const t=tplOf(d),L=lookOf(d.tpl,t);if(L&&L.sim)h+=`<g class="lk-det">${L.sim(d,t,st)}</g>`;});return h;}
+function lookDetail(d,t){if(!lookOn())return '';const L=lookOf(d.tpl,t);if(!L)return '';const h=lkWrap(d,t,(a,b)=>L.draw(a,b));return h?`<g class="lk-det">${h}</g>`:'';}
+function lookSim(st){if(!lookOn()||!st)return '';let h='';S.devices.forEach(d=>{const t=tplOf(d),L=lookOf(d.tpl,t);if(L&&L.sim){const x=lkWrap(d,t,(a,b)=>L.sim(a,b,st));if(x)h+=`<g class="lk-det">${x}</g>`;}});return h;}
