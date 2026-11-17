@@ -51,9 +51,6 @@ const {chromium}=require('playwright'),path=require('path');
     ok(dev(R,'LA').rev.includes('雷射')&&!dev(R,'LA').on.length,'雷射正負接反：顯示極性相反、不亮');wp.b.t='V+';wn.b.t='V-';
     // 短路：24V 直接接到 0V
     W('F1','2','PS','-V2');R=r();ok(R.shorts>0,'24V 接到 0V：偵測到短路');S.wires.pop();R=r();ok(R.shorts===0,'拿掉後沒有短路');
-    // 自動測試
-    SIMST.y.clear();const ty=simAutoY();ok(ty.rows.some(x=>x[0]==='Y0'&&/KA/.test(x[1])&&/雷射/.test(x[1])),'Y 逐點測試：Y0 → KA、燈、雷射');
-    const tx=simAutoX();ok(tx.rows.some(x=>/PX 觸發/.test(x[0])&&/X0/.test(x[1])),'輸入逐點測試：PX → X0');
     // 三相伺服主電源：L1、L2、L3 三條線都要有電流；單相接 L1、L3 也算有電（配盤模擬不判斷欠相）
     ['j4200','j4700','je40'].forEach(sv=>{const keep=S.wires.slice(),kd=S.devices.slice();S.devices.push(D('SV',sv,600,400));const Q2=D('Q2','ic60-3P16A',500,400);S.devices.push(Q2);
       W('PWR','R','Q2','1');W('PWR','S','Q2','3');W('PWR','T','Q2','5');const w1=W('Q2','2','SV','L1'),w2=W('Q2','4','SV','L2'),w3=W('Q2','6','SV','L3');const ids=S.wires.slice(-3).map(w=>w.id);
@@ -67,6 +64,12 @@ const {chromium}=require('playwright'),path=require('path');
       commit();recompute();simReset();SIMST.on.Q1=true;const R=simRun();
       ok(R.dev.LX&&R.dev.LX.on.length&&ids.every(id=>R.wires[id].cur),'短路片兩邊各進一條線：兩條都有電流');ok(!R.wires[dead].cur,'沒接回去的分支沒有電流');
       S.wires=keep;S.devices=kd;commit();recompute();}
+    // 模擬面板「動作中」：依器具類別分組（順序同材料表），組內照編號自然排序；沒有自動測試按鈕
+    {setMode('sim');SIMST.on={Q1:true,F1:true};SIMST.y.add('PLC|Y0');simRefresh();
+     const gs=[...document.querySelectorAll('#detail .act-g')].map(g=>({c:g.querySelector('.act-c').textContent,tags:[...g.querySelectorAll('.sim-chip')].map(x=>x.textContent.split(' ')[0])}));
+     const ord=CAT_ORDER(),idx=gs.map(g=>ord.indexOf(g.c)),sorted=gs.every(g=>g.tags.join()===g.tags.slice().sort(natCmp).join());
+     ok(gs.length>=2&&idx.every((v,i)=>i===0||v>=idx[i-1])&&sorted,'動作中：依類別分組（'+gs.map(g=>g.c).join('、')+'），組內照編號排序');
+     ok(!document.getElementById('simTestY')&&!document.getElementById('simTestX'),'模擬面板沒有自動測試按鈕');setMode('wire');}
     // 自訂器具的動作資料：存檔讀回
     S.tpls.cx={...cleanTpl({n:'自訂燈',w:20,h:20,terms:[{id:'J',x:5,y:5,side:'top'}],sim:[{k:'grp',t:'J',sub:['+','-']},{k:'load',a:'J.+',b:'J.-',name:'燈',polar:true},{k:'bad'}]})};
     ok(JSON.stringify(S.tpls.cx.sim)==='[{"k":"grp","t":"J","sub":["+","-"]},{"k":"load","a":"J.+","b":"J.-","name":"燈","polar":true}]','自訂器具動作資料：不合格的元素會被拿掉');

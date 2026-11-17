@@ -1,5 +1,5 @@
 // 整體冒煙測試：拿專案檔（沒給就用內建範例）把每個畫面與功能都跑一遍，確認沒有錯誤
-// 讀檔與存檔讀回、四種模式、清單分頁、匯出、列印、選取每台器具／每條線／每條電纜、復原、器具編輯器、動作模擬（自動測試）
+// 讀檔與存檔讀回、四種模式、清單分頁、匯出、列印、選取每台器具／每條線／每條電纜、復原、器具編輯器、動作模擬
 // 用法：node tests/smoke-check.js [專案.json …]
 const {chromium}=require('playwright'),path=require('path'),fs=require('fs');
 (async()=>{
@@ -45,8 +45,6 @@ const {chromium}=require('playwright'),path=require('path'),fs=require('fs');
       t0=performance.now();let r=simRun();const sm=Math.round(performance.now()-t0);ok(sm<500,`模擬一次 ${sm} ms`);
       // 每個可操作的器具按一下（啟動類的按鈕會自我保持，照順序都按過）
       bad=[];S.devices.filter(d=>simElems(d).some(e=>e.btn)).forEach(d=>[...new Set(simElems(d).filter(e=>e.btn).map(e=>e.btn))].forEach(bt=>{try{simPress(d.id,bt,true);simPress(d.id,bt,false);}catch(e){bad.push(d.tag+'：'+e.message);}}));ok(!bad.length,'模擬：每個按鈕、感測器按一下'+(bad.length?'：'+bad.slice(0,3).join('；'):''));
-      tryit('模擬：Y 逐點測試',()=>{simTest=simAutoY();renderDetail();return Array.isArray(simTest.rows);});
-      tryit('模擬：輸入逐點測試',()=>{simTest=simAutoX();renderDetail();return Array.isArray(simTest.rows);});
       tryit('模擬：列印測試結果',()=>{printSimOnly=true;buildPrint();printSimOnly=false;return !!$('print').querySelector('table');});
       r=SIMST.res;out.push(`  模擬結果：短路 ${r.shorts}、不穩定 ${r.unstable?'是':'否'}、提醒 ${r.warn.length} 則；沒有動作資料的器具 ${S.devices.filter(d=>!hasSim(d)).length} 台`);
       setMode('wire');ok(SIMST===null,'離開模擬');

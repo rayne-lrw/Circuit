@@ -509,3 +509,5 @@ span.sim-chip{cursor:default}
 .lk-dial{fill:#d7dadc;stroke:#777;stroke-width:.3}.lk-dialp{stroke:#222;stroke-width:.5}
 .lk-sel{fill:#e8e8e8;stroke:#555;stroke-width:.2}.lk-reset{fill:#2b6fd6;stroke:#173a6e;stroke-width:.25}
 .lk-arm{fill:#9aa0a6;stroke:#333;stroke-width:.2}.lk-arm.on{fill:#3dd16b}
+.act-g{display:flex;gap:6px;align-items:flex-start;margin:2px 0 4px}.act-c{flex:0 0 8.5em;font-size:12px;color:var(--muted,#666);padding-top:3px}.act-g .sim-chips{margin:0;flex:1}
+.sim-chip.act{cursor:default}.sim-chip.act small{opacity:.85;font-size:11px}

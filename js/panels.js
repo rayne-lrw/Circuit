@@ -265,7 +265,7 @@ function renderStats(){
 function updateHint(){
   if(typeof renderCabBar==='function')renderCabBar();
   let s,k;
-  if(mode==='sim'){k='sim';s='模擬模式：按著按鈕、感測器才算按下；點斷路器切換 ON／OFF；右側可以切換 PLC 輸出、跑自動測試。拖曳空白處平移。';}
+  if(mode==='sim'){k='sim';s='模擬模式：按著按鈕、感測器才算按下；點斷路器切換 ON／OFF；右側可以切換 PLC 輸出、看動作中的器具。拖曳空白處平移。';}
   else if(typeof placing!=='undefined'&&placing){k='placing';s=`放置 ${resolveTpl(placing.tpl).n}：移動滑鼠到要放的位置點一下放下（會吸附格點、鋁軌、主體、槽位）；R 旋轉，Esc 或右鍵取消；滾輪縮放、中鍵或空白鍵拖曳平移。觸控：點一下放下。`;}
   else if(typeof noteAdd!=='undefined'&&noteAdd){k='note';s='放審查註記：在圖面上點一下要註記的位置；按 Esc 取消。';}
   else if(mode==='view'){k='view';s='檢視模式：只能看，不能修改。點線或器具可看詳細資料，拖曳空白處平移；按 W 回到接線、M 回到擺放。';}
