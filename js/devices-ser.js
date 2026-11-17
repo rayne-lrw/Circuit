@@ -39,6 +39,13 @@ if(TPL.ths62&&!TPL.ths62.b)TPL.ths62.b='天得';
 ['py2201-g','py2201-r','qlnp'].forEach(id=>{if(TPL[id]&&!TPL[id].b)TPL[id].b='其他';});
 // 線圈用二極體和一般二極體放在同一個大類
 if(TPL['diode-coil'])TPL['diode-coil'].cat='其他元件';
+// 原本內建器具的名稱改成和後來新增的同系列一樣的命名方式（id 不變，舊專案檔照常讀）
+const RENAME_N={'fuji-bw50':'BW50 3P 50A',gv2me16:'GV2ME16 9～14A',gv2me32:'GV2ME32 24～32A',
+  lc1d09:'LC1D09BL DC24V 低耗電',lc1d18:'LC1D18BL DC24V 低耗電',lc1d38:'LC1D38BL DC24V 低耗電',lc1d258:'LC1D258BL DC24V 低耗電 2NO+2NC',
+  ladn40:'LADN40 輔助接點 4NO',fx516ex:'FX5-16EX/ES',fx540ssc:'FX5-40SSC-S 4 軸運動',fx54ad:'FX5-4AD-ADP 4CH 類比輸入',
+  yw1b:'YW1B-V4E02R 緊急停止 ø40 2NC',yw1s:'YW1S-2E10 選擇開關 2 位置 交替 1NO'};
+Object.entries(RENAME_N).forEach(([id,n])=>{if(TPL[id])TPL[id].n=n;});
+if(TPL['fuji-bw50']){TPL['fuji-bw50'].model=true;}
 // 舊版 YW（接點固定、不能拆裝接點塊）：名稱加「舊版」，和新的同型號分得出來
 ['yw1b','yw1l-r','yw1l-g','yw1s'].forEach(id=>{if(TPL[id]&&!/舊版/.test(TPL[id].n))TPL[id].n+='（舊版）';});
 // 柏叡的繼電器模組原本廠牌寫 bore，統一成柏叡

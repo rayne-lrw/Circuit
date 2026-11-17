@@ -12,7 +12,7 @@ const {chromium}=require('playwright'),path=require('path');
     // ---------- 器具資料 ----------
     const ids=Object.keys(TPL).filter(id=>/^bw\d+-\dp\d+$/.test(id)),n=k=>ids.filter(id=>id.includes('-'+k+'p')).length;
     ok(ids.length===113&&n(2)===42&&n(3)===46&&n(4)===25,`主體 ${ids.length} 種（2P ${n(2)}、3P ${n(3)}＋原有 BW50EAG、4P ${n(4)}）`);
-    ok(!TPL['bw50-3p50']&&TPL['fuji-bw50']&&TPL['fuji-bw50'].ser==='G-TWIN BW','庫裡已有的 BW50EAG 3P50A 略過，併入 G-TWIN BW 分組');
+    ok(!TPL['bw50-3p50']&&TPL['fuji-bw50']&&TPL['fuji-bw50'].ser==='G-TWIN BW'&&TPL['fuji-bw50'].n==='BW50 3P 50A','庫裡已有的 BW50 3P 50A（fuji-bw50）略過，併入 G-TWIN BW 分組、名稱改成同系列寫法');
     const t=id=>tplOf({tpl:id}),sz=id=>[t(id).w,t(id).h,t(id).d].join('×');
     ok(sz('bw32-2p10')==='50×100×84'&&sz('bw100-3p75')==='75×100×84'&&sz('bw125-4p100')==='120×155×95'&&sz('bw250-3p225')==='105×165×95'&&sz('bw400-4p400')==='185×257×146'&&sz('bw800-3p800')==='210×275×146','外形照型錄尺寸圖（32～100AF、125AF、250AF、400AF、800AF）');
     const xs=(id,re)=>t(id).terms.filter(x=>re.test(x.id)).sort((a,b)=>a.x-b.x).map(x=>x.id).join(' ');
