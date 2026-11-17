@@ -63,6 +63,59 @@ const LOOKS=[
   {name:'IDEC YW 操作部',m:(id,t)=>/^yw\d/.test(id)&&(t.cbHost||t.op||/^yw1p/.test(id))&&!(t.terms||t.t||[]).length,src:'IDEC YW 系列型錄 TP1173 外形尺寸圖（正面為圓形框＋操作頭）',
    feat:'圓形框與操作頭（正面中心）；選擇開關、鑰匙開關的把手方向（L／C／R）',
    draw:(d,t)=>lkYW(d,t,null),sim:(d,t,st)=>lkYW(d,t,st),tag:()=>'above'}];
+/* ---------- PLC 正面（照手冊「各部分的名稱」圖）：位置用「本體寬度比例 x」與「上下兩排端子之間的區域比例 v」 ----------
+   部件：cover＝蓋板（light／dark）、leds＝I/O 指示燈列、stat＝狀態燈（第一個是 PWR，pw 指定有電時亮的燈）、rj45＝乙太網路接頭 */
+function lkBand(t){const r=lookRows(t).filter(r=>r.hz),top=Math.max(0,...r.filter(r=>r.k<t.h/2).map(r=>r.k)),bot=Math.min(t.h,...r.filter(r=>r.k>=t.h/2).map(r=>r.k));
+  return {y0:top+3.2,y1:bot-3.2};}
+function lkPanel(d,t,spec,st){const B=lkBand(t),H=B.y1-B.y0;if(H<12)return '';const X=f=>d.x+f*t.w,Y=v=>d.y+B.y0+v*H,live=st&&st.res&&st.res.dev[d.id]&&st.res.dev[d.id].on.length;let h='';
+  spec.forEach(s=>{const x=X(s.x0),y=Y(s.v0),w=X(s.x1)-x,hh=Y(s.v1)-y;if(w<=0||hh<=0)return;
+    if(s.k==='cover'){if(!st)h+=`<rect class="lk-cover ${s.c||'dark'}" x="${x}" y="${y}" width="${w}" height="${hh}" rx="1"/>`;return;}
+    if(s.k==='rj45'){if(!st)h+=`<rect class="lk-rj" x="${x}" y="${y}" width="${w}" height="${hh}" rx=".6"/><rect class="lk-rjh" x="${x+w*.2}" y="${y+hh*.25}" width="${w*.6}" height="${hh*.5}"/>`;return;}
+    if(s.k==='leds'){if(st)return;const n=Math.max(4,Math.min(16,Math.floor(w/3.2))),r=Math.min(.75,hh/6),lab=Math.min(2.6,hh*.45);
+      h+=`<text class="lk-lab" x="${x}" y="${y+hh*.42}" style="font-size:${lab}px">${s.lab}</text>`;
+      for(let row=0;row<2;row++)for(let i=0;i<n;i++)h+=`<circle class="lk-led" cx="${x+lab*2.4+(w-lab*2.6)*(i+.5)/n}" cy="${y+hh*(row?.78:.35)}" r="${r}"/>`;return;}
+    if(s.k==='stat'){const n=s.labs.length,r=Math.min(.9,hh/n/2.6),fs=Math.min(2.4,hh/n*.7);
+      s.labs.forEach((L,i)=>{const cy=y+hh*(i+.5)/n,on=st&&live&&(s.pw||[0]).includes(i);if(st&&!on)return;
+        h+=`${st?'':`<text class="lk-lab" x="${x}" y="${cy+fs*.35}" style="font-size:${fs}px">${L}</text>`}<circle class="lk-led${on?' on':''}" cx="${x+w-r-.3}" cy="${cy}" r="${r}"/>`;});}});
+  return h;}
+const LK_PLC={
+  FX5U:{src:'三菱 MELSEC iQ-F FX5S/FX5UJ/FX5U/FX5UC 用戶手冊（硬體篇）3.1「FX5U CPU 模塊」各部分的名稱',feat:'左側上蓋板（SD 卡、RS-485 在內）、CARD／RD／SD／SD-RD 燈、乙太網路接頭、中間擴充板蓋板、右側輸入燈（上）、PWR／ERR／P.RUN／BAT（中）、輸出燈（下）',
+    spec:[{k:'cover',c:'light',x0:0,x1:.2,v0:0,v1:1},{k:'cover',x0:.2,x1:.92,v0:0,v1:1},{k:'stat',labs:['CARD','RD','SD','SD/RD'],x0:.27,x1:.4,v0:.04,v1:.42,pw:[]},{k:'rj45',x0:.26,x1:.36,v0:.55,v1:.9},{k:'cover',c:'mid',x0:.43,x1:.66,v0:.02,v1:.98},
+      {k:'leds',lab:'IN',x0:.69,x1:.92,v0:.02,v1:.27},{k:'stat',labs:['PWR','ERR','P.RUN','BAT'],x0:.68,x1:.79,v0:.33,v1:.64,pw:[0,2]},{k:'leds',lab:'OUT',x0:.68,x1:.92,v0:.7,v1:.96}],tag:{x:.545,v:.5}},
+  FX5UJ:{src:'三菱 MELSEC iQ-F FX5S/FX5UJ/FX5U/FX5UC 用戶手冊（硬體篇）3.1「FX5UJ CPU 模塊」各部分的名稱',feat:'左側周邊設備蓋板（USB、SD 卡、RUN/STOP）、中間偏左擴充板蓋板、右側輸入燈（上）、PWR／ERR／P.RUN／CARD／LAN（中）、輸出燈（下）',
+    spec:[{k:'cover',c:'light',x0:0,x1:.21,v0:0,v1:1},{k:'cover',x0:.21,x1:.5,v0:0,v1:1},{k:'leds',lab:'IN',x0:.63,x1:.89,v0:.02,v1:.26},
+      {k:'stat',labs:['PWR','ERR','P.RUN','CARD','LAN'],x0:.72,x1:.89,v0:.32,v1:.68,pw:[0,2]},{k:'leds',lab:'OUT',x0:.62,x1:.89,v0:.73,v1:.97}],tag:{x:.355,v:.5}},
+  FX5S:{src:'三菱 MELSEC iQ-F FX5S/FX5UJ/FX5U/FX5UC 用戶手冊（硬體篇）3.1「FX5S CPU 模塊」各部分的名稱',feat:'左上乙太網路接頭、左下周邊設備蓋板、中間偏左擴充板蓋板、右側輸入燈（上）、PWR／ERR／P.RUN／LAN（中）、輸出燈（下）',
+    spec:[{k:'rj45',x0:.05,x1:.17,v0:.04,v1:.34},{k:'cover',c:'light',x0:.01,x1:.2,v0:.42,v1:.98},{k:'cover',x0:.21,x1:.53,v0:0,v1:1},{k:'leds',lab:'IN',x0:.72,x1:.97,v0:.03,v1:.24},
+      {k:'stat',labs:['PWR','ERR','P.RUN','LAN'],x0:.82,x1:.97,v0:.34,v1:.62,pw:[0,2]},{k:'leds',lab:'OUT',x0:.7,x1:.97,v0:.76,v1:.97}],tag:{x:.37,v:.5}},
+  FX3U:{src:'三菱 FX3U 系列用戶手冊（硬體篇）2.2.1「各部位名稱及功能（正面）」',feat:'左側上蓋板（記憶卡在內）、右側輸入燈（上）、POWER／RUN／BATT／ERROR（右側中間）、輸出燈（下）；RUN/STOP 開關在本體左側面，正面看不到不畫',
+    spec:[{k:'cover',c:'light',x0:0,x1:.44,v0:0,v1:1},{k:'leds',lab:'IN',x0:.48,x1:.98,v0:.04,v1:.22},{k:'stat',labs:['POWER','RUN','BATT','ERROR'],x0:.73,x1:.88,v0:.28,v1:.78,pw:[0,1]},{k:'leds',lab:'OUT',x0:.47,x1:.72,v0:.62,v1:.92}],tag:{x:.59,v:.38}}};
+Object.entries(LK_PLC).forEach(([ser,P])=>LOOKS.push({name:`三菱 ${ser} CPU`,m:(id,t)=>t.ser===ser&&!t.chainKind&&(t.terms||[]).length>8,src:P.src,feat:P.feat,
+  draw:(d,t)=>lkPanel(d,t,P.spec,null),sim:(d,t,st)=>lkPanel(d,t,P.spec,st),tag:t=>{const B=lkBand(t);return {x:P.tag.x*t.w,y:B.y0+P.tag.v*(B.y1-B.y0)+3,room:Math.min(14,(B.y1-B.y0)*.4)};}}));
+// 三菱 Q 通用型 CPU（Q02U、Q03UD、Q04UDH～Q26UDH）：手冊同一張「各部位的名稱」圖
+const LK_QU=new Set(['q02ucpu','q03udcpu','q04udhcpu','q06udhcpu','q10udhcpu','q13udhcpu','q20udhcpu','q26udhcpu']);
+LOOKS.push({name:'三菱 Q 通用型 CPU（Q02U～Q26UDH）',m:id=>LK_QU.has(id),src:'三菱 QCPU 用戶手冊（硬件設計／維護點檢篇）6.1.3「Q02UCPU、Q03UDCPU、Q04UDHCPU…Q26UDHCPU」各部位的名稱',
+  feat:'上方型號名牌、右上 MODE／RUN／ERR.／USER／BAT.／BOOT 燈、下半部 USB 蓋（上）與 RS-232 蓋（下）、最下方序號牌',
+  draw:(d,t)=>lkPanel(d,t,LK_QSPEC,null),sim:(d,t,st)=>lkPanel(d,t,LK_QSPEC,st),tag:t=>({x:t.w/2,y:t.h*.4,room:6})});
+const LK_QSPEC=[{k:'stat',labs:['MODE','RUN','ERR.','USER','BAT.','BOOT'],x0:.3,x1:.85,v0:.05,v1:.22,pw:[0,1]},{k:'cover',c:'light',x0:.04,x1:.96,v0:.58,v1:.74},{k:'cover',c:'light',x0:.04,x1:.96,v0:.75,v1:.9}];
+// 施耐德 LRD3（LRD313～LRD380、L 型）：輔助端子（上）與主端子（下）之間的面板
+LOOKS.push({name:'施耐德 TeSys LRD3 熱過載繼電器（LRD313～LRD380）',m:id=>/^lrd3\d\d/.test(id),src:'施耐德 LRD3pp 安裝說明書 AAV37571（圖 O、P、Q：正面面板）',
+  feat:'面板在輔助端子與主端子之間：左側電流設定旋鈕、旋鈕右邊 H／A（手動／自動）切換、右側上方 RESET 鈕（藍）、下方 STOP 鈕（紅）',
+  draw:(d,t)=>{const B=lkLrdBand(t),H=B.y1-B.y0;if(H<8)return '';const y=d.y+B.y0,cx=d.x+t.w*.22,r=Math.min(H*.42,t.w*.12),bw=t.w*.16,bh=H*.36;
+    return `<rect class="lk-cover mid" x="${d.x+t.w*.04}" y="${y}" width="${t.w*.92}" height="${H}" rx="1"/><circle class="lk-dial" cx="${cx}" cy="${y+H/2}" r="${r}"/><line class="lk-dialp" x1="${cx}" y1="${y+H/2}" x2="${cx+r*.7}" y2="${y+H/2-r*.7}"/>`+
+      `<rect class="lk-sel" x="${d.x+t.w*.42}" y="${y+H*.2}" width="${t.w*.07}" height="${H*.6}" rx=".5"/><text class="lk-lab" x="${d.x+t.w*.505}" y="${y+H*.35}" style="font-size:2px">H</text><text class="lk-lab" x="${d.x+t.w*.505}" y="${y+H*.85}" style="font-size:2px">A</text>`+
+      `<rect class="lk-reset" x="${d.x+t.w*.78}" y="${y+H*.08}" width="${bw}" height="${bh}" rx=".6"/><rect class="lk-trip" x="${d.x+t.w*.78}" y="${y+H*.56}" width="${bw}" height="${bh}" rx=".6"/>`;},
+  tag:t=>{const B=lkLrdBand(t);return {x:t.w*.62,y:B.y0+(B.y1-B.y0)*.62,room:4};}});
+// LRD3：面板在輔助端子（95～98）那一排和主端子（2/T1…）那一排之間
+function lkLrdBand(t){const ys=lookRows(t).filter(r=>r.hz).map(r=>r.k).sort((a,b)=>a-b);return ys.length>=2?{y0:ys[0]+3.2,y1:ys[1]-3.2}:{y0:0,y1:0};}
+// 電磁接觸器：上下主端子之間正中央的動作指示窗（可動件吸合時往下）
+function lkMC(d,t,st){const B=lkBand(t),H=B.y1-B.y0;if(H<10)return '';const w=Math.min(16,t.w*.3),h=Math.min(H*.4,w*1.3),x=d.x+t.w/2-w/2,y=d.y+B.y0+H/2-h/2,on=st&&st.res&&st.res.dev[d.id]&&st.res.dev[d.id].coil;
+  return (st?'':`<rect class="lk-well" x="${x}" y="${y}" width="${w}" height="${h}" rx="1"/>`)+`<rect class="lk-arm${on?' on':''}" x="${x+w*.18}" y="${y+(on?h*.5:h*.12)}" width="${w*.64}" height="${h*.38}" rx=".6"/>`;}
+LOOKS.push({name:'士林 S-P 電磁接觸器',m:(id,t)=>t.ser==='S-P 接觸器',src:'士林 MS-P 系列外觀尺寸圖集（S-P11 第 7 頁、S-P50T、S-P100TS 正面圖）',
+  feat:'動作指示窗（正面中央，上下主端子之間）；吸合時可動件往下',draw:(d,t)=>lkMC(d,t,null),sim:(d,t,st)=>lkMC(d,t,st),tag:t=>lkMCTag(t)});
+LOOKS.push({name:'施耐德 TeSys D 電磁接觸器（LC1D）',m:(id,t)=>t.ser==='TeSys D 接觸器'||t.ser==='TeSys D Advanced 接觸器',src:'施耐德 TeSys 型錄 B8/107～B8/108 外形尺寸圖（正面圖）',
+  feat:'動作指示窗（正面中央，上下主端子之間）；吸合時可動件往下',draw:(d,t)=>lkMC(d,t,null),sim:(d,t,st)=>lkMC(d,t,st),tag:t=>lkMCTag(t)});
+function lkMCTag(t){const B=lkBand(t),H=B.y1-B.y0;return {x:t.w/2,y:B.y0+H*.15+1,room:Math.min(8,H*.2)};}
 // IDEC YW：外框圓＋操作頭；選擇開關畫把手（直立＝C 或 2 位置的 L…依位置轉 45°／90°）；按著時操作頭變小
 function lkYW(d,t,st){const cx=d.x+t.w/2,cy=d.y+t.h/2,R=Math.min(t.w,t.h)/2-1.5,op=t.op||{};
   let h=st?'':`<circle class="lk-bezel" cx="${cx}" cy="${cy}" r="${R}"/>`;

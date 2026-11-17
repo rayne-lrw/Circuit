@@ -1,6 +1,6 @@
 // 器具實體圖檢查（js/look.js）：
 // - 每一種器具在實體圖、簡化圖都畫得出來（沒有錯誤）；簡化圖不畫任何實體圖元素
-// - 細節層每個系列都有資料來源與畫了什麼；細節畫在本體範圍內、不蓋到任何接點
+// - 細節層每個系列都有資料來源與畫了什麼；細節畫在本體範圍內、不蓋到任何接點（背景蓋板除外，接點畫在蓋板上面）
 // - 4P 塑殼斷路器把手在右邊三極中間（照型錄）；模擬時把手跟著 ON／OFF、選擇開關跟著位置
 // - 用 --write 產生 docs/實體圖核對表.md（逐型號列出：細節層＋資料來源，或只有基本層）
 // 用法：node tests/look-check.js [--write]
@@ -21,7 +21,8 @@ const {chromium}=require('playwright'),path=require('path'),fs=require('fs');
       S.devices.forEach(d=>{const g=document.querySelector(`g.dev[data-dev="${d.id}"]`);if(!g)return;const det=g.querySelector('.lk-det');if(!det)return;nDet++;
         const t=tplOf(d),R={x:d.x,y:d.y,w:t.w,h:t.h},bb=det.getBBox();
         if(bb.x<R.x-.5||bb.y<R.y-.5||bb.x+bb.width>R.x+R.w+.5||bb.y+bb.height>R.y+R.h+.5)over.push(`${d.tpl}：細節超出本體`);
-        [...det.querySelectorAll('*')].forEach(el=>{if(!el.getBBox)return;const e=el.getBBox();t.terms.forEach(q=>{const x=d.x+q.x,y=d.y+q.y;if(x>e.x+.3&&x<e.x+e.width-.3&&y>e.y+.3&&y<e.y+e.height-.3)over.push(`${d.tpl}：細節蓋到接點 ${q.id}`);});});});}
+        [...det.querySelectorAll('*')].forEach(el=>{if(!el.getBBox||el.classList.contains('lk-cover'))return; // 蓋板是背景（接點畫在它上面，例如 Q CPU 的 USB 蓋上就是 USB 接點），不算蓋住
+          const e=el.getBBox();t.terms.forEach(q=>{const x=d.x+q.x,y=d.y+q.y;if(x>e.x+.3&&x<e.x+e.width-.3&&y>e.y+.3&&y<e.y+e.height-.3)over.push(`${d.tpl}：細節蓋到接點 ${q.id}`);});});});}
     ok(!bad.length,`${ids.length} 種器具都畫得出來`+(bad.length?'：'+bad.slice(0,3).join('；'):''));
     ok(!over.length,`細節層 ${nDet} 種：都在本體範圍內、沒有蓋到接點`+(over.length?'：'+[...new Set(over)].slice(0,5).join('；'):''));
     ok(LOOKS.every(L=>L.src&&L.feat&&L.name),'細節層每個系列都有名稱、資料來源、畫了什麼');
