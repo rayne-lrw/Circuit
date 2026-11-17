@@ -282,6 +282,7 @@ body.viewing .wire.on .wn{pointer-events:none}
 .cab.on .cab-o{stroke:var(--accent)!important}
 #wires.focus .cab:not(.on){--co:.35}
 .cab .cab-o,.cab .cab-v{stroke-opacity:var(--co,1)}
+.cab.off{--co:.06;pointer-events:none}#wires.focus .cab.off:not(.on){--co:.04}
 .cab-t{fill-opacity:var(--co,1)}
 .cab-t{font-family:var(--mono);font-size:3.6px;font-weight:600;fill:#14181a;pointer-events:none}
 .bo{fill:#fff;stroke:#2b2f2e;stroke-width:.7;cursor:move;pointer-events:all}

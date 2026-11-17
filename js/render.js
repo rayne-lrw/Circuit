@@ -299,6 +299,9 @@ function pickedBox(){
   if(picked.k==='gland'){const g=S.glands.find(x=>x.id===picked.id);if(!g)return null;const P=glandPt(g);return {x:P.x-8,y:P.y-8,w:16,h:16};}
   const d=S.ducts.find(x=>x.id===picked.id);return d?{x:d.x,y:d.y,w:d.w,h:d.h}:null;
 }
+// 電纜是否符合篩選：芯線有一條符合就算；沒有芯線（兩端接頭）時看兩端接的器具（只篩器具時）
+function cabPasses(c){if(!filt.color&&!filt.gauge&&!filt.dev&&!filt.kind)return true;const cs=S.wires.filter(w=>w.cab===c.id);if(cs.some(passes))return true;
+  if(cs.length||filt.color||filt.gauge||filt.kind)return false;const E=c.ends||{},ds=new Set([...(E.a||[]),...(E.b||[]),...['a','b'].map(k=>c.plug&&c.plug[k]&&c.plug[k].d).filter(Boolean)]);return ds.has(filt.dev);}
 function passes(w){
   if(filt.color&&w.color!==filt.color) return false;
   if(filt.gauge&&w.gauge!==filt.gauge) return false;
@@ -323,6 +326,7 @@ function applyWireClasses(){
   // 點選或在清單上停留時，兩端接點上的並線一起淡淡亮起
   const fw=(listHover||sel)&&S.wires.find(x=>x.id===(listHover||sel)),rel=new Set();
   if(fw){const pr=parallelOf(fw);[...pr.a,...pr.b].forEach(x=>rel.add(x.id));}
+  g.querySelectorAll('.cab').forEach(e=>{const c=cabOf(e.dataset.cab);e.classList.toggle('off',!!c&&!cabPasses(c));}); // 篩選時不符合的電纜外皮也變淡
   g.querySelectorAll('.wire').forEach(el=>{
     const id=el.dataset.wid,w=S.wires.find(x=>x.id===id);
     el.classList.toggle('on',id===focus);

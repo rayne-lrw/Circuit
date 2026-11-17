@@ -25,6 +25,10 @@ const {chromium}=require('playwright'),path=require('path'),fs=require('fs');
       const saved=[];const sf=saveFile;saveFile=(name,data)=>saved.push(name);
       ['all','ext','bom','len','rev'].forEach(t=>tryit('清單分頁 '+t,()=>{tab=t;renderList();if(t!=='rev')exportCsv();}));tab='all';renderList();saveFile=sf;
       ok(saved.length===4,'匯出 CSV 4 種：'+saved.join('、'));
+      // 篩選器具：沒接到這台的導線和電纜外皮都變淡
+      {const c0=(S.cables||[]).find(c=>S.wires.some(w=>w.cab===c.id));if(c0){const w0=S.wires.find(w=>w.cab===c0.id),dv=w0.a.d;filt.dev=dv;renderWires();applyWireClasses();
+        const cs=[...document.querySelectorAll('#wires .cab')],bad=cs.filter(e=>{const c=cabOf(e.dataset.cab);const hit=S.wires.some(w=>w.cab===c.id&&(w.a.d===dv||w.b.d===dv));return hit===e.classList.contains('off');});
+        ok(!bad.length,`篩選器具 ${tagOf(dv)}：有接到的電纜照常顯示、其他 ${cs.filter(e=>e.classList.contains('off')).length} 條電纜變淡`);filt.dev='';renderWires();applyWireClasses();}}
       // 列印
       tryit('列印全部',()=>{buildPrint();return $('print').querySelectorAll('section').length>0;});
       tryit('列印審查報告',()=>{printReviewOnly=true;buildPrint();printReviewOnly=false;return $('print').querySelectorAll('section').length===2;});
