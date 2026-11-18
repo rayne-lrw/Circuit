@@ -822,6 +822,7 @@ $('tabExt').onclick=()=>{tab='ext';renderList();};
 $('tabBom').onclick=()=>{tab='bom';renderList();};
 $('tabLen').onclick=()=>{tab='len';renderList();};
 $('tabRev').onclick=()=>{tab='rev';renderList();};
+$('tabTool').onclick=()=>{tab='tool';renderList();};
 $('list').addEventListener('click',e=>{if(tab==='rev'&&reviewListClick(e))e.stopImmediatePropagation();},true);
 $('list').addEventListener('change',e=>{if(tab==='rev'&&reviewListChange(e))e.stopImmediatePropagation();},true);
 $('list').addEventListener('input',e=>{if(tab==='rev'&&e.target.dataset.noteT){const n=noteOf(e.target.dataset.noteT);if(n){n.t=e.target.value.slice(0,300);save();}}});

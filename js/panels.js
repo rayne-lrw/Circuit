@@ -45,10 +45,11 @@ function wireRow(w){
 }
 function renderList(){
   renderFilters();
-  [['tabAll','all'],['tabExt','ext'],['tabBom','bom'],['tabLen','len'],['tabRev','rev']].forEach(([id,t])=>$(id).setAttribute('aria-pressed',tab===t));
-  $('listCsv').hidden=tab==='rev';if(tab!=='rev')$('listCsv').textContent=`匯出${{all:'線號表',ext:'電纜表',bom:'材料表',len:'線長統計'}[tab]} CSV`;
+  [['tabAll','all'],['tabExt','ext'],['tabBom','bom'],['tabLen','len'],['tabRev','rev'],['tabTool','tool']].forEach(([id,t])=>$(id).setAttribute('aria-pressed',tab===t));
+  $('listCsv').hidden=tab==='rev'||tab==='tool';if(tab!=='rev'&&tab!=='tool')$('listCsv').textContent=`匯出${{all:'線號表',ext:'電纜表',bom:'材料表',len:'線長統計'}[tab]} CSV`;
   $('filters').hidden=tab!=='all';
   if(tab==='rev'){renderReview();return;}
+  if(tab==='tool'){renderTools();return;}
   if(tab==='bom'){renderBom();return;}
   if(tab==='len'){renderLen();return;}
   if(tab==='ext'){renderCables();return;}

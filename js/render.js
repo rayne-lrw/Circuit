@@ -379,6 +379,7 @@ function renderOverlay(){
   if(boxSel){const x=Math.min(boxSel.x0,boxSel.x1),y=Math.min(boxSel.y0,boxSel.y1);h+=`<rect class="boxsel${boxSel.x1<boxSel.x0?' cross':''}" x="${x}" y="${y}" width="${Math.abs(boxSel.x1-boxSel.x0)}" height="${Math.abs(boxSel.y1-boxSel.y0)}"/>`;}
   h+=noteOverlay();
   if(mode==='sim')h+=simOv;
+  if(typeof diffOv==='function')h+=diffOv(); // 版本比較：新增／變更的器具與線
   $('ov').innerHTML=h;
   $('ov').style.pointerEvents='none';
 }

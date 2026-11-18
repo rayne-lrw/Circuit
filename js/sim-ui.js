@@ -18,7 +18,8 @@ function simPaint(){
   let h='';const col={p:'#ff3b3b',n:'#3b7bff',ac:'#ff9a1f'};
   S.wires.forEach(w=>{const s=r.wires[w.id],R=ROUTES.get(w.id);if(!s||s.pot==='none'||!R)return;const d=pathD(R.pts),c=s.short?'#ff2bd6':col[s.pot];
     h+=`<path class="sim-glow" d="${d}" style="stroke:${c}"/>`;if(s.cur)h+=`<path class="sim-cur" d="${d}" style="stroke:${c}"/>`;});
-  h+=lookSim(SIMST); // 實體圖：把手 ON／OFF、漏電指示、按鈕按下、選擇開關位置
+  h+=lookSim(SIMST);
+  h+=pracOv(); // 故障排除練習：公布的答案 // 實體圖：把手 ON／OFF、漏電指示、按鈕按下、選擇開關位置
   // 器具：動作中綠框、極性相反橘框、按著藍框
   S.devices.forEach(d=>{const s=r.dev[d.id],b=rectOf('dev',d),pr=[...SIMST.press].some(k=>k.startsWith(d.id+'|')),brk=simElems(d).some(e=>e.k==='brk');const tr=SIMST.trip&&SIMST.trip[d.id];
     const cls=s&&s.rev.length?'rev':pr||tr?'press':(s&&(s.coil||s.latch||s.on.length))?'on':brk&&!SIMST.on[d.id]?'brkoff':null;if(!cls)return;
@@ -79,6 +80,7 @@ function simPanel(box){
   ${X.length?`<div class="sub-h">PLC 輸入</div><div class="sim-chips">${X.map(x=>`<span class="sim-chip x${x.on?' on':''}${x.nopwr?' nopwr':''}"${x.nopwr?' title="模組沒電，輸入不動作"':''}>${esc(x.name)}</span>`).join('')}</div>`:''}
   ${ops.length?`<div class="sub-h">按著操作</div><div class="sim-chips">${ops.flatMap(d=>[...new Set(opE(d).map(e=>e.btn))].map(b=>`<button class="sim-chip op${SIMST.press.has(d.id+'|'+b)?' on':''}" data-sim-op="${d.id}|${b}">${esc(d.tag)} ${esc(b)}</button>`)).join('')}</div>`:''}
   <div class="sub-h">動作中</div>${actH||'<p class="note">沒有</p>'}
+  ${pracHtml()}
   ${(()=>{const cu=S.devices.filter(d=>S.tpls&&S.tpls[d.tpl]).map(d=>d.tag);return cu.length?`<p class="note cus-note">用到自訂器具（未核對，結果以你設定的模擬動作為準）：${esc(cu.join('、'))}</p>`:'';})()}
   ${noSim.length?`<p class="note">沒有動作資料、模擬時只當導線的器具：${esc(noSim.join('、'))}</p>`:''}`;
 }
@@ -95,7 +97,50 @@ document.addEventListener('click',e=>{if(mode!=='sim')return;const t=e.target;
 });
 // 進出模擬模式
 function simEnter(){simReset();simRun();}
-function simLeave(){SIMST=null;simOv='';const g=$('wires');if(g)g.classList.remove('simon');}
+function simLeave(){simFault=null;simPrac=null;SIMST=null;simOv='';const g=$('wires');if(g)g.classList.remove('simon');}
 
 // 斷路器：跳脫中點一下是復歸（還是 OFF），再點一下才 ON
 function brkClick(id){if(SIMST.btrip&&SIMST.btrip[id]){delete SIMST.btrip[id];SIMST.on[id]=false;toast(`${tagOf(id)} 已復歸，再點一下 ON`);}else SIMST.on[id]=!SIMST.on[id];simRefresh();}
+
+/* ---------- 故障排除練習 ----------
+   隨機在「會影響動作」的地方放一個故障：斷線（最壞情況下有電流的線）、線圈燒毀（會被送電的線圈）、
+   接點熔著（線圈帶動的常開接點）、接點接觸不良（按鈕的常開接點）。操作模擬找出來，再從清單選答案；可以公布答案。 */
+const FAULT_K={wire:'斷線',coil:'線圈燒毀（有電也不吸合）',weld:'接點熔著（一直閉合）',open:'接點接觸不良（按了也不通）'};
+let simPrac=null; // {tries, done, show}
+function faultCands(){
+  const save=SIMST,F=simFault;let r;try{simFault=null;SIMST=null;simReset();SIMST.all=true;r=simRun();}finally{SIMST=save;simFault=F;}
+  const wired=(d,t)=>S.wires.some(w=>wiredAt(w,d.id,t));
+  const C={wire:S.wires.filter(w=>r.wires[w.id]&&r.wires[w.id].cur).map(w=>({k:'wire',id:w.id})),coil:[],weld:[],open:[]};
+  const fedCoil=new Set(r.loads.filter(l=>l.e.k==='coil'&&l.on).map(l=>l.e.d.id));
+  S.devices.forEach(d=>{const els=simElems(d);
+    if(fedCoil.has(d.id)&&els.some(e=>e.k==='coil'))C.coil.push({k:'coil',d:d.id});
+    els.forEach(e=>{if(e.k!=='sw'||e.nc||!wired(d,e.a)||!wired(d,e.b))return;
+      if(e.by==='coil'&&fedCoil.has(d.id))C.weld.push({k:'weld',d:d.id,a:e.a,b:e.b});
+      if(e.by==='btn')C.open.push({k:'open',d:d.id,a:e.a,b:e.b});});});
+  return C;}
+function pracStart(){const C=faultCands(),ks=Object.keys(C).filter(k=>C[k].length);if(!ks.length){toast('沒有可以出題的迴路（先把線圈、按鈕接好）');return;}
+  const k=ks[Math.floor(Math.random()*ks.length)],L=C[k];simFault=L[Math.floor(Math.random()*L.length)];simPrac={tries:0,done:false,show:false};
+  simReset();simRefresh();toast('已出題：有一個地方故障，操作看看哪裡不對');}
+function pracEnd(){simFault=null;simPrac=null;simRefresh();}
+function faultText(F){if(!F)return '';if(F.k==='wire'){const w=S.wires.find(x=>x.id===F.id);return `線號 ${w?w.no:'?'}（${w?epShort(w.a)+' ↔ '+epShort(w.b):''}）斷線`;}
+  const d=devOf(F.d);return `${d?d.tag:'?'} ${F.k==='coil'?'線圈燒毀':`${termLabel(d,F.a)}-${termLabel(d,F.b)} ${F.k==='weld'?'接點熔著':'接點接觸不良'}`}`;}
+function pracGuess(k,target){if(!simPrac||!simFault)return;simPrac.tries++;
+  const ok=k===simFault.k&&(k==='wire'?target===simFault.id:target===simFault.d);
+  if(ok){simPrac.done=true;simPrac.show=true;toast(`答對了！${faultText(simFault)}（猜了 ${simPrac.tries} 次）`);}
+  else toast(k===simFault.k?'故障種類對了，位置不對':'不對，再找找看');simRefresh();}
+function pracHtml(){
+  if(!simFault||!simPrac)return `<div class="sub-h">故障排除練習</div><p class="note">隨機放一個故障（斷線、線圈燒毀、接點熔著、接點接觸不良），用模擬操作找出來。</p><div class="row" style="justify-content:flex-start"><button class="tool" id="pracStart">隨機出題</button></div>`;
+  const opts=k=>k==='wire'?[...S.wires].sort((a,b)=>natCmp(a.no,b.no)).map(w=>`<option value="${w.id}">線號 ${esc(w.no)}</option>`).join(''):[...S.devices].filter(d=>simElems(d).some(e=>k==='coil'?e.k==='coil':e.k==='sw')).sort((a,b)=>natCmp(a.tag,b.tag)).map(d=>`<option value="${d.id}">${esc(d.tag)}</option>`).join('');
+  const k0=$('pracK')?$('pracK').value:'wire';
+  return `<div class="sub-h">故障排除練習</div>
+    ${simPrac.show?`<p class="${simPrac.done?'sim-ok':'sim-warn'}">答案：${esc(faultText(simFault))}（圖上桃紅色虛線框）</p>`:`<p class="note">有一個地方故障。操作模擬、看哪裡該動沒動或不該動卻動了，再選答案。已猜 ${simPrac.tries} 次。</p>
+    <div class="row prac-row" style="justify-content:flex-start"><select id="pracK">${Object.entries(FAULT_K).map(([k,t])=>`<option value="${k}"${k===k0?' selected':''}>${t}</option>`).join('')}</select><select id="pracT">${opts(k0)}</select><button class="tool" id="pracGuess">就是這裡</button></div>`}
+    <div class="row" style="justify-content:flex-start">${simPrac.show?'':'<button class="tool" id="pracShow">公布答案</button>'}<button class="tool" id="pracStart">換一題</button><button class="tool" id="pracEnd">結束練習</button></div>`;}
+// 答案在圖上標出來
+function pracOv(){if(!simPrac||!simPrac.show||!simFault)return '';const F=simFault;
+  if(F.k==='wire'){const R=ROUTES.get(F.id);return R?`<path class="prac-ans" d="${pathD(R.pts)}"/>`:'';}
+  const d=devOf(F.d);if(!d)return '';const b=rectOf('dev',d);return `<rect class="prac-ans" x="${b.x-5}" y="${b.y-5}" width="${b.w+10}" height="${b.h+10}" rx="4"/>`;}
+document.addEventListener('click',e=>{if(mode!=='sim')return;const id=e.target&&e.target.id;
+  if(id==='pracStart')pracStart();else if(id==='pracEnd')pracEnd();else if(id==='pracShow'){simPrac.show=true;simRefresh();}
+  else if(id==='pracGuess')pracGuess($('pracK').value,$('pracT').value);});
+document.addEventListener('change',e=>{if(mode==='sim'&&e.target&&e.target.id==='pracK')renderDetail();});

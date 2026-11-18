@@ -339,6 +339,7 @@ body.viewing .wire.on .wn{pointer-events:none}
   #print h3{font-size:9.5pt;margin:10pt 0 3pt}
   .pnote{font-size:8pt;color:#444;margin:4pt 0}
   #print .rtab{font-size:8pt}
+  #print .lbl-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3pt}#print .lbl{border:.5pt solid #666;padding:3pt 4pt;break-inside:avoid;display:flex;flex-direction:column;gap:1pt}#print .lbl b{font-size:12pt}#print .lbl span{font-size:8pt}#print .lbl small{font-size:7pt;color:#444}
   #print .rtab th,#print .rtab td{border:.5pt solid #999;padding:1.5pt 3pt;color:#000}
   #print thead{display:table-header-group}
   #print tr{break-inside:avoid}
@@ -512,3 +513,25 @@ span.sim-chip{cursor:default}
 .lk-arm{fill:#9aa0a6;stroke:#333;stroke-width:.2}.lk-arm.on{fill:#3dd16b}
 .act-g{display:flex;gap:6px;align-items:flex-start;margin:2px 0 4px}.act-c{flex:0 0 8.5em;font-size:12px;color:var(--muted,#666);padding-top:3px}.act-g .sim-chips{margin:0;flex:1}
 .sim-chip.act{cursor:default}.sim-chip.act small{opacity:.85;font-size:11px}
+/* 電源負載 */
+.ld-src{border:1px solid var(--line,#ccc);border-left:4px solid #888;border-radius:4px;padding:6px 8px;margin:6px 0;font-size:12px}
+.ld-src.ld-ok{border-left-color:#2a9d4a}.ld-src.ld-warn{border-left-color:#e0a000}.ld-src.ld-err{border-left-color:#d22}
+.ld-src.ld-warn .ld-lv{color:#b07800;font-weight:bold}.ld-src.ld-err .ld-lv{color:#d22;font-weight:bold}
+.ld-unk,.ld-err{color:#b07800}.ld-cap{margin:3px 0;color:var(--muted,#666)}
+.ld-cap label{margin-left:6px;white-space:nowrap}
+.ld-it{display:flex;align-items:center;gap:5px;padding:2px 0;border-top:1px dotted var(--line,#ddd)}
+.ld-it.ld-none{background:rgba(224,160,0,.1)}
+.ld-tag{font-weight:bold;min-width:3.2em}.ld-nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ld-it b{white-space:nowrap}.ld-it small{color:var(--muted,#666);white-space:nowrap}.ld-cite{max-width:7em;overflow:hidden;text-overflow:ellipsis}
+.ld-in{width:4.5em}
+/* 故障排除練習 */
+.prac-ans{fill:none;stroke:#ff2bd6;stroke-width:3;stroke-dasharray:6 4}
+.prac-row select{max-width:11em}
+.sim-ok{color:#2a9d4a;font-weight:bold}
+/* 版本比較 */
+.diff-ov rect{fill:none;stroke-width:2.5}.diff-ov .diff-add{stroke:#1fa34a}.diff-ov .diff-chg{stroke:#f08a00}
+.diff-ov path.diff-w{fill:none;stroke-width:5;stroke-opacity:.55;stroke-linecap:round}
+.diff-list{font-size:12px;max-height:50vh;overflow:auto}
+.diff-it{padding:2px 4px;border-left:3px solid #888;margin:2px 0}.diff-it span{font-weight:bold;margin-right:4px}
+.diff-it small{display:block;color:var(--muted,#666)}
+.diff-it.diff-add{border-color:#1fa34a}.diff-it.diff-del{border-color:#d22}.diff-it.diff-chg{border-color:#f08a00}
