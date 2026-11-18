@@ -67,12 +67,25 @@ const {chromium}=require('playwright'),path=require('path');
     SIMST.press.clear();simFault={k:'weld',d:'KA',a:'9',b:'5'};R=simRun();ok(R.dev.LP&&R.dev.LP.on.length,'接點熔著：KA 沒吸合燈也亮');
     simFault=null;const FC=faultCands();ok(FC.wire.length&&FC.coil.some(x=>x.d==='KM')&&FC.weld.some(x=>x.d==='KA')&&FC.open.some(x=>x.d==='SB1'),'出題候選：四種故障都找得到');
     { const save=SIMST;loadCalc();ok(SIMST===save,'負載計算不動到模擬狀態'); }
-    setMode('sim');pracStart();ok(simFault&&simPrac,'隨機出題');const F=simFault;
-    pracGuess(F.k,F.k==='wire'?F.id:F.d);ok(simPrac.done&&simPrac.tries===1,'猜對：顯示答案');
+    { build();S.wires.push({id:'wk1',no:'P1',a:{d:'Q1',t:'2'},b:{d:'KM',t:'L1'},wps:[],gauge:2,color:'black'},{id:'wk2',no:'P2',a:{d:'KM',t:'T1'},b:{d:'TB',t:'5A'},wps:[],gauge:2,color:'black'});recompute();
+      const SC=pracScenarios(),chk=(F,lv)=>SC.map(sc=>pracDiff(pracRun(sc,null),pracRun(sc,F),lv,F.k==='wire'?F.id:null)).find(Boolean);
+      ok(SC.some(s=>/按著 SB1/.test(s.txt))&&SC.some(s=>/PLC 輸出 Y0/.test(s.txt)),`出題情境：按鈕、PLC 輸出（共 ${SC.length} 種）`);
+      const e1=chk({k:'weld',d:'KA',a:'9',b:'5'},'easy');ok(e1&&/LP 應該「不動作」，實際「燈」/.test(e1.L.join()),'簡單：KA 熔著 → 燈不該亮卻亮（器具動作不同）');
+      const e2=chk({k:'weld',d:'KM',a:'L1',b:'T1'},'easy'),h2=chk({k:'weld',d:'KM',a:'L1',b:'T1'},'hard');
+      ok(!e2&&h2&&/P2 應該「沒電」，實際「有電」/.test(h2.L.join()),'KM 主接點熔著、出側沒負載：簡單不出，進階才出（P2 不該有電）');
+      const h3=chk({k:'wire',id:'w11'},'hard');ok(h3&&!h3.L.some(t=>/W11 /.test(t)),'斷線題的提示不直接列出斷掉的那條'); }
+    build();setMode('sim');pracLevel='easy';pracStart();ok(simPrac&&simPrac.hint&&simPrac.hint.kind==='dev','簡單題附症狀提示（器具動作不同）');ok(simFault&&simPrac,'隨機出題');const F=simFault;
+    simPrac.hints=2;renderDetail();ok(document.querySelectorAll('.sim-hint').length===2,'提示兩段：症狀、故障種類');pracGuess(F.k,F.k==='wire'?F.id:F.d);ok(simPrac.done&&simPrac.tries===1,'猜對：顯示答案');
     renderDetail();ok(document.querySelector('.prac-ans')&&/答案/.test(document.getElementById('detail').textContent||document.body.textContent),'圖上標出答案');
     pracEnd();ok(!simFault,'結束練習清除故障');setMode('view');
     // 6. 工具分頁畫面
     build();$('tabTool').click();ok(/24V 電源負載/.test($('list').textContent)&&/版本比較/.test($('list').textContent)&&$('ldPrint'),'工具分頁：四個功能都在');
+    // 7. 寬面板：清單整塊搬到盤面右邊，盤面仍在；收回後回到右側
+    { const sw=$('stage').getBoundingClientRect().width;$('wideB').click();const m=document.querySelector('main');
+      ok(!$('wide').hidden&&$('wide').contains($('listBox'))&&m.classList.contains('wl')&&$('stage').getBoundingClientRect().width>200,'展開：清單移到寬面板，盤面還看得到');
+      $('tabBom').click();ok($('wide').contains($('list'))&&/材料/.test($('listH').textContent),'寬面板裡切分頁照常');
+      ok(JSON.parse(localStorage.getItem('wiring-sim-wide')).on===true,'展開狀態記在瀏覽器');
+      $('wideClose').click();ok($('wide').hidden&&document.querySelector('#right').contains($('listBox'))&&Math.abs($('stage').getBoundingClientRect().width-sw)<2,'收回：清單回到右側、盤面寬度恢復'); }
     return out;});
   await b.close();
   res.forEach(l=>console.log(l));errs.forEach(e=>console.log('✗ 頁面錯誤：'+e));

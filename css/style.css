@@ -535,3 +535,18 @@ span.sim-chip{cursor:default}
 .diff-it{padding:2px 4px;border-left:3px solid #888;margin:2px 0}.diff-it span{font-weight:bold;margin-right:4px}
 .diff-it small{display:block;color:var(--muted,#666)}
 .diff-it.diff-add{border-color:#1fa34a}.diff-it.diff-del{border-color:#d22}.diff-it.diff-chg{border-color:#f08a00}
+/* 清單標題列：分頁按鈕固定在上方；寬面板 */
+.list-head{display:flex;align-items:flex-start;gap:6px;margin-bottom:6px;position:sticky;top:-10px;z-index:4;background:var(--panel);padding:4px 0}
+.list-title{display:flex;align-items:center;justify-content:space-between;gap:6px}.list-title h2{margin:0}
+#wideB{flex:none;padding:3px 8px;font-size:12px}
+main.wl{grid-template-columns:250px minmax(0,1fr) var(--wideW,640px) 320px}
+main.lc.wl{grid-template-columns:40px minmax(0,1fr) var(--wideW,640px) 320px}
+#wide{position:relative}
+.wide-h{display:flex;align-items:center;gap:8px;padding:6px 10px 6px 16px;border-bottom:1px solid var(--line)}
+.wide-h b{flex:1;font-size:13px}
+.wide-grip{position:absolute;left:0;top:0;bottom:0;width:7px;cursor:ew-resize;z-index:5}
+.wide-grip:hover,.wide-grip:active{background:var(--accent);opacity:.35}
+#wide .list-head{top:-10px}
+@media (max-width:980px){main.wl,main.lc.wl{grid-template-columns:minmax(0,1fr)}#wide{order:2;max-height:70vh}.wide-grip{display:none}}
+#wide .ld-cite{max-width:none;white-space:normal}#wide .ld-it small{white-space:normal}
+.sim-hint{color:#2a6fd6;font-size:12.5px;margin:4px 0}
