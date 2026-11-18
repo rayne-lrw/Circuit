@@ -101,9 +101,6 @@ function simElems(d){
 const hasSim=d=>simElems(d).length>0;
 
 /* ---------- 引擎 ---------- */
-/* 故障排除練習：simFault＝{k:'wire',id}（斷線）｜{k:'coil',d}（線圈燒毀：有電也不吸合）｜{k:'weld',d,a,b}（接點熔著：一直閉合）｜{k:'open',d,a,b}（接點接觸不良：一直打開）
-   只影響一般模擬；電源負載計算（SIMST.all）不套用 */
-let simFault=null;
 let SIMST=null; // 模擬狀態：{on:{斷路器}, press:Set('器具|按鈕'), y:Set('器具|Y0'), coil:{}, latch:{}, res}
 function simReset(){SIMST={on:{},press:new Set(),y:new Set(),coil:{},latch:{},trip:{},btrip:{},sel:{},res:null};}
 function simRun(){
@@ -115,9 +112,7 @@ function simRun(){
   // 導線（固定）：成組接點兩端照子導線名稱對接
   const base=new Map(),bf=k=>{if(!base.has(k))base.set(k,k);while(base.get(k)!==k){base.set(k,base.get(base.get(k)));k=base.get(k);}return k;},bu=(a,b)=>{const x=bf(a),y=bf(b);if(x!==y)base.set(x,y);};
   const wireKeys=new Map(),warn=[];
-  const F=st.all?null:simFault;
-  S.wires.forEach(w=>{const da=devOf(w.a.d),db=devOf(w.b.d);if(!da||!db)return;if(F&&F.k==='wire'&&F.id===w.id){wireKeys.set(w.id,{keys:[endKey(w,'a')],pairs:[]});return;} // 斷線：只剩 A 端的電位、不導通
-    const ga=grpOf(da,w.a.t),gb=grpOf(db,w.b.t);
+  S.wires.forEach(w=>{const da=devOf(w.a.d),db=devOf(w.b.d);if(!da||!db)return;const ga=grpOf(da,w.a.t),gb=grpOf(db,w.b.t);
     if(ga||gb){if(ga&&gb){const ks=[],pr=[];ga.sub.forEach((s,i)=>{const t=gb.sub.includes(s)?s:gb.sub[i];if(t==null)return;const a=tk(da,w.a.t+'.'+s),b=tk(db,w.b.t+'.'+t);bu(a,b);ks.push(a);pr.push([a,b]);});wireKeys.set(w.id,{keys:ks,pairs:pr});}
       else{warn.push(`${wireRef(w)}：成組接點（${ga?epText(w.a):epText(w.b)}）接到一般接點，模擬時不算導通`);wireKeys.set(w.id,{keys:[],pairs:[]});}return;}
     const a=endKey(w,'a'),b=endKey(w,'b');bu(a,b);wireKeys.set(w.id,{keys:[a],pairs:[[a,b]]});});
@@ -167,7 +162,6 @@ function simRun(){
       else if(e.k==='brk')on=!!st.on[e.d.id];
       else if(e.k==='sw'){const act=e.by==='coil'?coil[ck(e)]:e.by==='host'?coil[e.d.on]:e.by==='hostbrk'?!!(e.d.on&&st.on[e.d.on]):e.by==='hosttrip'?!!(e.d.on&&st.btrip&&st.btrip[e.d.on]):e.by==='hostel'?!!(e.d.on&&st.btrip&&st.btrip[e.d.on]==='el'):e.by==='op'?opAct(e.d):e.by==='latch'?latch[e.d.id]:e.by==='btn'?pressed(e.d,e.btn):e.by==='trip'?tripped(e.d):false;on=e.nc?!act:!!act;}
       else if(e.k==='sens')on=!!(sensOn[e.d.id+'|'+e.out]);
-      if(F&&e.k==='sw'&&e.d.id===F.d&&e.a===F.a&&e.b===F.b){if(F.k==='weld')on=true;else if(F.k==='open')on=false;}
       if(st.all&&['brk','sw','sens'].includes(e.k))on=true; // 電源負載計算用：所有接點都當作閉合（最壞情況）
       if(on){u(e.aK||e.outK,e.bK||e.toK);conducting.push(e);}
       if(e.k==='plcY')e.pairsK.forEach(([y,yk,ck])=>{if(st.all||(powered['L|'+e.d.id]&&st.y.has(e.d.id+'|'+y))){u(yk,ck);conducting.push({k:'plcY',d:e.d,aK:yk,bK:ck,y});}});});
@@ -179,7 +173,7 @@ function simRun(){
     // 3. 負載、線圈、器具電源、PLC 輸入、感測器、安全繼電器
     const nc={},np={},ns={},loads=[];let nl={...latch};
     els.forEach(e=>{
-      if(e.k==='load'||e.k==='coil'||e.k==='pwr'){const r=feed(lab,f,e.aK,e.bK,e.polar);if(e.k==='coil'&&r.on&&!(F&&F.k==='coil'&&F.d===e.d.id))nc[ck(e)]=true;if(e.k==='pwr'&&r.on)np[e.d.id]=true;loads.push({e,...r});}});
+      if(e.k==='load'||e.k==='coil'||e.k==='pwr'){const r=feed(lab,f,e.aK,e.bK,e.polar);if(e.k==='coil'&&r.on)nc[ck(e)]=true;if(e.k==='pwr'&&r.on)np[e.d.id]=true;loads.push({e,...r});}});
     // 斷路器內部附件：分激脫扣（有電就跳脫）、欠電壓脫扣（沒電就跳脫）；跳脫後斷路器 OFF、警報開關動作，要點一下復歸才能再 ON
     let bTrip=false;loads.forEach(l=>{const a=l.e.act,h=a&&l.e.d.on;if(!h||!st.on[h])return;if((a==='shunt'&&l.on)||(a==='uvt'&&!l.on)){st.on[h]=false;if(!st.btrip)st.btrip={};st.btrip[h]=true;bTrip=true;}});
     // 漏電斷路器：ON 時按「測試」→ 漏電跳脫（btrip='el'，漏電警報開關只對這種跳脫動作）
