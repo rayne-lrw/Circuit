@@ -7,7 +7,9 @@ const set=(id,o)=>{if(TPL[id])Object.assign(TPL[id],o);};
 Object.keys(TPL).forEach(id=>{const t=TPL[id];if(t.legacy||t.gen)return;
   // FX5：CPU（FX5U／FX5S／FX5UJ／FX5UC）右側接增設模組、左側接轉接器
   if(/^fx5(u|s|uj|uc)-\d/.test(id)||id==='fx5u32')set(id,{chain:{r:'fx5',l:'fx5a'},chainAddr:'oct'});
-  else if(t.ser==='FX5 增設'||id==='fx540ssc')set(id,{chainKind:'r',chainFam:'fx5',attach:'chain'});
+  else if(t.ser==='FX5 增設'||id==='fx540ssc'){set(id,{chainKind:'r',chainFam:'fx5',attach:'chain'});
+    // 端子只寫數字（FX5-16EX 的 0～17）：照名稱 EX／EY 算佔用點數（位址從主機後面接）
+    const nn=(Array.isArray(t.t)?t.t:[]).filter(r=>/^[0-7]+$/.test(r[0])).length;if(nn&&/\dEX/i.test(t.n))set(id,{chainX:Math.ceil(nn/8)*8});if(nn&&/\dEY/i.test(t.n))set(id,{chainY:Math.ceil(nn/8)*8});}
   else if(t.ser==='FX5 轉接器'||/^fx5-.*adp$/.test(id)||id==='fx54ad')set(id,{chainKind:'l',chainFam:'fx5a',attach:'chain'});
   // FX3U：基本單元右側接 FX2N 擴展單元／模塊與特殊功能，左側接特殊轉接器
   else if(/^fx3u-\d+m/.test(id))set(id,{chain:{r:'fx3',l:'fx3a'},chainAddr:'oct'});

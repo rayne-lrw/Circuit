@@ -1,5 +1,5 @@
 // 電路圖隨機電路產生器（schem-check 用）：同一個種子一定產生同一組器具與配線。
-// 內容：主回路（燈、風扇、馬達保護器＋接觸器＋三相馬達、正反轉、插座插器具）、AC 控制回路（保險絲→接點→線圈／指示燈、自保持）、
+// 內容：主回路（燈、風扇、馬達保護器＋接觸器＋三相馬達、正反轉、Y-Δ、插座插器具）、AC 控制回路（保險絲→接點→線圈／指示燈、自保持）、
 // 24V 控制回路（按鈕、極限 1C、繼電器接點、並聯、端子台中繼、繼電器＋二極體、指示燈、PLC 輸入輸出、三線／四線感測器）。
 function schemFuzzGen(seed){
   let s=seed>>>0;const R=()=>{s=(s+0x6D2B79F5)>>>0;let t=s;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return ((t^(t>>>14))>>>0)/4294967296;};
@@ -14,10 +14,13 @@ function schemFuzzGen(seed){
   const motor=(km)=>{const m=D('M'+(++mN),'motor3','field');['T1','T2','T3'].forEach((t,j)=>WW(km,t,m,'UVW'[j]));return m;};
   // 主回路
   const nb=ri(1,4);
-  for(let i=0;i<nb;i++){const k=pick(['lamp','fan','motor','motor','rev','sock']);
+  for(let i=0;i<nb;i++){const k=pick(['lamp','fan','motor','motor','rev','sock','yd']);
     if(k==='lamp'){const f=brk1(),l=D('EL'+i,'lamp','field');WW(f,'2',l,'L/+');WW(l,'N/−','Q0',N);}
     else if(k==='fan'){const f=brk1(),l=D('FAN'+i,'fan4');W(f,'2',l,'L');W(l,'N','Q0',N);}
     else if(k==='sock'){const f=brk1(),x=D('XS'+i,'ac30');W(f,'2',x,'L');W(x,'N','Q0',N);if(R()<.6){const h=D('HMI'+i,'nextech','door');W(x,'插頭',h,'DC-IN');}}
+    else if(k==='yd'){const g=D('GV'+(++mN),'gv2me16'),km=D('KM'+(++kmN),'sp12'),kd=D('KM'+(++kmN),'sp12'),ky=D('KM'+(++kmN),'sp12'),m=D('M'+mN,'motor3-yd','field');
+      ['2','4','6'].forEach((t,j)=>{W('Q0',t,g,String(j*2+1));W(g,String(j*2+2),km,'L'+(j+1));WW(km,'T'+(j+1),m,['U1','V1','W1'][j]);W(km,'T'+(j+1),kd,'L'+(j+1));WW(kd,'T'+(j+1),m,['W2','U2','V2'][j]);});
+      ['U2','V2','W2'].forEach((t,j)=>W(m,t,ky,'L'+(j+1)));W(ky,'T1',ky,'T2');W(ky,'T2',ky,'T3');}
     else{const g=D('GV'+(++mN),'gv2me16'),km=D('KM'+(++kmN),R()<.5?'lc1d18':'sp12');['2','4','6'].forEach((t,j)=>{W('Q0',t,g,String(j*2+1));W(g,String(j*2+2),km,'L'+(j+1));});
       const m=motor(km);if(k==='rev'){const kr=D('KM'+(++kmN),'lc1d18');['6','4','2'].forEach((t,j)=>W(g,t,kr,'L'+(j+1)));['T1','T2','T3'].forEach((t,j)=>W(kr,t,m,'UVW'[j]));}}}
   // AC 控制回路（保險絲後面接觸器／繼電器線圈）

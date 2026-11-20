@@ -101,6 +101,18 @@ const userFile=process.argv[2];
     const pg=schemBuild().pages.find(x=>/^其他接線/.test(x.title)&&/BD/.test(x.title));ok(pg&&/>KA：9</.test(pg.svg)&&/>PS：-V1</.test(pg.svg),'其他接線頁：沒畫在其他頁的器具（擴充板 BD）列出端子與對端'+(pg?'':'；其他頁：'+schemBuild().pages.filter(x=>/^其他/.test(x.title)).map(x=>x.title).join('、')));
     return out;}));
   // 伺服接線圖
+  // Y-Δ 啟動（六端子馬達）、沒串接的擴充模組位址推定
+  res.push(...await p.evaluate(()=>{const out=[],ok=(c,m)=>out.push((c?'✓ ':'✗ ')+m),D=(id,tpl,x,y,sheet='plate')=>({id,tag:id,tpl,x,y,sheet});
+    S=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:860,h:660},door:{w:900,h:700},ducts:[],glands:[],wires:[],devices:[D('PWR','field-power',0,-300,'field'),D('Q1','ic60-3P16A',40,40),D('KM','sp12',120,40),D('KMD','sp12',170,40),D('KMY','sp12',220,40),D('M1','motor3-yd',100,-300,'field'),
+      D('F1','ic60-1P2A',300,40),D('PS','drl120',400,40),D('PLC','fx5u32',300,200),D('EX','fx516ex',700,400),D('SB','py2201-g',600,100,'door')]}).state;resetUi();
+    let n=0;const W=(a,at,bb,bt)=>S.wires.push({id:'w'+(++n),no:'W'+n,a:{d:a,t:at},b:{d:bb,t:bt},wps:[],gauge:.75,color:'black'});
+    W('PWR','R','Q1','1');W('PWR','S','Q1','3');W('PWR','T','Q1','5');W('Q1','2','KM','L1');W('Q1','4','KM','L2');W('Q1','6','KM','L3');W('KM','T1','M1','U1');W('KM','T2','M1','V1');W('KM','T3','M1','W1');
+    W('KM','T1','KMD','L1');W('KM','T2','KMD','L2');W('KM','T3','KMD','L3');W('KMD','T1','M1','W2');W('KMD','T2','M1','U2');W('KMD','T3','M1','V2');W('M1','U2','KMY','L1');W('M1','V2','KMY','L2');W('M1','W2','KMY','L3');W('KMY','T1','KMY','T2');W('KMY','T2','KMY','T3');
+    W('Q1','2','F1','1');W('F1','2','PS','L');W('Q1','4','PS','N');W('F1','2','PLC','L');W('Q1','4','PLC','N');W('EX','S/S','PS','-V1');W('SB','3','PS','+V1');W('SB','4','EX','2');recompute();
+    const B=schemBuild(),mn=B.pages.filter(x=>/^主回路/.test(x.title)).map(x=>x.svg).join(''),pl=B.pages.find(x=>/^PLC 輸入/.test(x.title));
+    ok((mn.match(/>3~</g)||[]).length===2&&/>U2</.test(mn)&&/>W2</.test(mn)&&/>星形接點（Y）</.test(mn)&&/>KMD</.test(mn)&&/>KMY</.test(mn),'Y-Δ：六端子馬達兩組繞組端子都畫出來，KMD 接到 U2 V2 W2，KMY 畫成星形接點');
+    ok(pl&&/>X22</.test(pl.svg)&&/位址推定/.test(pl.svg),'沒串接在 FX5U 旁的 16EX：位址照盤面位置推定（端子 2 → X22），並註明是推定');
+    return out;}));
   // AC 控制回路（自保持、積熱電驛）、正反轉接觸器的主回路
   res.push(...await p.evaluate(()=>{const out=[],ok=(c,m)=>out.push((c?'✓ ':'✗ ')+m),D=(id,tpl,x,y,sheet='plate',extra={})=>({id,tag:id,tpl,x,y,sheet,...extra});
     S=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:860,h:660},door:{w:900,h:700},ducts:[],glands:[],wires:[],devices:[D('PWR','field-power',0,-300,'field'),D('QF','ic60-3P16A',40,40),

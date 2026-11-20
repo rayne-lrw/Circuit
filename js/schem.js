@@ -201,8 +201,18 @@ function scLeafSvg(t,x,y,H,ctx){
   // 線圈的接點對照：寫在線圈「上方」右側（線圈都靠下，下方是電源線）
   if(e.k==='coil')h+=`<text class="s-xref" x="${tx}" y="${c-4.6}">\u0001U:${scEsc(e.act)}\u0001</text>`;
   return h;}
+// 沒有串接在主機旁的擴充模組（用延長電纜接、或盤面上分開放）：位址照盤面位置推定，排在主機與已串接模組的後面
+function scChainGuess(d,p){const T=tplOf(d);if(d.on||T.chainKind!=='r'||typeof chainOk!=='function')return null;
+  const hosts=S.devices.filter(h=>h!==d&&!h.on&&chainOk(h,d)&&tplOf(h).chainAddr);if(!hosts.length)return null;
+  const dist=h=>(h.sheet===d.sheet?0:1e6)+Math.hypot(h.x-d.x,h.y-d.y),h=hosts.sort((a,b)=>dist(a)-dist(b))[0],ht=tplOf(h),rule=ht.chainAddr;
+  let a=rule==='word'?((p==='X'?ht.xw:ht.yw)||0):(p==='X'?(ht.chainX??round8(octTerms(ht,'X'))):(ht.chainY??round8(octTerms(ht,'Y'))));
+  chainOf(h,'r').forEach(m=>{a+=chainUse(tplOf(m),p,rule);});
+  const loose=S.devices.filter(m=>!m.on&&tplOf(m).chainKind==='r'&&chainOk(h,m)).sort((x,y)=>(x.sheet===y.sheet?0:x.sheet<y.sheet?-1:1)||x.y-y.y||x.x-y.x);
+  for(const m of loose){if(m===d)return {a,rule,host:h};a+=chainUse(tplOf(m),p,rule);}return null;}
+function scChainGuessName(d,t){const m=/^([XY])(\d+)(?:\.(\d+))?$/.exec(t);if(!m)return null;const st=scChainGuess(d,m[1]);if(!st||!chainUse(tplOf(d),m[1],st.rule))return null;
+  if(st.rule==='word')return m[3]==null?null:`${m[1]}${st.a+(+m[2])}.${m[3]}`;if(!/^[0-7]+$/.test(m[2])||m[3]!=null)return null;return m[1]+(st.a+parseInt(m[2],8)).toString(8);}
 const ptName=e=>{const g=typeof cnSig==='function'?cnSig(e.d,e.pt):e.pt,P=e.k==='plcy'?'Y':'X',alt=/^\d+$/.test(g)?P+g:null;
-  return (typeof qName==='function'&&qName(e.d,g))||(typeof chainName==='function'&&(chainName(e.d,g)||(alt&&chainName(e.d,alt))))||termLabel(e.d,e.pt)||g;};
+  return (typeof qName==='function'&&qName(e.d,g))||(typeof chainName==='function'&&(chainName(e.d,g)||(alt&&chainName(e.d,alt))))||scChainGuessName(e.d,g)||(alt&&scChainGuessName(e.d,alt))||termLabel(e.d,e.pt)||g;};
 
 /* 水平畫法：控制回路照垂直的版面算好，再把座標對調（x↔y）：電源線變成左右兩條、迴路變成橫的；
    符號跟著轉 90°（接點刀片、按鈕操作線都在線的上方），文字不轉 */
@@ -234,7 +244,7 @@ function scMainPages(M,pages,newPage,meta){
   // 用電項目：每一組電源輸入各自追路徑（例如伺服的主電源走 K1M、控制電源走 K0M，分開畫）
   const items=[];
   E.filter(e=>e.load&&!e.aux&&e.k!=='plcx').forEach(e=>{if(!(phase.has(e.u)&&phase.has(e.v)&&M.wiredNode.has(e.u)))return;
-    if(tplOf(e.d).m3){const T=['U','V','W'].map(t=>({k:f(nodeKey({d:e.d.id,t})),t})).filter(t=>phase.has(t.k));items.push({d:e.d,terms:T,name:'',m3:true});return;} // 三相馬達：三個端子
+    if(tplOf(e.d).m3){(tplOf(e.d).m3g||[['U','V','W']]).forEach((g,gi)=>{const T=g.map(t=>({k:f(nodeKey({d:e.d.id,t})),t})).filter(t=>phase.has(t.k));if(T.length)items.push({d:e.d,terms:T,name:gi?g.join(' '):'',m3:true,m3i:gi});});return;} // 三相馬達：三個端子（六端子馬達分兩組）
     items.push({d:e.d,terms:[{k:e.u,t:e.ta},{k:e.v,t:e.tb}],name:e.k==='coil'?'線圈':e.name});});
   M.srcs.forEach(s=>{if(s.inK){const a=f(s.inK[0]),b=f(s.inK[1]);if(phase.has(a)&&phase.has(b))items.push({d:s.d,terms:[{k:a,t:s.inT[0]},{k:b,t:s.inT[1]}],name:'AC 輸入',src:s});}});
   S.devices.filter(d=>simElems(d).some(e=>e.k==='grp'&&e.t==='插頭')&&simElems(d).some(e=>e.k==='pass')).forEach(d=>{
@@ -284,7 +294,7 @@ function scMainPages(M,pages,newPage,meta){
     const levels=[...lv.entries()].sort((a,b)=>a[0]-b[0]).map(([,ids])=>ids.sort());
     const sig=it.d.id+'|'+levels.map(l=>l.join('+')).join('>');
     if(!groups.has(sig))groups.set(sig,{d:it.d,terms:[],names:[],chains:[],levels,src:null});
-    const g=groups.get(sig);if(it.m3)g.m3=true;if(it.outlet){g.outlet=true;g.with=it.with||[];g.to=it.to;}if(it.ctlRef)g.ctlRef=it.ctlRef;if(it.plugged&&it.plugged.length)g.plugged=it.plugged;it.terms.forEach(t=>{if(!g.terms.some(x=>x.k===t.k))g.terms.push(t);});if(!g.names.includes(it.name))g.names.push(it.name);g.chains.push(...chains);if(it.src)g.src=it.src;});
+    const g=groups.get(sig);if(it.m3){g.m3=true;g.m3i=it.m3i||0;}if(it.outlet){g.outlet=true;g.with=it.with||[];g.to=it.to;}if(it.ctlRef)g.ctlRef=it.ctlRef;if(it.plugged&&it.plugged.length)g.plugged=it.plugged;it.terms.forEach(t=>{if(!g.terms.some(x=>x.k===t.k&&(x.t===t.t||!it.outlet)))g.terms.push(t);});if(!g.names.includes(it.name))g.names.push(it.name);g.chains.push(...chains);if(it.src)g.src=it.src;});
   // 樹：節點是一層開關（多極算一台），葉子是用電項目
   const root={id:'ROOT',kids:[],poles:new Map(),devs:[]},nodes=new Map([['ROOT',root]]);
   const phOrd=p=>{const i=SC_PH.indexOf(p);return i<0?99:i;};
@@ -311,7 +321,7 @@ function scMainPages(M,pages,newPage,meta){
       c.terms.forEach((t,i)=>{const xx=xs[i],dy=Math.sqrt(Math.max(0,r*r-(xx-cx)*(xx-cx)));h+=SY.line(xx,y,cy-dy)+`<text class="s-term" x="${xx-.6}" y="${y+9.4}">${scEsc(termLabel(c.d,t.t)||t.t)}</text>`;
         const w0=S.wires.find(q=>q.no&&[q.a,q.b].some(z=>z.d===c.d.id&&z.t===t.t)),nm=w0?w0.no:M.netName(t.k);if(nm){const F=scFit(nm,8.6,2.3,1.3);h+=`<text class="s-netv" transform="translate(${xx+.8} ${y+.6}) rotate(90)"${F.fs!==2.3?` style="font-size:${F.fs}px"`:''}>${scEsc(F.t)}</text>`;}});
       h+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="#fff"/><text class="s-in" x="${cx}" y="${cy+.3}" style="font-size:3.4px">M</text><text class="s-in" x="${cx}" y="${cy+3.6}" style="font-size:2.4px">3~</text>`;
-      const tw=ownW(nd)*SC.U-(cx+r+1.5-x)-2;h+=scTx('s-tag',cx+r+1.5,cy-.6,c.d.tag,tw,SCF.tag)+scTxW('s-sub',cx+r+1.5,cy+3,tplOf(c.d).n,tw,SCF.sub,2,2.9);
+      const tw=ownW(nd)*SC.U-(cx+r+1.5-x)-2;h+=scTx('s-tag',cx+r+1.5,cy-.6,c.d.tag+(c.m3i?'　'+c.names.filter(Boolean).join(''):''),tw,SCF.tag)+scTxW('s-sub',cx+r+1.5,cy+3,c.m3i?'繞組另一端（Δ／Y 切換）':tplOf(c.d).n,tw,SCF.sub,2,2.9);
       ctx.put({e:{d:c.d,act:c.d.id,k:'cons'},x:cx,y:cy,terms:c.terms.map(t=>c.d.id+'|'+t.t)});return h;}
     if(nd.cons&&nd.cons.ctlRef){ // AC 控制回路：畫在控制回路頁
       const c=nd.cons,w=ownW(nd)*SC.U-4;
@@ -319,11 +329,12 @@ function scMainPages(M,pages,newPage,meta){
       h+=scTx('s-tag',x+1,y+13,'控制回路',w,SCF.tag)+`<text class="s-xr2" x="${x+1}" y="${y+16.8}">${scEsc(c.ctlRef.v)}\u0001S:${scEsc(c.d.id)}\u0001</text>`;
       ctx.put({e:{d:c.d,act:c.d.id,k:'cons'},x:x+1,y:y+12,terms:[]});return h;}
     if(nd.cons&&nd.cons.outlet){ // 出線：開關後面沒有用電器具，標出接到哪裡
-      const c=nd.cons,w=ownW(nd)*SC.U-4;let x9=x+3;
+      const c=nd.cons,w=ownW(nd)*SC.U-4;let x9=x+3;const star=c.terms.length>1&&c.terms.every(t=>t.k===c.terms[0].k);
       c.terms.forEach(t=>{const xx=x+3+phX(t.ph||phase.get(t.k));x9=Math.max(x9,xx);const w0=S.wires.find(q=>q.no&&[q.a,q.b].some(z=>z.d===c.d.id&&z.t===t.t));
-        h+=SY.line(xx,y,y+8)+`<path d="M${xx-1.2} ${y+6.4} L${xx} ${y+8.6} L${xx+1.2} ${y+6.4}"/>`+(w0?`<text class="s-netv" transform="translate(${xx+.8} ${y+.6}) rotate(90)">${scEsc(w0.no)}</text>`:'');});
+        h+=SY.line(xx,y,y+8.6)+(star?'':`<path d="M${xx-1.2} ${y+6.4} L${xx} ${y+8.6} L${xx+1.2} ${y+6.4}"/>`)+(w0?`<text class="s-netv" transform="translate(${xx+.8} ${y+.6}) rotate(90)">${scEsc(w0.no)}</text>`:'');});
       const to=[...new Set(c.terms.flatMap(t=>S.wires.flatMap(q=>[[q.a,q.b],[q.b,q.a]]).filter(([a])=>a.d===c.d.id&&a.t===t.t).map(([,b])=>{const o=devOf(b.d);return o?`${o.tag}：${termLabel(o,b.t)}`:'';}).filter(Boolean)))];
-      h+=scTx('s-tag',x+1,y+13,c.to?'並接':'出線',w,SCF.tag)+scTxW('s-sub',x+1,y+16.8,(c.to?`→ ${c.to.join('、')}`:to.length?'→ '+to.join('、'):'（沒有接用電器具）')+(c.with&&c.with.length?`（與 ${[...new Set(c.with)].join('、')} 出線並接）`:''),w,SCF.sub,4,2.9);
+      
+      h+=(star?`<line x1="${Math.min(...c.terms.map(t=>x+3+phX(t.ph||phase.get(t.k))))}" y1="${y+8.6}" x2="${Math.max(...c.terms.map(t=>x+3+phX(t.ph||phase.get(t.k))))}" y2="${y+8.6}"/>`:'')+scTx('s-tag',x+1,y+13,star?'星形接點（Y）':c.to?'並接':'出線',w,SCF.tag)+scTxW('s-sub',x+1,y+16.8,star?'三相在這裡短接':(c.to?`→ ${c.to.join('、')}`:to.length?'→ '+to.join('、'):'（沒有接用電器具）')+(c.with&&c.with.length?`（與 ${[...new Set(c.with)].join('、')} 出線並接）`:''),w,SCF.sub,4,2.9);
       ctx.put({e:{d:c.d,act:c.d.id,k:'cons'},x:x+1,y:y+12,terms:c.terms.map(t=>c.d.id+'|'+t.t)});return h;}
     if(nd.cons){ // 用電項目：方框，上緣各相端子
       const c=nd.cons,w=ownW(nd)*SC.U-4,bx=x+1;
@@ -519,8 +530,8 @@ function scPlcPages(M,pages,newPage){
   plcs.forEach(d=>['plcx','plcy'].forEach(kind=>{const pts=M.E.filter(e=>e.d===d&&e.k===kind&&M.wiredNode.has(kind==='plcx'?e.u:e.v));
     for(let i=0;i<pts.length;i+=per)blocks.push({d,kind,part:pts.slice(i,i+per),n:pts.length>per?i/per+1:0});}));
   const drawBlock=(B,yo,pg)=>{const {d,kind,part}=B;
-    const dn=tplOf(d).n,hd=d.tag===dn||dn.startsWith(d.tag)?dn:`${d.tag}　${dn}`,io=kind==='plcx'?'輸入':'輸出';
-    let h=`<text class="s-sec" x="${SC.X0-6}" y="${yo}">PLC ${io}　${scEsc(hd)}${B.n?`（${B.n}）`:''}</text>`;
+    const dn=tplOf(d).n,hd=d.tag===dn||dn.startsWith(d.tag)?dn:`${d.tag}　${dn}`,io=kind==='plcx'?'輸入':'輸出',gs=scChainGuess(d,kind==='plcx'?'X':'Y');
+    let h=`<text class="s-sec" x="${SC.X0-6}" y="${yo}">PLC ${io}　${scEsc(hd)}${B.n?`（${B.n}）`:''}</text>`+(gs?scTx('s-sub',SC.X0-6,yo+5,`位址推定：沒有串接在 ${gs.host.tag} 旁邊，照盤面位置排在後面（實際以擴充電纜連接順序為準）`,300,SCF.sub):'');
     const bx=SC.X0,by=yo+68,bw=Math.max(part.length*cw+8,scTW(hd,SCF.tag)+6); // 點數少時框也要放得下器具名稱
     h+=`<rect class="s-dev" x="${bx}" y="${by}" width="${bw}" height="18"/>`+scTx('s-tag',bx+2,by+16,hd,bw-4,SCF.tag);
     part.forEach((e,j)=>{const x=bx+6+j*cw+cw/2-4,k=kind==='plcx'?e.u:e.v,nm=M.netName(k);

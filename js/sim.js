@@ -60,6 +60,7 @@ sd(['ac30','lk3214'],()=>SOCKET);
 sd(['w852-111','w852-1111','gs2107'],()=>[{k:'load',a:'24V',b:'0V',name:'電源'}]);
 sd('nextech',()=>[{k:'grp',t:'DC-IN',sub:['+','-']},{k:'load',a:'DC-IN.+',b:'DC-IN.-',name:'電源',polar:true}]);
 sd('motor3',()=>[{k:'load',a:'U',b:'V',name:'馬達'},{k:'load',a:'V',b:'W',name:'馬達',aux:true}]); // 三相：U-V 有電就算轉，V-W 只顯示
+sd('motor3-yd',()=>[{k:'load',a:'U1',b:'U2',name:'繞組 U'},{k:'load',a:'V1',b:'V2',name:'繞組 V',aux:true},{k:'load',a:'W1',b:'W2',name:'繞組 W',aux:true}]); // 三個繞組：U 繞組有電就算轉
 sd('fan4',()=>[{k:'load',a:'L',b:'N',name:'風扇'}]);
 sd('lamp',()=>[{k:'load',a:'L/+',b:'N/−',name:'燈'}]);
 // 面板按鈕

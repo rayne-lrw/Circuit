@@ -87,7 +87,8 @@ const {chromium}=require('playwright'),path=require('path');
       devices:[D('C','fx5u32',100,100),D('M1','fx516ex',100+w,100),D('M2','fx540ssc',100+w+TPL.fx516ex.w,100),D('M3','fx516ex',600,100),D('A','fx54ad',100-TPL.fx54ad.w,100),D('Q','fx3u-4ad',100+w+TPL.fx516ex.w+TPL.fx540ssc.w,100)]}).state;
      const g=id=>n.devices.find(d=>d.id===id);
      ok(g('M1').on==='C'&&g('M1').chain===0&&g('M2').on==='C'&&g('M2').chain===1,'舊檔貼齊的 16EX、40SSC 讀檔後串到主機右邊（順序 0、1）');
-     ok(g('A').on==='C','貼在主機左邊的 4AD-ADP 串成左側轉接器');ok(!g('M3').on,'沒貼齊的模組不串');ok(!g('Q').on,'族別不對（FX3U 模組）不串');
+     ok(g('A').on==='C','貼在主機左邊的 4AD-ADP 串成左側轉接器');
+     { const SS=S;S=n;ok(chainText(g('M1'))==='X20～X37'&&chainName(g('M1'),'X2')==='X22','FX5-16EX（端子只寫 0～17）串在 FX5U-32M 後面：X20～X37，端子 2 是 X22');S=SS; }ok(!g('M3').on,'沒貼齊的模組不串');ok(!g('Q').on,'族別不對（FX3U 模組）不串');
      }
     return out;
   });
