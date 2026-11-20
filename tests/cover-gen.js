@@ -50,8 +50,8 @@ function coverCases(kind){
   if(kind==='mc'||kind==='relay'){ // 有線圈的器具（接觸器、繼電器、計時器、SSR）＋它的附件（輔助接點、積熱電驛）
     const CAT=kind==='mc'?'電磁接觸器':'繼電器／計時';
     const ks=Object.keys(TPL).filter(k=>tplOf({tpl:k}).cat===CAT);
-    const hosts=Object.keys(TPL).filter(k=>{const c=tplOf({tpl:k}).cat;return (c==='電磁接觸器'||c==='繼電器／計時')&&!tplOf({tpl:k}).attach&&elsOf(k).some(e=>e.k==='coil');});
-    const atts=ks.filter(k=>tplOf({tpl:k}).attach&&elsOf(k).length);
+    const hosts=Object.keys(TPL).filter(k=>{const c=tplOf({tpl:k}).cat;return (c==='電磁接觸器'||c==='繼電器／計時')&&(!tplOf({tpl:k}).attach||tplOf({tpl:k}).attach==='slot')&&elsOf(k).some(e=>e.k==='coil');}); // SSR 是插槽附件，但自己有線圈，也可以單獨放
+    const atts=ks.filter(k=>tplOf({tpl:k}).attach&&tplOf({tpl:k}).attach!=='slot'&&elsOf(k).length);
     const fitHosts=a=>hosts.filter(h=>{const H={id:'H',tag:'H',tpl:h,x:100,y:100,sheet:'plate'},O={id:'O',tag:'O',tpl:a,x:100,y:100,sheet:'plate'};try{return hostOk(H,O);}catch(e){return false;}});
     const attFor=new Map();atts.forEach(a=>attFor.set(a,fitHosts(a)));
     const hostAtt=new Map();attFor.forEach((hs,a)=>hs.forEach(h=>{if(!hostAtt.has(h))hostAtt.set(h,[]);hostAtt.get(h).push(a);}));
@@ -59,7 +59,8 @@ function coverCases(kind){
     const build=(k,combo,att)=>{const C=mk(),{D,W}=C,E=elsOf(k);let lampN=0;
       D('PWR','field-power','field');D('Q0','fuji-bw50');['R','S','T'].forEach((p,i)=>W('PWR',p,'Q0',String(i*2+1)));
       D('F1','ic60-1P2A');W('Q0','2','F1','1');D('PS','drl120');W('F1','2','PS','L');W('Q0','4','PS','N');
-      const dut=D('DUT',k);
+      const T0=tplOf({tpl:k}),hsT=T0.rackKind==='ssr'&&combo===3?Object.keys(TPL).find(q=>TPL[q].ssrHost&&TPL[q].rack&&TPL[q].rack.length>=1):null;if(hsT)D('HS',hsT);
+      const dut=D('DUT',k,'plate',hsT?{on:'HS',rack:0}:{});
       const gs=[...new Set(E.filter(e=>e.k==='coil').map(e=>e.g||''))];
       const swOf=g=>E.filter(e=>e.k==='sw'&&e.by==='coil'&&(e.g||'')===g);
       const lamp=(p,n,a,b)=>{const h=D('HL'+(++lampN),'yw1l-g','door');W(p[0],p[1],dut,a);W(dut,b,h,'X1');W(h,'X2',n[0],n[1]);};
@@ -90,7 +91,8 @@ function coverCases(kind){
         // 自保持：這一組的第一個常開輔助
         if(combo!==1){const no=swOf(g).find(e=>!e.nc&&!isMain(e.a)&&!usedSw.has(e));if(no){usedSw.add(no);W(sbs,'2',dut,no.a);W(dut,no.b,sbr,'4');}}});
       // 其餘輔助接點、積熱電驛 97-98、附件接點：各接一盞燈
-      E.filter(e=>e.k==='sw'&&!isMain(e.a)&&!usedSw.has(e)&&!(e.by==='trip'&&e.nc&&!att)).forEach(e=>lamp(P,N,e.a,e.b));
+      const usedT=new Set([...usedSw].flatMap(e=>[e.a,e.b]));
+      E.filter(e=>e.k==='sw'&&!isMain(e.a)&&!usedSw.has(e)&&!(e.by==='trip'&&e.nc&&!att)).forEach(e=>{if(usedT.has(e.a)||usedT.has(e.b))return;usedT.add(e.a);usedT.add(e.b);lamp(P,N,e.a,e.b);}); // 和已用接點共點的（9-5／9-1）不再接，免得短路
       AE.filter(e=>e.k==='sw'&&!(e.by==='trip'&&e.nc)).forEach(e=>{const h=D('HL'+(++lampN),'yw1l-g','door');W(P[0],P[1],A,e.a);W(A,e.b,h,'X1');W(h,'X2',N[0],N[1]);});
       return {tpl:k,k:combo,att,name:`${k} 組合${combo}${att?'＋'+att:''}`,devs:C.devs,ws:C.ws,dut};};
     // 積熱電驛（獨立式，有主回路熱動元件）：接在接觸器後面
@@ -118,6 +120,18 @@ function coverCases(kind){
         if(nc){W(top[0],top[1],ot,nc.a);top=[ot,nc.b];}W(top[0],top[1],me,coil.a);W(me,coil.b,N[0],N[1]);
         if(no&&combo!==1){W('SBS','2',me,no.a);W(me,no.b,sb,'4');}});
       return {tpl:k,k:combo,name:`${k} 組合${combo}`,devs:C.devs,ws:C.ws,dut};};
+    const buildPn=(k,combo)=>{const C=mk(),{D,W}=C,E=elsOf(k),pn=E.find(e=>e.k==='pnoz');
+      D('PWR','field-power','field');D('Q0','fuji-bw50');['R','S','T'].forEach((p,i)=>W('PWR',p,'Q0',String(i*2+1)));
+      D('F1','ic60-1P2A');W('Q0','2','F1','1');D('PS','drl120');W('F1','2','PS','L');W('Q0','4','PS','N');const dut=D('DUT',k);
+      const pw=E.find(e=>e.k==='pwr');W('PS','+V1',dut,pw.a);W(dut,pw.b,'PS','-V1');
+      const I=pn.ins;D('ES1','yw1b','door');
+      if(combo===2){W(dut,I[0],'ES1','1');W('ES1','2',dut,I[2]);W(dut,I[1],'ES1',"1'");W('ES1',"2'",dut,I[3]);} // 交叉配對
+      else{W(dut,I[0],'ES1','1');if(combo===3){D('ES2','yw1b','door');W('ES1','2','ES2','1');W('ES2','2',dut,I[1]);W(dut,I[2],'ES1',"1'");W('ES1',"2'",'ES2',"1'");W('ES2',"2'",dut,I[3]);}else{W('ES1','2',dut,I[1]);W(dut,I[2],'ES1',"1'");W('ES1',"2'",dut,I[3]);}}
+      if(pn.auto&&combo!==3)W(dut,pn.auto[0],dut,pn.auto[1]);else if(pn.auto){D('SBRS','py2201-g','door');W(dut,pn.auto[0],'SBRS','3');W('SBRS','4',dut,pn.auto[1]);}
+      const outs=E.filter(e=>e.k==='sw');D('KM','lc1d18');W('PS','+V1',dut,outs[0].a);W(dut,outs[0].b,'KM','A1');W('KM','A2','PS','-V1');
+      outs.slice(1).forEach((e,i)=>{const h=D('HL'+i,'yw1l-g','door');W('PS','+V1',dut,e.a);W(dut,e.b,h,'X1');W(h,'X2','PS','-V1');});
+      return {tpl:k,k:combo,name:`${k} 組合${combo}`,devs:C.devs,ws:C.ws,dut};};
+    ks.filter(k=>elsOf(k).some(e=>e.k==='pnoz')).forEach(k=>[1,2,3].forEach(c=>out.push(buildPn(k,c))));
     ks.filter(k=>tplOf({tpl:k}).ilock&&tplOf({tpl:k}).pair&&TPL[tplOf({tpl:k}).pair]).forEach(k=>[1,2,3].forEach(c=>out.push(buildIl(k,c))));
     ks.filter(k=>hosts.includes(k)).forEach(k=>{const A=hostAtt.get(k)||[];[1,2,3].forEach(c=>out.push(build(k,c,c===3?A[0]||null:null)));});
     ks.filter(k=>!tplOf({tpl:k}).attach&&!hosts.includes(k)&&elsOf(k).some(e=>e.k==='pass')&&elsOf(k).some(e=>e.by==='trip')).forEach(k=>[1,2,3].forEach(c=>out.push(buildOl(k,c))));

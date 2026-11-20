@@ -5,7 +5,7 @@ const {chromium}=require('playwright'),path=require('path'),fs=require('fs');
 const {schemOverlaps}=require(path.resolve('tests/schem-overlap.js'));
 (async()=>{const b=await chromium.launch(),p=await b.newPage({viewport:{width:1600,height:1130}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
 await p.goto('file://'+path.resolve('index.html'));await p.addScriptTag({path:path.resolve('tests/cover-gen.js')});await p.addScriptTag({content:schemOverlaps.toString()});await p.emulateMedia({media:'print'});
-const KINDS=process.argv[2]?[process.argv[2]]:['brk','mc'];let fail=0;
+const KINDS=process.argv[2]?[process.argv[2]]:['brk','mc','relay'];let fail=0;
 for(const kind of KINDS){
 const meta=await p.evaluate(k=>{window.__C=coverCases(k);return {n:__C.length,untestable:[...new Set(__C.untestable||[])],tpls:new Set(__C.flatMap(c=>[c.tpl,c.att].filter(Boolean))).size};},kind);
 console.log(`[${kind}] ${meta.tpls} 種器具、${meta.n} 個組合；沒有動作資料、無法測：${meta.untestable.join('、')||'無'}`);

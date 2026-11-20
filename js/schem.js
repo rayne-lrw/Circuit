@@ -445,9 +445,9 @@ function scSecTree(M,G){const ac=G.srcs[0].ac;
   return spReduce(edges.filter(e=>inn(e.u)&&inn(e.v)),G.p,G.n);}
 function scCtrlPages(M,pages,newPage){
   // 安全繼電器：輸入端子兩兩之間經過接點（急停、門開關）相通的，各當成一段（上下電源線就是那兩個端子；配對照實際接線找）
-  (M.pnoz||[]).forEach(({d,e})=>{const K=e.insK.map(M.f),used=new Set();
-    for(let i=0;i<K.length;i++)for(let j=i+1;j<K.length;j++){if(used.has(i)||used.has(j)||K[i]===K[j])continue;const t=scSecTree(M,{p:K[i],n:K[j],srcs:[{}]});
-      if(t&&scLeaves(t).length){used.add(i);used.add(j);M.srcs.push({d,e:{p:e.ins[i],n:e.ins[j]},p:K[i],nn:K[j],v:'安全輸入',safety:true});}}});
+  (M.pnoz||[]).forEach(({d,e})=>{const ins=[...e.ins,...(e.auto?[e.auto[0]]:[])],K=[...e.insK.map(M.f),...(e.auto?[M.f(nodeKey({d:d.id,t:e.auto[0]}))]:[])],used=new Set(),usedL=new Set(); // 重置端子（S34）也算：手動重置按鈕；同一個接點只出現在一段
+    const nIns=e.ins.length;for(let i=0;i<K.length;i++)for(let j=i+1;j<K.length;j++){if((j<nIns&&(used.has(i)||used.has(j)))||(j>=nIns&&used.has(j))||K[i]===K[j])continue; /* 重置端子可以和已配對的輸入端子再配一次 */const t=scSecTree(M,{p:K[i],n:K[j],srcs:[{}]});
+      if(t&&scLeaves(t).length&&!scLeaves(t).some(l=>usedL.has(l.e.id))){scLeaves(t).forEach(l=>usedL.add(l.e.id));used.add(i);used.add(j);M.srcs.push({d,e:{p:ins[i],n:ins[j]},p:K[i],nn:K[j],v:'安全輸入',safety:true});}}});
   const groups=new Map();M.srcs.forEach(s=>{const p=M.f(s.p),n=M.f(s.nn);if(!M.wiredNode.has(p))return;const k=p+'|'+n;if(!groups.has(k))groups.set(k,{p,n,srcs:[]});groups.get(k).srcs.push(s);});
   const used=new Set();const secs=[];
   [...groups.values()].sort((a,b)=>natCmp(a.srcs[0].d.tag,b.srcs[0].d.tag)).forEach(G=>{
