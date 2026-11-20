@@ -163,6 +163,12 @@ node tests/idec-sim-check.js
 IDEC YW 完整模擬：206 種操作部逐一放下，每個接點塊的每個接點在每個位置／狀態下接繼電器模擬，和型錄接點動作表比對（3 位置 13 種接點結構）；各種復歸方式的點擊、照光燈、雙接點塊兩個接點、緊急停止不能裝雙接點塊。
 
 ```
+node tests/tend-check.js
+```
+
+天得器具檢查：數量、廠牌系列與資料來源；端子台長度照型錄公式、每片上下同電位、短路片；雙層端子台上下層各自獨立；保險絲座導通；TSSR 輸入有電時 1-2 導通、D 型接反顯示極性相反；SSR 吸附到散熱座最近的空位置（散熱座不會被當成 PLC 基板）；TFB-101N 只能疊在 TFB-101／TFBR-101 正面。
+
+```
 node tests/gtwin-check.js
 ```
 
@@ -248,6 +254,7 @@ js/connectors.js   連接器：把連接器的針腳收成一個接點（CN1）�
 js/devices-ser.js  原本內建器具的系列分組（器具庫依「廠牌 系列」收合）；隨機配置測試固定用的器具組
 js/devices-idec.js IDEC YW 系列：操作部＋可拆裝接點塊
 js/devices-gtwin.js 富士 G-TWIN 無熔絲斷路器 BW32～BW800、漏電斷路器 EW32～EW800（每個框架 × 極數 × 電流一種）＋內部附件（輔助、警報、分激、欠電壓、漏電警報，裝在左右側）
+js/devices-tend.js  天得：保險絲座（TFBR-32、TFB、TFE、面板式 TFB-15、TFB-101N 指示燈）、端子台（TBC／TBCN／TBR／TBRN／TBS 可選片數＋短路片、TBD 雙層、TB 固定式、T20／T40 單柱）、TSSR 固態繼電器 A／D 型＋TSSR02 散熱座、TSSR03 固定座（SSR 用插槽吸附）
 js/devices-acti9.js 施耐德 Acti9 iC60N 斷路器
 js/devices-tesys.js 施耐德 TeSys：LC1D 接觸器、GV2 馬達保護、LRD／LR9D 過電流繼電器
 js/devices-shihlin.js 士林 S-P 接觸器、S-2×P 可逆組、TH-P 熱電驛、AP 輔助接點
