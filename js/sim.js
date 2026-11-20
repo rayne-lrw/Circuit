@@ -219,7 +219,7 @@ function simRun(){
   plcDevs.forEach(d=>{if(!busKind(d))return;const why=liveWhy(d,powered,ext),s=devState[d.id]=devState[d.id]||{on:[],rev:[]};
     if(!why){if(!extEls.has(d.id))s.on.push('電源');return;}
     const nm=new Set((extEls.get(d.id)||[]).map(e=>e.name||'電源'));s.on=s.on.filter(n=>!nm.has(n));s.nopwr=why;nopwr.push({d,why});});
-  st.res={wires,dev:devState,X,Y,shorts:shorts.length,unstable,warn,conducting,nopwr,loads,bus:plcDevs.filter(busKind).map(d=>({d,src:busSrc(d)}))};
+  st.res={wires,dev:devState,X,Y,shorts:shorts.length,unstable,warn,conducting,nopwr,loads,...(st.all?{topo:{els,node:bf,wireKeys}}:{}),bus:plcDevs.filter(busKind).map(d=>({d,src:busSrc(d)}))};
   return st.res;
 }
 // 兩點之間有沒有電：同一個 DC 電源的 ＋／−（接反時 polar 才算「極性相反」），或同一個 AC 電源的不同相（或相和中性線）

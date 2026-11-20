@@ -139,7 +139,8 @@ function normalize(o){
   // 電源負載的實測／銘牌值：{鍵: mA}（鍵是 器具範本|項目 或 cap|器具範本|電壓）
   const lm={};if(o.loadMeas&&typeof o.loadMeas==='object')Object.entries(o.loadMeas).slice(0,2000).forEach(([k,v])=>{if(typeof k==='string'&&k.length<=120&&typeof v==='number'&&v>=0&&v<1e6)lm[k]=v;});
   const loadMeas=Object.keys(lm).length?{loadMeas:lm}:{};
-  return {state:{box,plate,door,doorMode,fields,...review,...loadMeas,...(o.warnMixedNo===true?{warnMixedNo:true}:{}),hinge:num(o.hinge,plate.h/2),fillLimit:Math.min(100,Math.max(5,num(o.fillLimit,50))),spare:Math.min(5000,Math.max(0,num(o.spare,0))),glands,tpls,devices,ducts,wires,cables,cableSpecs,nextNo},
+  const docTitle=typeof o.docTitle==='string'&&o.docTitle.trim()?{docTitle:o.docTitle.trim().slice(0,60)}:{}; // 電路圖標題欄的專案名稱
+  return {state:{box,plate,door,doorMode,fields,...review,...loadMeas,...docTitle,...(o.warnMixedNo===true?{warnMixedNo:true}:{}),hinge:num(o.hinge,plate.h/2),fillLimit:Math.min(100,Math.max(5,num(o.fillLimit,50))),spare:Math.min(5000,Math.max(0,num(o.spare,0))),glands,tpls,devices,ducts,wires,cables,cableSpecs,nextNo},
     dropped:(o.devices.length-devices.length)+(o.ducts.length-ducts.length)+(o.wires.length-wires.length)};
 }
 

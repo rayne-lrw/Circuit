@@ -34,11 +34,13 @@ function renderTools(){
     <div class="row" style="justify-content:flex-start"><button class="tool" id="lblCsv"${S.wires.length?'':' disabled'}>匯出 CSV（標籤機用）</button><button class="tool" id="lblPrint"${S.wires.length?'':' disabled'}>列印標籤</button></div>
     <div class="bom-h">端子台接線表</div><p class="note">每個端子台一張表，每片列出接的線與對端，可以貼在盤門內。有接線的端子台 ${tbs.length} 個${tbs.length?'：'+esc(tbs.map(t=>t.d.tag).join('、')):''}。</p>
     <div class="row" style="justify-content:flex-start"><button class="tool" id="tbPrint"${tbs.length?'':' disabled'}>列印端子台接線表</button></div>`;
+  if(typeof schemSectionHtml==='function')h+=schemSectionHtml();
   if(typeof loadSectionHtml==='function')h+=loadSectionHtml();
   if(typeof diffSectionHtml==='function')h+=diffSectionHtml();
   $('list').innerHTML=h;
   const on=(id,f)=>{const el=$(id);if(el)el.onclick=f;};
   on('lblCsv',labelCsv);on('lblPrint',()=>toolPrint('labels'));on('tbPrint',()=>toolPrint('tb'));
+  if(typeof schemSectionBind==='function')schemSectionBind();
   if(typeof loadSectionBind==='function')loadSectionBind();
   if(typeof diffSectionBind==='function')diffSectionBind();
 }

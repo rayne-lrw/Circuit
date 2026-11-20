@@ -1,0 +1,60 @@
+// 正式電路圖檢查（js/schem.js）：
+// - 頁面組成：封面、目錄、主回路、控制回路、PLC 輸入輸出、線號表、材料表；A3 圖框、頁次、沒有殘留的佔位符號
+// - 控制回路：從圖反推回每個接點、線圈的兩端，要和配線完全一致（schemVerify）；自保持畫成並聯
+// - 線圈下方列出接點在哪一頁哪一欄；主回路的電源供應器標出 DC 輸出在第幾頁
+// - 很寬的迴路會拉出中間電位、跨頁接續，仍然和配線一致
+// 用法：node tests/schem-check.js [使用者專案檔.json]（有給檔案時也檢查那份）
+const {chromium}=require('playwright'),path=require('path'),fs=require('fs');
+const userFile=process.argv[2];
+(async()=>{
+  const b=await chromium.launch(),p=await b.newPage({viewport:{width:1400,height:900}});
+  const errs=[];p.on('pageerror',e=>errs.push(e.message));
+  await p.goto('file://'+path.join(__dirname,'..','index.html'));
+  const res=await p.evaluate(uj=>{
+    const out=[],ok=(c,m)=>out.push((c?'✓ ':'✗ ')+m);
+    const D=(id,tpl,x,y,sheet='plate',extra={})=>({id,tag:id,tpl,x,y,sheet,...extra});
+    const build=(extraDev=[],extraW=null)=>{S=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:860,h:660},door:{w:900,h:700},ducts:[],glands:[],wires:[],
+      devices:[D('PWR','field-power',0,-300,'field'),D('Q1','ic60-3P16A',40,40),D('F1','ic60-1P6A',120,40),D('PS','drl120',160,40),D('PLC','fx5u32',300,40),
+        D('KM','lc1d09',40,250),D('KX','ladn40',40.6,265,'plate',{on:'KM'}),D('SB1','py2201-g',600,100,'door'),D('SB2','py2201-r',600,150,'door'),
+        D('KA','my2n-24',300,250),D('LP','lamp',400,-300,'field'),D('PX','e2e',200,-300,'field'),...extraDev]}).state;resetUi();
+      let n=0;const W=(a,at,bb,bt)=>S.wires.push({id:'w'+(++n),no:'W'+n,a:{d:a,t:at},b:{d:bb,t:bt},wps:[],gauge:.75,color:'black'});
+      W('PWR','R','Q1','1');W('PWR','S','Q1','3');W('PWR','T','Q1','5');
+      W('Q1','2','PS','L');W('Q1','4','PS','N');W('Q1','2','PLC','L');W('Q1','4','PLC','N');
+      W('PS','+V1','F1','1');W('F1','2','SB2','1');W('SB2','2','SB1','3');W('SB1','4','KM','A1');W('KM','A2','PS','-V1');
+      W('SB2','2','KX','53');W('KX','54','KM','A1');
+      W('PLC','S/S','PS','-V1');W('PX','棕','F1','2');W('PX','藍','PS','-V1');W('PX','黑','PLC','X0');
+      W('PLC','COM0','PS','-V1');W('PLC','Y0','KA','14');W('KA','13','F1','2');
+      W('Q1','2','KA','9');W('KA','5','LP','L/+');W('LP','N/−','Q1','4');
+      if(extraW)extraW(W);recompute();};
+    build();
+    let B=schemBuild();const T=B.pages.map(x=>x.title);
+    ok(T[0]==='封面與圖例'&&T[1]==='圖面目錄'&&T.some(t=>/^主回路/.test(t))&&T.some(t=>/^控制回路 24V（PS）/.test(t))&&T.some(t=>/PLC 輸入/.test(t))&&T.some(t=>/PLC 輸出/.test(t))&&T.some(t=>/^線號表/.test(t))&&T.some(t=>/^材料表/.test(t)),`頁面組成（${B.pages.length} 頁）：${T.slice(0,8).join('、')}…`);
+    ok(B.pages.every(pg=>!/\u0001/.test(pg.svg+pg.html))&&B.pages.every((pg,i)=>pg.svg.includes(`>${i+1} / ${B.pages.length}<`)),'每頁標題欄頁次「n / 總頁數」，沒有殘留的佔位符號');
+    ok(B.pages.every(pg=>/viewBox="0 0 420 297"/.test(pg.svg)&&/s-frame/.test(pg.svg)),'每頁都是 A3 橫式圖框（420×297）');
+    { const v=schemVerify(B);ok(v.length===0&&v.checked>=10,`控制回路：從圖反推回每個元素的兩端，和配線完全一致（檢查 ${v.checked} 個）`); }
+    // 自保持：SB1 3-4 和 KX 53-54 並聯
+    const tr=B.M.ctrlTrees[0].tree,find=(t,f)=>f(t)||(t.c||[]).some(c=>find(c,f));
+    ok(find(tr,t=>t.t==='par'&&t.c.some(c=>c.t==='leaf'&&c.e.d.tag==='SB1'&&c.e.ta==='3')&&t.c.some(c=>c.t==='leaf'&&c.e.d.tag==='KX')),'自保持：SB1 3-4 與 KX 53-54 畫成並聯');
+    const ctrl=B.pages.find(x=>/^控制回路 24V（PS）/.test(x.title));
+    ok(/∟53-54 \d+\.\d+/.test(ctrl.svg),'KM 線圈下方列出 KX 53-54 在第幾頁第幾欄');
+    ok(/SB2[\s\S]*SB1|SB1[\s\S]*SB2/.test(ctrl.svg)&&/KA/.test(ctrl.svg)&&/>X0</.test(ctrl.svg),'控制回路含按鈕、繼電器線圈、PLC 輸入 X0');
+    const main=B.pages.find(x=>/^主回路/.test(x.title));
+    ok(main.svg.includes('>PS<')&&new RegExp(`24V 輸出 → 第 ${B.pages.indexOf(ctrl)+1} 頁`).test(main.svg),'主回路：電源供應器標出 24V 輸出在控制回路第幾頁');
+    ok(/>Q1</.test(main.svg)&&/>LP</.test(main.svg),'主回路：Q1 斷路器、AC 燈（KA 接點控制）都畫出來');
+    const plcIn=B.pages.find(x=>/PLC 輸入/.test(x.title));ok(/>PX</.test(plcIn.svg)&&/>X0</.test(plcIn.svg),'PLC 輸入頁：X0 接 PX 感測器');
+    const html=schemPrintHtml();ok((html.match(/class="pg sch"/g)||[]).length===B.pages.length,'列印 HTML：每頁一個 A3 區塊');
+    // 很寬的迴路：30 個燈並聯在 SB1 後面 → 拉出中間電位、跨頁，仍然一致
+    build([...Array(30)].map((_,i)=>D('H'+i,'yw1l-g',20+i*10,400,'door')),W=>{for(let i=0;i<30;i++){W('KM','A1','H'+i,'X1');W('H'+i,'X2','PS','-V1');}});
+    B=schemBuild();const cp=B.pages.filter(x=>/^控制回路 24V（PS）/.test(x.title));
+    ok(cp.length>=2&&schemVerify(B).length===0&&cp.slice(1).some(pg=>/>W11</.test(pg.svg)),`太寬時拉出中間電位（W11）跨頁接續（${cp.length} 頁），仍然和配線一致`);
+    // 專案名稱存檔
+    { const n=normalize({...JSON.parse(JSON.stringify(S)),docTitle:'  測試專案  '}).state;ok(n.docTitle==='測試專案','標題欄專案名稱存在專案檔'); S.docTitle='測試專案';ok(schemBuild().pages[2].svg.includes('測試專案'),'標題欄顯示專案名稱'); }
+    $('tabTool').click();ok($('schPrint')&&$('schPrev')&&$('schTitle'),'工具分頁有正式電路圖（專案名稱、預覽、列印）');
+    $('schPrev').click();ok(document.querySelectorAll('#schPrevBox .pg.sch').length>2,'預覽顯示全部頁面');$('schPrevClose').click();
+    if(uj){S=normalize(JSON.parse(uj)).state;resetUi();recompute();const t=performance.now();const U=schemBuild();
+      ok(schemVerify(U).length===0&&U.pages.every(pg=>!/\u0001/.test(pg.svg+pg.html)),`使用者專案：${U.pages.length} 頁，${Math.round(performance.now()-t)} ms，圖和配線一致`);}
+    return out;},userFile?fs.readFileSync(userFile,'utf8'):null);
+  await b.close();
+  res.forEach(l=>console.log(l));errs.forEach(e=>console.log('✗ 頁面錯誤：'+e));
+  const fail=res.filter(l=>l.startsWith('✗')).length+errs.length;console.log(fail?`\n失敗 ${fail} 項`:'\n全部通過');process.exit(fail?1:0);
+})();

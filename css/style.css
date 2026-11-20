@@ -545,3 +545,42 @@ main.lc.wl{grid-template-columns:40px minmax(0,1fr) var(--wideW,640px) 320px}
 #wide .list-head{top:-10px}
 @media (max-width:980px){main.wl,main.lc.wl{grid-template-columns:minmax(0,1fr)}#wide{order:2;max-height:70vh}.wide-grip{display:none}}
 #wide .ld-cite{max-width:none;white-space:normal}#wide .ld-it small{white-space:normal}
+/* ---------- 正式電路圖（js/schem.js）：A3 橫式，單位 mm ---------- */
+@page sch{size:A3 landscape;margin:0}
+.pg.sch{page:sch}
+.sch-pg{position:relative;width:420mm;height:297mm;overflow:hidden;background:#fff;color:#000}
+.s-svg{display:block;width:420mm;height:297mm;font-family:var(--sans)}
+.s-svg line,.s-svg path{fill:none;stroke:#000;stroke-width:.25;stroke-linecap:round}
+.s-svg rect,.s-svg circle{stroke:#000;stroke-width:.25}
+.s-svg text{fill:#000;stroke:none}
+.s-svg .s-frame{fill:none;stroke-width:.5}.s-svg .s-frame2{fill:none;stroke-width:.35}.s-svg .s-grid{stroke-width:.2}
+.s-svg .s-tb{fill:none;stroke-width:.35}.s-svg .s-tbl{stroke-width:.2}
+.s-svg .s-dev{fill:none;stroke-width:.3}
+.s-svg .s-dot{fill:#000;stroke:none}
+.s-svg .s-rail,.s-svg .s-bus{stroke-width:.5}
+.s-svg .s-mech{stroke-dasharray:1 .8;stroke-width:.2}
+.s-gl{font-size:2.6px;text-anchor:middle}
+.s-svg .s-tbk{font-size:1.7px;fill:#555}.s-tbv{font-size:3px;font-weight:700}.s-tbs{font-size:1.8px}
+.s-ptitle{font-size:3.6px;font-weight:700}
+.s-sec{font-size:2.8px;font-weight:700}
+.s-railn{font-size:2.4px;font-weight:700}
+.s-tag{font-size:2.4px;font-weight:700}
+.s-sub{font-size:1.7px}
+.s-term{font-size:1.6px;text-anchor:end}
+.s-net{font-size:1.6px;font-style:italic}
+.s-netv{font-size:1.5px;font-style:italic}
+.s-xref,.s-xr2{font-size:1.6px}
+.s-in{font-size:1.8px;text-anchor:middle}
+.s-pot{font-size:1.9px;text-anchor:middle;font-weight:700}
+.s-big{font-size:12px;font-weight:700;text-anchor:middle}.s-big2{font-size:6px;text-anchor:middle}.s-cv{font-size:3px;text-anchor:middle}
+.sch-body{position:absolute;left:22mm;top:28mm;width:376mm;font-size:2.9mm;color:#000}
+.s-table{border-collapse:collapse;width:100%}.s-table th,.s-table td{border:.2mm solid #555;padding:.6mm 1.2mm;text-align:left;vertical-align:top}.s-table th{background:#eee}
+.s-idx{width:60%}.s-note{font-size:2.6mm;margin-top:3mm}
+.sch-ttl{display:flex;flex-direction:column;gap:3px;font-size:12px;margin:4px 0}
+#schPrevBox{position:fixed;inset:0;z-index:300;background:rgba(40,44,44,.92);display:flex;flex-direction:column}
+#schPrevBox[hidden]{display:none}
+#schPrevBox .sch-bar{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+#schPrevBox .sch-bar b{flex:1}
+#schPrevBox .sch-pages{overflow:auto;flex:1;padding:16px;display:flex;flex-direction:column;align-items:center;gap:16px}
+#schPrevBox .pg.sch{zoom:.62;box-shadow:0 2px 12px rgba(0,0,0,.4)}
+@media print{#schPrevBox{display:none!important}}
