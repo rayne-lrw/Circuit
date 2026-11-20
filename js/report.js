@@ -33,7 +33,7 @@ const cableStock=spec=>INV.find(r=>`${r[0]} ${r[1]}`===spec);
 function bomRows(){
   const out=[],devs=new Map();
   for(const d of S.devices){
-    if(d.tpl==='field-power') continue; // 只是進線示意，不是材料
+    if(d.tpl==='field-power'||d.tpl==='field-power-n') continue; // 只是進線示意，不是材料
     const t=resolveTpl(d.tpl,d.count);if(!t) continue;
     // 同名同廠牌合併（例如伺服電池在不同驅動器上的兩種外形）；可自訂型號的器具（二極體）照型號分開列
     const tm=t.model?{...t,n:d.model||'二極體'}:t,key=t.gen?d.tpl:tm.b+'|'+tm.n;

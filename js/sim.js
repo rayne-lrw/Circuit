@@ -71,6 +71,7 @@ sd('yw1s',()=>[{k:'sw',a:'3',b:'4',by:'btn',btn:'切換'}]);
 sd(['py2201-g','py2201-r'],()=>[{k:'sw',a:'1',b:'2',nc:true,by:'btn',btn:'按下'},{k:'sw',a:'3',b:'4',by:'btn',btn:'按下'},{k:'load',a:'+',b:'-',name:'指示燈',polar:true}]);
 // 現場
 sd('field-power',()=>[{k:'ac',ph:['R','S','T']}]);
+sd('field-power-n',()=>[{k:'ac',ph:['R','S','T'],n:'N'}]);
 sd(['hgsr702','hgkn43'],()=>[{k:'load',a:'B1',b:'B2',name:'煞車釋放'}]);
 sd(['dms6015','dms8015'],()=>[{k:'load',a:'VCC',b:'GND',name:'電源',polar:true}]);
 sd('e2e',()=>[{k:'pwr',a:'棕',b:'藍'},{k:'sens',out:'黑',to:'棕',btn:'觸發'}]);

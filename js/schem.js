@@ -132,7 +132,7 @@ const SY={
   sensA:(x,c)=>`<path d="M${x-1.6} ${c} H${x-4.5}" stroke-dasharray="1 .8"/><path d="M${x-4.5} ${c}l-1.4 -1.4l-1.4 1.4l1.4 1.4z"/>`,
   coil:(x,c)=>`<rect x="${x-4}" y="${c-2.6}" width="8" height="5.2" fill="#fff"/>`,
   lamp:(x,c,d)=>`<circle cx="${x}" cy="${c}" r="3" fill="#fff"/><path d="M${x-2.1} ${c-2.1}l4.2 4.2M${x+2.1} ${c-2.1}l-4.2 4.2"/>`,
-  box:(x,c,t)=>`<rect x="${x-6.5}" y="${c-3.4}" width="13" height="6.8" fill="#fff"/>`+scTx('s-in',x,c+1,t,11.4,SCF.inn),
+  box:(x,c,t)=>`<rect x="${x-6.5}" y="${c-3.4}" width="13" height="6.8" fill="#fff"/>`+(scFit(t,11.4,SCF.inn).t===t?scTx('s-in',x,c+1,t,11.4,SCF.inn):`<text class="s-in" style="font-size:2.1px">${scWrap(t,11.4,2.1).slice(0,2).map((q,i)=>`<tspan x="${x}" y="${c-.3+i*2.5}">${scEsc(q)}</tspan>`).join('')}</text>`), // 方框裡放不下就分兩行
   plcx:(x,c,t)=>`<rect x="${x-5.5}" y="${c-3.2}" width="11" height="6.4" fill="#fff"/>`+scTx('s-in',x,c+1,t,9.6,SCF.inn),
   dot:(x,y)=>`<circle class="s-dot" cx="${x}" cy="${y}" r=".7"/>`,
   motor:(x,c,t)=>`<circle cx="${x}" cy="${c}" r="5.5" fill="#fff"/><text class="s-in" x="${x}" y="${c+.2}" style="font-size:3px">M</text><text class="s-in" x="${x}" y="${c+3.2}" style="font-size:1.8px">${scEsc(t||'')}</text>`,
@@ -284,12 +284,14 @@ function scMainPages(M,pages,newPage,meta){
       E.filter(isSw).forEach(e=>{if(onChain.has(e.id))return;const k=downOf(e);if(k==null||!itemNodes.has(k)||ctlNodes.has(k))return;const up=k===e.u?e.v:e.u,on=items.find(it=>it.terms.some(t=>t.k===k));
         if(!dead.has(e.d.id))dead.set(e.d.id,{d:e.d,terms:[],with:new Set(),to:new Set()});const o=dead.get(e.d.id);(o.to||(o.to=new Set())).add(on.d.tag);(adj.get(k)||[]).filter(q=>q.d!==e.d&&onChain.has(q.id)).forEach(q=>o.with.add(q.d.tag));
         o.terms.push({k,t:k===e.u?e.ta:e.tb,edges:[...pathTo(up),e],ph:phase.get(up)});}); }
-    dead.forEach(o=>{if(used.has(o.d.id)&&o.terms.length<2)return; /* 已用到的器具剩一極沒接：備用極，不畫 */o.terms.sort((a,b)=>SC_PH.indexOf(a.ph)-SC_PH.indexOf(b.ph));items.push({d:o.d,terms:o.terms,name:'出線',outlet:true,with:[...o.with],to:o.to?[...o.to]:null});}); }
+    dead.forEach(o=>{if(used.has(o.d.id)&&!o.to)return; /* 已用到的器具其他極沒接：備用極，畫在原本那台上，不另外拉出線 */o.terms.sort((a,b)=>SC_PH.indexOf(a.ph)-SC_PH.indexOf(b.ph));items.push({d:o.d,terms:o.terms,name:'出線',outlet:true,with:[...o.with],to:o.to?[...o.to]:null});}); }
   if(!items.length)return;
   const groups=new Map(),dl2=new Map(),dOf2=k=>{if(!dl2.has(k))dl2.set(k,pathTo(k).length);return dl2.get(k);},upPh=e=>phase.get(dOf2(e.u)<=dOf2(e.v)?e.u:e.v);
   items.forEach(it=>{const chains=it.terms.map(t=>({t,edges:t.edges||pathTo(t.k),ph:t.ph||phase.get(t.k)}));
     // 每台開關在各相路徑上最早出現的位置；同一層的器具（例如兩相各走一個單極斷路器）放在同一格
-    const rank=new Map();chains.forEach(ch=>ch.edges.forEach((e,i)=>{const id=e.d.id;if(!rank.has(id)||rank.get(id)>i)rank.set(id,i);}));
+    // 層：每台開關排在它上游所有開關的下一層（例如 N 極直接從電源來的 4P 斷路器，仍排在上游主斷路器下面）
+    const rank=new Map();chains.forEach(ch=>ch.edges.forEach(e=>{if(!rank.has(e.d.id))rank.set(e.d.id,0);}));
+    for(let g=0,ch=true;ch&&g<50;g++){ch=false;chains.forEach(c=>{const ids=c.edges.map(e=>e.d.id).filter((v,i,a)=>a.indexOf(v)===i);for(let i=1;i<ids.length;i++){const need=rank.get(ids[i-1])+1;if(rank.get(ids[i])<need){rank.set(ids[i],need);ch=true;}}});}
     const lv=new Map();rank.forEach((r,id)=>{if(!lv.has(r))lv.set(r,[]);lv.get(r).push(id);});
     const levels=[...lv.entries()].sort((a,b)=>a[0]-b[0]).map(([,ids])=>ids.sort());
     const sig=it.d.id+'|'+levels.map(l=>l.join('+')).join('>');
@@ -305,7 +307,7 @@ function scMainPages(M,pages,newPage,meta){
     const leaf={id:key+'>C:'+g.d.id+g.names.join(),d:g.d,kids:[],poles:new Map(),cons:g,chains:g.chains};cur.kids.push(leaf);});
   // 每一層的分支照編號排（F101、F102、…），不受用電器具編號或接線先後影響
   { const usedE=new Set();nodes.forEach(nd=>nd.poles.forEach((v,k)=>usedE.add(k)));
-    nodes.forEach(nd=>{if(!nd.devs)return;E.filter(e=>e.k==='brk'&&nd.devs.includes(e.d)&&!usedE.has(e.id)).forEach(e=>{const ph=upPh(e);if(!ph||[...nd.poles.values()].some(q=>q.ph===ph))return;nd.poles.set(e.id,{e,ph});usedE.add(e.id);});}); }
+    nodes.forEach(nd=>{if(!nd.devs)return;E.filter(e=>(e.k==='brk'||e.k==='fuse')&&nd.devs.includes(e.d)&&!usedE.has(e.id)).forEach(e=>{const ph=upPh(e);if(!ph||[...nd.poles.values()].some(q=>q.ph===ph))return;nd.poles.set(e.id,{e,ph});usedE.add(e.id);});}); }
   const tagKey=nd=>nd.cons?nd.d.tag:nd.devs.map(d=>d.tag).sort(natCmp)[0];
   const sortKids=nd=>{nd.kids.sort((a,b)=>natCmp(tagKey(a),tagKey(b)));nd.kids.forEach(sortKids);};sortKids(root);
   const phases=[...new Set(acNodes.map(a=>a[1]))].sort((a,b)=>phOrd(a)-phOrd(b));

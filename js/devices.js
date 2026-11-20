@@ -176,6 +176,8 @@ def('motor3',null,F1,'','三相感應馬達',90,60,0,'M','dark',row(['U','V','W'
 def('motor3-yd',null,F1,'','三相感應馬達 6 端子（Y-Δ）',110,60,0,'M','dark',row(['U1','V1','W1','W2','U2','V2','E'],8,'top',110,'繞組',10),{sheet:'field',m3:true,m3g:[['U1','V1','W1'],['U2','V2','W2']],note:'通用三相感應馬達，六個繞組端子 U1-U2、V1-V2、W1-W2（IEC 60034-8），Y-Δ 啟動用；端子排列依常見端子盒（上排 U1 V1 W1、下排 W2 U2 V2）推定'});
 def('field-power',null,F1,'','外部電源進線 3P',90,40,0,'PWR','mid',row(['R','S','T','E'],8,'top',90,'電源',12),{sheet:'field'});
 termDesc('field-power',{E:'接地'});
+def('field-power-n',null,F1,'','外部電源進線 3P4W',100,40,0,'PWR','mid',row(['R','S','T','N','E'],8,'top',100,'電源',12),{sheet:'field'});
+termDesc('field-power-n',{N:'中性線',E:'接地'});
 def('e2e',null,F2,'OMRON','E2E-X8B1D18 近接 PNP 3線',50,30,0,'SQ','steel',SENS3,{sheet:'field',note:'E2E NEXT：B1＝直流 3 線 PNP 常開，D18＝M18'});
 def('d4mc',null,F2,'OMRON','D4MC-5020 極限 1C',50,35,0,'LS','steel',[['C',10,8,'top','COM 共點'],['A',25,8,'top','NO 常開（A 接點）'],['B',40,8,'top','NC 常閉（B 接點）']],{sheet:'field',note:'D4MC 是 1C 接點（單刀雙投）：C 共點、A 常開、B 常閉'});
 def('pzg102',null,F2,'基恩斯','PZ-G102B 光電 NPN+PNP 4線',60,30,0,'PH','steel',[['棕',10,8,'top','+V 10–30VDC（1）'],['藍',23,8,'top','0V（3）'],['黑',36,8,'top','輸出 PNP（4）'],['白',49,8,'top','輸出 NPN（2）']],{sheet:'field',note:'基恩斯型錄：PZ-G 結尾 B＝NPN/PNP 雙輸出，4 芯電纜（1 棕 +V、2 白 NPN、3 藍 0V、4 黑 PNP）'});

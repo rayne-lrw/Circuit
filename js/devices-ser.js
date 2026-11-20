@@ -26,14 +26,14 @@ const S={
   'fuji-bw50':'G-TWIN BW',cu11:'CU 接觸器',fotek:'MY 計時器',pnoz:'PNOZ X 安全繼電器',nextech:'AP 圖控',ac30:'AC30 軌道插座',eoab:'EO 軌道插座',
   tb10:'TB-PG 接線盒',tb15:'TB-PG 接線盒',fan4:'散熱風扇',lk3214:'LK 插座',rxlg:'RXLG 再生電阻',g6d:'繼電器模組',
   // 沒有廠牌的通用器具
-  h66:'鋁軌',diode:'二極體','diode-coil':'二極體',lamp:'照明',qlnp:'訊號轉換',ths62:'吊掛式按鈕盒','field-power':'外部電源',
+  h66:'鋁軌',diode:'二極體','diode-coil':'二極體',lamp:'照明',qlnp:'訊號轉換',ths62:'吊掛式按鈕盒','field-power':'外部電源','field-power-n':'外部電源',
   gnd13:'接地銅板',gnd15:'接地銅板','py2201-g':'PY2201A 金屬開關','py2201-r':'PY2201A 金屬開關',
   'laser-ps':'雷射砲台配件','dc5521f-tb':'雷射砲台配件','dc5525m-tb':'雷射砲台配件','laser-dot':'雷射砲台配件'};
 Object.entries(S).forEach(([id,ser])=>{if(TPL[id]&&!TPL[id].ser)TPL[id].ser=ser;});
 // 沒有廠牌的通用零件：廠牌填「通用」，器具庫才會和其他廠牌一樣顯示「廠牌 系列」
-['h66','diode','diode-coil','lamp','field-power','motor3','motor3-yd','gnd13','gnd15','laser-ps','dc5521f-tb','dc5525m-tb','laser-dot'].forEach(id=>{if(TPL[id]&&!TPL[id].b)TPL[id].b='通用';});
+['h66','diode','diode-coil','lamp','field-power','field-power-n','motor3','motor3-yd','gnd13','gnd15','laser-ps','dc5521f-tb','dc5525m-tb','laser-dot'].forEach(id=>{if(TPL[id]&&!TPL[id].b)TPL[id].b='通用';});
 // 外部電源進線不是馬達，放到「現場：接線盒與其他」
-if(TPL['field-power'])TPL['field-power'].cat='現場：接線盒與其他';
+if(TPL['field-power'])TPL['field-power'].cat='現場：接線盒與其他';if(TPL['field-power-n'])TPL['field-power-n'].cat='現場：接線盒與其他';
 // 使用者確認：THS-62 是天得；PY2201A、QL-NP 廠牌不明，放「其他」
 if(TPL.ths62&&!TPL.ths62.b)TPL.ths62.b='天得';
 ['py2201-g','py2201-r','qlnp'].forEach(id=>{if(TPL[id]&&!TPL[id].b)TPL[id].b='其他';});
