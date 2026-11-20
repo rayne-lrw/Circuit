@@ -140,7 +140,10 @@ function normalize(o){
   const lm={};if(o.loadMeas&&typeof o.loadMeas==='object')Object.entries(o.loadMeas).slice(0,2000).forEach(([k,v])=>{if(typeof k==='string'&&k.length<=120&&typeof v==='number'&&v>=0&&v<1e6)lm[k]=v;});
   const loadMeas=Object.keys(lm).length?{loadMeas:lm}:{};
   const docTitle=typeof o.docTitle==='string'&&o.docTitle.trim()?{docTitle:o.docTitle.trim().slice(0,60)}:{}; // 電路圖標題欄的專案名稱
-  return {state:{box,plate,door,doorMode,fields,...review,...loadMeas,...docTitle,...(o.warnMixedNo===true?{warnMixedNo:true}:{}),hinge:num(o.hinge,plate.h/2),fillLimit:Math.min(100,Math.max(5,num(o.fillLimit,50))),spare:Math.min(5000,Math.max(0,num(o.spare,0))),glands,tpls,devices,ducts,wires,cables,cableSpecs,nextNo},
+  // 電路圖畫法：符號 iec／jis、控制回路方向 v／h（預設 iec＋v 不存）
+  const ss=o.schemStyle&&typeof o.schemStyle==='object'?{sym:o.schemStyle.sym==='jis'?'jis':'iec',dir:o.schemStyle.dir==='h'?'h':'v'}:null;
+  const schemStyle=ss&&(ss.sym!=='iec'||ss.dir!=='v')?{schemStyle:ss}:{};
+  return {state:{box,plate,door,doorMode,fields,...review,...loadMeas,...docTitle,...schemStyle,...(o.warnMixedNo===true?{warnMixedNo:true}:{}),hinge:num(o.hinge,plate.h/2),fillLimit:Math.min(100,Math.max(5,num(o.fillLimit,50))),spare:Math.min(5000,Math.max(0,num(o.spare,0))),glands,tpls,devices,ducts,wires,cables,cableSpecs,nextNo},
     dropped:(o.devices.length-devices.length)+(o.ducts.length-ducts.length)+(o.wires.length-wires.length)};
 }
 

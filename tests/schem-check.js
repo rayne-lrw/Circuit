@@ -61,6 +61,19 @@ const userFile=process.argv[2];
     build([...Array(30)].map((_,i)=>D('H'+i,'yw1l-g',20+i*10,400,'door')),W=>{for(let i=0;i<30;i++){W('KM','A1','H'+i,'X1');W('H'+i,'X2','PS','-V1');}});
     B=schemBuild();const cp=B.pages.filter(x=>/^控制回路 24V（PS）/.test(x.title));
     ok(cp.length>=2&&schemVerify(B).length===0&&cp.slice(1).some(pg=>/>W11</.test(pg.svg)),`太寬時拉出中間電位（W11）跨頁接續（${cp.length} 頁），仍然和配線一致`);
+    // 電源線名稱用實際線號（PS 的 +V1 接 W8），不自己編「24V ＋」
+    { build();const cp=schemBuild().pages.find(x=>/^控制回路/.test(x.title));ok(/>W8<tspan[^>]*>（PS \+V1）/.test(cp.svg)&&!/24V ＋/.test(cp.svg),'電源線名稱用實際線號（W8，小字註明 PS +V1），不寫「24V ＋」'); }
+    // 舊 JIS＋水平：線圈畫圓、燈寫顏色字、電源線在左右、行號、交互參照「頁-行」，仍和配線一致
+    { build();S.schemStyle={sym:'jis',dir:'h'};const J=schemBuild(),cp=J.pages.find(x=>/^控制回路/.test(x.title)),doc=new DOMParser().parseFromString(cp.svg,'image/svg+xml');
+      const rails=[...doc.querySelectorAll('line.s-rail')];
+      ok(schemVerify(J).length===0&&rails.length>=2&&rails.every(l=>l.getAttribute('x1')===l.getAttribute('x2')),'水平：電源線是左右兩條直線，圖和配線仍一致');
+      ok(doc.querySelectorAll('text.s-ln').length>=3,'水平：每一行有行號');
+      ok(/<circle[^>]*r="3.4"/.test(cp.svg)&&!/<rect x="[\d.]+" y="[\d.]+" width="5.2" height="8"/.test(cp.svg),'舊 JIS：線圈畫成圓');
+      const main=J.pages.find(x=>/^主回路/.test(x.title));ok(/>R<\/text>/.test(main.svg)||/>G<\/text>/.test(cp.svg)||/>L<\/text>/.test(main.svg),'舊 JIS：指示燈圓圈內寫顏色字');
+      ok(/∟53-54 \d+-\d+/.test(cp.svg)||/∟\d+-\d+/.test(cp.svg),'水平：交互參照用「頁-行」');
+      ok(J.pages[0].svg.includes('舊 JIS 習慣畫法'),'封面圖例標明畫法');
+      const n=normalize({...JSON.parse(JSON.stringify(S)),schemStyle:{sym:'jis',dir:'x'}}).state;ok(n.schemStyle&&n.schemStyle.sym==='jis'&&n.schemStyle.dir==='v','畫法選項存檔（不合法的值改回預設）');
+      delete S.schemStyle;ok(schemBuild().pages.find(x=>/^控制回路/.test(x.title)).svg.match(/<line class="s-rail"[^>]*>/g).every(l=>/y1="(\S+)"[^>]*y2="\1"/.test(l)),'改回 IEC 垂直：電源線又是上下水平'); }
     // 專案名稱存檔
     { const n=normalize({...JSON.parse(JSON.stringify(S)),docTitle:'  測試專案  '}).state;ok(n.docTitle==='測試專案','標題欄專案名稱存在專案檔'); S.docTitle='測試專案';ok(schemBuild().pages[2].svg.includes('測試專案'),'標題欄顯示專案名稱'); }
     $('tabTool').click();ok($('schPrint')&&$('schPrev')&&$('schTitle'),'工具分頁有正式電路圖（專案名稱、預覽、列印）');

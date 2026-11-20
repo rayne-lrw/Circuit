@@ -9,6 +9,13 @@
    - 端子台表、線號表、材料表放在最後；每頁有欄號 1～10、列號 A～F 與標題欄，線圈下方列出接點在哪一頁哪一欄
    - schemVerify：把畫出來的圖反推回接點連接，和原本配線比對（測試用） */
 const SC={W:420,H:297,M:10,COLS:10,U:25,X0:34,X1:404,RT:42,RB:236};
+/* 畫法：sym＝'iec'（IEC 60617，現行 JIS C 0617 相同）或 'jis'（舊 JIS 習慣：線圈畫圓、指示燈圓圈內寫顏色字；接點維持 IEC）；
+   dir＝'v'（控制回路電源線上下、迴路垂直）或 'h'（日式橫書き：電源線左右、迴路水平、每行行號，交互參照用「頁-行」） */
+const SC_V={U:25,X0:34,X1:404,RT:42,RB:236},SC_H={U:21,X0:44,X1:252,RT:48,RB:370};
+let SCST={sym:'iec',dir:'v'};
+const scStyle=()=>{const o=S.schemStyle||{};return {sym:o.sym==='jis'?'jis':'iec',dir:o.dir==='h'?'h':'v'};};
+// 指示燈顏色字（舊 JIS 習慣）：從型號、名稱判斷
+const scLampLetter=d=>{const t=(d.tpl+' '+tplOf(d).n+' '+(d.model||'')).toLowerCase();return /紅|-r\b|red/.test(t)?'R':/綠|-g\b|green/.test(t)?'G':/黃|-y\b|amber|yellow/.test(t)?'Y':/白|-w\b|white/.test(t)?'W':/藍|-b\b|blue/.test(t)?'B':'L';};
 const SC_PH=['R','S','T','L1','L2','L3','L','N'];
 const scEsc=s=>esc(String(s==null?'':s));
 const scTrim=(s,n)=>{s=String(s||'');return s.length>n?s.slice(0,n-1)+'…':s;};
@@ -99,8 +106,8 @@ const SY={
   btn:(x,c)=>`<path d="M${x-1.6} ${c} H${x-6.5}" stroke-dasharray="1 .8"/><path d="M${x-6.5} ${c-1.6}V${c+1.6}"/>`,
   trip:(x,c)=>`<path d="M${x-1.6} ${c} H${x-4.5}" stroke-dasharray="1 .8"/><path d="M${x-4.5} ${c}v-1.3h-1.3v2.6h-1.3v-1.3"/>`,
   sensA:(x,c)=>`<path d="M${x-1.6} ${c} H${x-4.5}" stroke-dasharray="1 .8"/><path d="M${x-4.5} ${c}l-1.4 -1.4l-1.4 1.4l1.4 1.4z"/>`,
-  coil:(x,c)=>`<rect x="${x-4}" y="${c-2.6}" width="8" height="5.2" fill="#fff"/>`,
-  lamp:(x,c)=>`<circle cx="${x}" cy="${c}" r="3" fill="#fff"/><path d="M${x-2.1} ${c-2.1}l4.2 4.2M${x+2.1} ${c-2.1}l-4.2 4.2"/>`,
+  coil:(x,c)=>SCST.sym==='jis'?`<circle cx="${x}" cy="${c}" r="3.4" fill="#fff"/>`:`<rect x="${x-4}" y="${c-2.6}" width="8" height="5.2" fill="#fff"/>`,
+  lamp:(x,c,d)=>SCST.sym==='jis'?`<circle cx="${x}" cy="${c}" r="3.2" fill="#fff"/><text class="s-in" x="${x}" y="${c+1}" style="font-weight:700">${d?scLampLetter(d):'L'}</text>`:`<circle cx="${x}" cy="${c}" r="3" fill="#fff"/><path d="M${x-2.1} ${c-2.1}l4.2 4.2M${x+2.1} ${c-2.1}l-4.2 4.2"/>`,
   box:(x,c,t)=>`<rect x="${x-6.5}" y="${c-3.2}" width="13" height="6.4" fill="#fff"/><text class="s-in" x="${x}" y="${c+.9}">${scEsc(scTrim(t,5))}</text>`,
   plcx:(x,c,t)=>`<rect x="${x-5.5}" y="${c-3}" width="11" height="6" fill="#fff"/><text class="s-in" x="${x}" y="${c+.9}">${scEsc(scTrim(t,5))}</text>`,
   dot:(x,y)=>`<circle class="s-dot" cx="${x}" cy="${y}" r=".7"/>`,
@@ -138,12 +145,18 @@ function scLeafSvg(t,x,y,H,ctx){
   const [tTop,tBot]=t.rev?[e.tb,e.ta]:[e.ta,e.tb];
   if(e.k==='no'||e.k==='plcy')h+=SY.no(x,c);else if(e.k==='nc')h+=SY.nc(x,c);else if(e.k==='brk')h+=SY.brk(x,c);else if(e.k==='fuse')h+=SY.fuse(x,c);
   else if(e.k==='sens')h+=SY.no(x,c)+SY.sensA(x,c);else if(e.k==='coil')h+=SY.coil(x,c);else if(e.k==='plcx')h+=SY.plcx(x,c,ptName(e));
-  else if(scLamp(e))h+=SY.lamp(x,c);else h+=SY.box(x,c,e.name);
+  else if(scLamp(e))h+=SY.lamp(x,c,d);else h+=SY.box(x,c,e.name);
   if((e.k==='no'||e.k==='nc')&&(e.by==='btn'||e.by==='op'))h+=SY.btn(x,c);else if((e.k==='no'||e.k==='nc')&&e.by==='trip')h+=SY.trip(x,c);
   if(!['coil','plcx','load','pwr'].includes(e.k)||e.k==='coil'){h+=SY.line(x,c-4,c-3)+SY.line(x,c+3,c+4);}
   // 文字：器具編號（接點標示動作來源）、說明、接點號
   const actDev=devOf(String(e.act).split('#')[0]),own=d.tag,tag=e.ctl&&actDev&&actDev!==d&&['coil','host','hostbrk','hosttrip','hostel','op'].includes(e.by)?`${actDev.tag}`:own;
   const sub=tag!==own?own:e.k==='plcy'?ptName(e):e.k==='plcx'?'':scTrim(scDevName(d),7);
+  if(SCST.inH){ // 水平：轉置後 x 是沿線方向、y 是線的下方
+    h+=`<text class="s-tag" x="${x+4.8}" y="${c}" style="text-anchor:middle${tag.length>6?`;font-size:${Math.max(2,3.2*6/tag.length)}px`:''}">${scEsc(tag)}${t.dup?'＊':''}</text>${sub?`<text class="s-sub" x="${x+7.6}" y="${c}" style="text-anchor:middle">${scEsc(sub)}</text>`:''}`;
+    h+=`<text class="s-term" x="${x-1}" y="${c-4.4}">${scEsc(scTrim(termLabel(d,tTop)||tTop,6))}</text><text class="s-term" x="${x-1}" y="${c+4.4}" style="text-anchor:start">${scEsc(scTrim(termLabel(d,tBot)||tBot,6))}</text>`;
+    ctx.put({e,x,y:c});
+    if(e.k==='coil')h+=`<text class="s-xref" x="${x-1.4}" y="${SC.RB+2.5}">\u0001H:${scEsc(e.act)}\u0001</text>`; // 右側電源線外：精簡的接點位置
+    return h;}
   h+=`<text class="s-tag" x="${x+5}" y="${c-.4}"${tag.length>6?` style="font-size:${Math.max(2,3.2*6/tag.length)}px"`:''}>${scEsc(tag)}${t.dup?'＊':''}</text><text class="s-sub" x="${x+5}" y="${c+3.2}">${scEsc(sub)}</text>`;
   h+=`<text class="s-term" x="${x-1}" y="${c-4.6}">${scEsc(scTrim(termLabel(d,tTop)||tTop,6))}</text><text class="s-term" x="${x-1}" y="${c+6.8}">${scEsc(scTrim(termLabel(d,tBot)||tBot,6))}</text>`;
   ctx.put({e,x,y:c});
@@ -151,6 +164,20 @@ function scLeafSvg(t,x,y,H,ctx){
   return h;}
 const ptName=e=>{const g=typeof cnSig==='function'?cnSig(e.d,e.pt):e.pt,P=e.k==='plcy'?'Y':'X',alt=/^\d+$/.test(g)?P+g:null;
   return (typeof qName==='function'&&qName(e.d,g))||(typeof chainName==='function'&&(chainName(e.d,g)||(alt&&chainName(e.d,alt))))||termLabel(e.d,e.pt)||g;};
+
+/* 水平畫法：控制回路照垂直的版面算好，再把座標對調（x↔y）：電源線變成左右兩條、迴路變成橫的；
+   符號跟著轉 90°（接點刀片、按鈕操作線都在線的上方），文字不轉 */
+function scTranspose(svg){
+  const sw={x:'y',y:'x',x1:'y1',y1:'x1',x2:'y2',y2:'x2',cx:'cy',cy:'cx',width:'height',height:'width'};
+  const swapD=d=>{const tk=d.match(/[MLHVmlhvZz]|-?\d*\.?\d+(?:e-?\d+)?/g)||[];let out='',cmd='',buf=[];
+    const flush=()=>{if(!cmd)return;const C=cmd;if('MLml'.includes(C)){for(let i=0;i+1<buf.length;i+=2)out+=(i?' ':C)+buf[i+1]+' '+buf[i];}
+      else if('Hh'.includes(C))out+=(C==='H'?'V':'v')+buf.join(' ');else if('Vv'.includes(C))out+=(C==='V'?'H':'h')+buf.join(' ');else out+=C;buf=[];};
+    tk.forEach(t=>{if(/[A-Za-z]/.test(t)){flush();cmd=t;if('Zz'.includes(t)){out+=t;cmd='';}}else buf.push(t);});flush();return out;};
+  return svg.replace(/<(line|rect|circle|text|path|tspan)\b([^>]*)>/g,(m,tag,attrs)=>{
+    let a=attrs.replace(/\b(x1|y1|x2|y2|cx|cy|x|y|width|height)="([^"]*)"/g,(q,k,v)=>`${sw[k]}="${v}"`);
+    if(tag==='path')a=a.replace(/\bd="([^"]*)"/,(q,d)=>`d="${swapD(d)}"`);
+    a=a.replace(/transform="translate\(([-\d.]+) ([-\d.]+)\)( rotate\(90\))?"/,(q,x,y,r)=>`transform="translate(${y} ${x})${r?'':''}"`);
+    return `<${tag}${a}>`;});}
 
 /* ---------- 5. 頁面 ---------- */
 // 圖框：外框、欄號 1～10、列號 A～F、標題欄（專案、圖名、日期、頁次）
@@ -317,7 +344,8 @@ function scCtrlPages(M,pages,newPage){
         if(pre.length)seg.items.push({t:mk(pre),botLbl:nmA});if(suf.length)seg.items.push({t:mk(suf),topLbl:nmB});
         const ns={top:nmA,bot:nmB,items:[]};segs.push(ns);place(ns,t.c[i]);return;}
       seg.items.push({t});};
-    const s0={top:`${v} ＋`,bot:`${v} −`,items:[]};segs.push(s0);place(s0,tree);
+    // 電源線名稱用那一點實際的線號（沒有線號才寫電壓），旁邊小字註明是哪台電源的哪個端子
+    const s0={top:M.netName(G.p)||`${v} ＋`,bot:M.netName(G.n)||`${v} −`,topSub:G.srcs.map(q=>`${q.d.tag} ${termLabel(q.d,q.e.p)}`).join('、'),botSub:G.srcs.map(q=>`${q.d.tag} ${termLabel(q.d,q.e.n)}`).join('、'),items:[]};segs.push(s0);place(s0,tree);
     const all=[];segs.forEach((sg,si)=>sg.items.forEach(it=>all.push({...it,seg:sg})));
     const total=all.reduce((a,it)=>a+scWidth(it.t),0)*SC.U;
     // 整段放得進這一頁剩下的空間就接著放（中間空一格），否則換新頁
@@ -330,9 +358,10 @@ function scCtrlPages(M,pages,newPage){
   });
   ctrlPgs.forEach(pg=>{pg.title=`控制回路 ${pg.secs.map(s=>`${s.v}（${s.tags}）`).join('、')}`;let h='';
     pg.spans.forEach(sp=>{const sg=sp.seg,xa=sp.x0-5,xb=sp.x1+7,ctx={LH:sp.LH,M,put:o=>pg.pos.push(o)};
-      if(sp.newSec)h+=`<text class="s-sec" x="${xa}" y="${SC.RT-13}">${scEsc(sp.sec.v)}　電源 ${scEsc(sp.sec.tags)}${sp.head}</text>`;
+      if(sp.newSec)h+=SCST.inH?`<text class="s-sec" x="${xa-7}" y="${SC.RT-12}">${scEsc(sp.sec.v)}　電源 ${scEsc(sp.sec.tags)}${sp.head}</text>`:`<text class="s-sec" x="${xa}" y="${SC.RT-13}">${scEsc(sp.sec.v)}　電源 ${scEsc(sp.sec.tags)}${sp.head}</text>`;
       h+=`<line class="s-rail" x1="${xa}" y1="${SC.RT}" x2="${xb}" y2="${SC.RT}"/><line class="s-rail" x1="${xa}" y1="${SC.RB}" x2="${xb}" y2="${SC.RB}"/>`;
-      h+=`<text class="s-railn" x="${xa}" y="${SC.RT-2.2}">${scEsc(sg.top)}</text><text class="s-railn" x="${xa}" y="${SC.RB+4.6}">${scEsc(sg.bot)}</text>`;
+      h+=`<text class="s-railn" x="${xa}" y="${SC.RT-2.2}">${scEsc(sg.top)}${sg.topSub?`<tspan class="s-sub" dx="1.5">（${scEsc(sg.topSub)}）</tspan>`:''}</text><text class="s-railn" x="${xa}" y="${SCST.inH?SC.RB-1.2:SC.RB+4.6}"${SCST.inH?' style="text-anchor:end"':''}>${scEsc(sg.bot)}${sg.botSub?`<tspan class="s-sub" dx="1.5">（${scEsc(sg.botSub)}）</tspan>`:''}</text>`;
+      if(SCST.dir==='h'){let r=Math.round((sp.x0-SC.X0)/SC.U);sp.items.forEach(it=>{const w=scWidth(it.t);for(let k=0;k<w;k++)h+=`<text class="s-ln" x="${it.x+k*SC.U+1}" y="${SC.RT-9}">${Math.round((it.x-SC.X0)/SC.U)+k+1}</text>`;});}
       sp.items.forEach(it=>{const sz=scSize(it.t,sp.LH);let y=SC.RT,H=SC.RB-SC.RT;
         if(it.topLbl){h+=`<text class="s-pot" x="${it.x}" y="${SC.RT+5.5}">↓ ${scEsc(it.topLbl)}</text>`;y=SC.RT+8;H-=8;}
         else h+=SY.dot(it.x,SC.RT);
@@ -363,7 +392,7 @@ function scPlcPages(M,pages,newPage){
       const nb=(byNode.get(k)||[]).filter(q=>q!==e&&!(q.d===d&&q.k===kind)).sort((a,b)=>(a.load===(kind==='plcy')?-1:1)-(b.load===(kind==='plcy')?-1:1));
       const f0=nb[0];
       if(f0){const c=yo+28,g=f0.k;h+=SY.line(x,yo+12,c-4)+SY.line(x,c+4,yo+42);
-        h+=g==='coil'?SY.coil(x,c):g==='nc'?SY.nc(x,c):g==='sens'?SY.no(x,c)+SY.sensA(x,c):g==='no'||g==='brk'||g==='plcy'?SY.no(x,c):scLamp(f0)?SY.lamp(x,c):SY.box(x,c,f0.name||'');
+        h+=g==='coil'?SY.coil(x,c):g==='nc'?SY.nc(x,c):g==='sens'?SY.no(x,c)+SY.sensA(x,c):g==='no'||g==='brk'||g==='plcy'?SY.no(x,c):scLamp(f0)?SY.lamp(x,c,f0.d):SY.box(x,c,f0.name||'');
         if(['no','nc','sens','brk','plcy'].includes(g))h+=SY.line(x,c-4,c-3)+SY.line(x,c+3,c+4);
         if((g==='no'||g==='nc')&&(f0.by==='btn'||f0.by==='op'))h+=SY.btn(x,c);
         const ad=devOf(String(f0.act).split('#')[0]),tg=f0.ctl&&ad&&ad!==f0.d&&['coil','host','op'].includes(f0.by)?ad.tag:f0.d.tag;
@@ -393,12 +422,16 @@ function scPackTables(newPage,title,secs,per=34){
 
 /* ---------- 10. 組合全部頁面 ---------- */
 function schemBuild(){
+  SCST=scStyle();
   const M=schemModel(),pages=[];let no=0;
   const d=new Date(),p2=n=>String(n).padStart(2,'0'),meta={date:`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`,title:S.docTitle||'（未命名專案）',ver:($('ver')&&$('ver').textContent)||''};
   const newPage=(title,kind,src)=>{const pg={no:++no,title,kind,src,pos:[],body:'',html:''};pages.push(pg);return pg;};
   const cover=newPage('封面與圖例','cover'),index=newPage('圖面目錄','index');
   scMainPages(M,pages,newPage,meta);
-  const used=scCtrlPages(M,pages,newPage);
+  if(SCST.dir==='h'){Object.assign(SC,SC_H);SCST.inH=true;}
+  const nCtrl0=pages.length;let used;
+  try{used=scCtrlPages(M,pages,newPage);}finally{Object.assign(SC,SC_V);SCST.inH=false;}
+  if(SCST.dir==='h')pages.slice(nCtrl0).filter(pg=>pg.kind==='ctrl').forEach(pg=>{pg.horiz={X0:SC_H.X0,U:SC_H.U};pg.body=scTranspose(pg.body).replace(/↓/g,'→');});
   scPlcPages(M,pages,newPage);
   scPackTables(newPage,'端子台',tbTables().map(t=>({t:t.d.tag,head:['片／端子','接線（點：線號 → 對端）'],rows:[...t.rows,...(t.jump.length?[['短路片',t.jump.join('、')]]:[])]})));
   scTablePages(newPage,'線號表',['線號','線徑','線色','起點','終點'],[...S.wires].sort((a,b)=>natCmp(a.no,b.no)).map(w=>[w.no,w.gauge,colorOf(w).n,epShort(w.a),epShort(w.b)]));
@@ -407,30 +440,33 @@ function schemBuild(){
   const cnt=k=>pages.filter(p=>p.kind===k).length;
   cover.body=`<text class="s-big" x="${SC.W/2}" y="70">電路圖</text><text class="s-big2" x="${SC.W/2}" y="84">${scEsc(meta.title)}</text>
     <text class="s-cv" x="${SC.W/2}" y="96">${scEsc(meta.date)}　${S.devices.length} 器具　${S.wires.length} 條線　共 \u0001N\u0001 頁</text>
-    <text class="s-cv" x="${SC.W/2}" y="104">由盤面配線模擬器依配線資料自動產生；符號照 IEC 60617。器具接點、規格請以原廠資料與實物為準。</text>`+scLegend(60,130);
+    <text class="s-cv" x="${SC.W/2}" y="104">由盤面配線模擬器依配線資料自動產生；${SCST.sym==='jis'?'符號：舊 JIS 習慣畫法（線圈畫圓、指示燈圓圈內寫顏色字，接點與 IEC 相同）':'符號照 IEC 60617（與現行 JIS C 0617 相同）'}${SCST.dir==='h'?'；控制回路橫向展開（電源線在左右，迴路水平，左側為行號）':''}。器具接點、規格請以原廠資料與實物為準。</text>`+scLegend(60,130);
   // 圖面目錄
   const rows=pages.map(p=>[p.no,p.title]);index.html=`<table class="s-table s-idx"><thead><tr><th>頁</th><th>圖名</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${scEsc(r[1])}</td></tr>`).join('')}</tbody></table>`;
   // 未畫進控制回路、也不在主回路的有接線負載（例如接到沒有動作資料的器具），列在目錄頁
   const noSim=S.devices.filter(x=>!hasSim(x)&&S.wires.some(w=>w.a.d===x.id||w.b.d===x.id)&&!isTB(x)).map(x=>x.tag);
   if(noSim.length)index.html+=`<p class="s-note">沒有動作資料、電路圖只出現在端子台表與線號表的器具：${scEsc(noSim.join('、'))}</p>`;
   // 交互參照：線圈下方列出接點在哪一頁哪一欄；電源供應器輸出接到哪一頁
-  const loc=new Map();pages.forEach(pg=>pg.pos.forEach(o=>{if(!o.e)return;const k=o.e.act;if(!loc.has(k))loc.set(k,[]);loc.get(k).push({o,s:`${pg.no}.${scCol(o.x)}`});}));
+  const loc=new Map();pages.forEach(pg=>pg.pos.forEach(o=>{if(!o.e)return;const k=o.e.act;if(!loc.has(k))loc.set(k,[]);loc.get(k).push({o,s:pg.horiz?`${pg.no}-${Math.round((o.x-pg.horiz.X0)/pg.horiz.U)+1}`:`${pg.no}.${scCol(o.x)}`});}));
   const xref=act=>{const L=(loc.get(act)||[]).filter(x=>x.o.e.ctl&&['no','nc'].includes(x.o.e.k)).map(x=>`${x.o.e.k==='nc'?'⊥':'∟'}${termLabel(x.o.e.d,x.o.e.ta)}-${termLabel(x.o.e.d,x.o.e.tb)} ${x.s}`);
     return L.slice(0,4).map((t,i)=>`<tspan x="0" dy="${i?2.7:0}">${scEsc(t)}</tspan>`).join('')+(L.length>4?`<tspan x="0" dy="2.7">…等 ${L.length} 個</tspan>`:'');};
   const srcPage=id=>{const pg=pages.find(p=>p.kind==='ctrl'&&(p.src||[]).includes(id));return pg?pg.no:'—';};
-  const fill=s=>s.replace(/<text class="s-xref" x="([\d.]+)" y="([\d.]+)">\u0001C:([^\u0001]*)\u0001<\/text>/g,(m,x,y,a)=>`<text class="s-xref" transform="translate(${x} ${y})">${xref(a.replace(/&amp;/g,'&'))}</text>`)
+  const xrefH=act=>{const L=(loc.get(act)||[]).filter(x=>x.o.e.ctl&&['no','nc'].includes(x.o.e.k)).map(x=>`${x.o.e.k==='nc'?'⊥':'∟'}${x.s}`);
+    const rows=[];for(let i=0;i<L.length&&rows.length<3;i+=3)rows.push(L.slice(i,i+3).join(' '));if(L.length>9)rows[2]+=' …';
+    return rows.map((t,i)=>`<tspan x="0" dy="${i?2.6:0}">${scEsc(t)}</tspan>`).join('');};
+  const fill=s=>s.replace(/<text class="s-xref" y="([\d.]+)" x="([\d.]+)">\u0001H:([^\u0001]*)\u0001<\/text>/g,(m,y,x,a)=>`<text class="s-xref" transform="translate(${x} ${y})">${xrefH(a.replace(/&amp;/g,'&'))}</text>`).replace(/<text class="s-xref" y="([\d.]+)" x="([\d.]+)">/g,'<text class="s-xref" x="$2" y="$1">').replace(/<text class="s-xref" x="([\d.]+)" y="([\d.]+)">\u0001C:([^\u0001]*)\u0001<\/text>/g,(m,x,y,a)=>`<text class="s-xref" transform="translate(${x} ${y})">${xref(a.replace(/&amp;/g,'&'))}</text>`)
     .replace(/\u0001S:([^\u0001]*)\u0001/g,(m,id)=>{const n=srcPage(id);return n==='—'?'（沒有接負載）':` → 第 ${n} 頁`;}).replace(/\u0001T:([^\u0001]*)\u0001/g,(m,id)=>{const g=(M.contPage||{})[id.replace(/&gt;/g,'>').replace(/&amp;/g,'&')];return g&&g.pg?g.pg.no:'—';}).replace(/\u0001M:([^\u0001]*)\u0001/g,(m,id)=>{const k=id.replace(/&gt;/g,'>').replace(/&amp;/g,'&');const pg=pages.find(p=>p.pos.some(o=>o.node===k));return pg?pg.no:'—';}).replace(/\u0001P:(\d+)\u0001/g,'$1').replace(/\u0001N\u0001/g,String(pages.length));
   return {M,pages:pages.map(pg=>({...pg,svg:fill(`<svg class="s-svg" viewBox="0 0 ${SC.W} ${SC.H}" xmlns="http://www.w3.org/2000/svg">${scFrame(pg,meta)}<text class="s-ptitle" x="${SC.M+8}" y="${SC.M+13}">${scEsc(pg.title)}</text>${pg.body}</svg>`),html:fill(pg.html||'')})),used,meta};
 }
 // 圖例
 function scLegend(x,y){const L=[['no','常開接點'],['nc','常閉接點'],['brk','斷路器'],['fuse','保險絲'],['btn','按鈕（手動）'],['trip','熱動（積熱電驛）'],['sens','感測器輸出'],['coil','線圈'],['lamp','指示燈'],['box','負載／器具電源'],['plcx','PLC 輸入']];
-  let h=`<text class="s-sec" x="${x}" y="${y-8}">圖例（IEC 60617）</text>`;
+  let h=`<text class="s-sec" x="${x}" y="${y-8}">圖例（${SCST.sym==='jis'?'舊 JIS 習慣畫法':'IEC 60617'}）</text>`;
   L.forEach(([k,t],i)=>{const xx=x+i*28,c=y+8;h+=SY.line(xx,y,c-4)+SY.line(xx,c+4,y+16);
     h+=k==='btn'?SY.no(xx,c)+SY.btn(xx,c):k==='trip'?SY.nc(xx,c)+SY.trip(xx,c):k==='sens'?SY.no(xx,c)+SY.sensA(xx,c):k==='box'?SY.box(xx,c,'負載'):k==='plcx'?SY.plcx(xx,c,'X0'):SY[k](xx,c);
     if(['no','nc','brk','btn','trip','sens'].includes(k))h+=SY.line(xx,c-4,c-3)+SY.line(xx,c+3,c+4);
     h+=`<text class="s-sub" x="${xx-7}" y="${y+23}">${t}</text>`;});
   h+=`<text class="s-sub" x="${x}" y="${y+36}">接點旁的大字是器具編號（輔助接點、裝在操作部上的接點塊標示帶動它的器具）；左邊小字是端子號；線上的小字是線號。</text>
-    <text class="s-sub" x="${x}" y="${y+41}">線圈下方列出它的接點在第幾頁第幾欄（∟ 常開、⊥ 常閉）；頁面上下的 1～10 是欄號、左右的 A～F 是列號。＊ 表示同一個接點因為迴路無法化簡而出現在多處。</text>`;
+    <text class="s-sub" x="${x}" y="${y+41}">線圈下方列出它的接點在${SCST.dir==='h'?'第幾頁第幾行（控制回路）或第幾頁第幾欄':'第幾頁第幾欄'}（∟ 常開、⊥ 常閉）；頁面上下的 1～10 是欄號、左右的 A～F 是列號。＊ 表示同一個接點因為迴路無法化簡而出現在多處。</text>`;
   return h;}
 function schemPrintHtml(){const B=schemBuild();return B.pages.map(pg=>`<section class="pg sch"><div class="sch-pg">${pg.svg}${pg.html?`<div class="sch-body">${pg.html}</div>`:''}</div></section>`).join('');}
 
@@ -452,9 +488,14 @@ function schemVerify(B){
 function schemSectionHtml(){
   return `<div class="bom-h">正式電路圖</div><p class="note">依配線自動產生 A3 橫式電路圖（IEC 60617 符號）：封面與圖例、目錄、主回路、控制回路（每個 DC 電源一段展開圖）、PLC 輸入輸出、端子台表、線號表、材料表。每頁有欄號、列號與標題欄，線圈下方列出接點在哪一頁哪一欄。列印時選「另存為 PDF」，紙張 A3 橫式。</p>
     <label class="sch-ttl">標題欄的專案名稱<input id="schTitle" maxlength="60" placeholder="（未命名專案）" value="${esc(S.docTitle||'')}"></label>
+    ${(()=>{const st=scStyle();return `<div class="sch-opt"><label>符號<select id="schSym"><option value="iec"${st.sym==='iec'?' selected':''}>IEC（現行 JIS 相同）</option><option value="jis"${st.sym==='jis'?' selected':''}>舊 JIS 習慣（線圈畫圓、燈寫顏色字）</option></select></label>
+      <label>控制回路方向<select id="schDir"><option value="v"${st.dir==='v'?' selected':''}>垂直（電源線在上下）</option><option value="h"${st.dir==='h'?' selected':''}>水平（電源線在左右，有行號）</option></select></label></div>
+      <p class="note">舊 JIS 只改目前查得到、確定的部分：線圈畫圓、指示燈圓圈內寫顏色字（R、G、Y…，依型號或名稱判斷，判斷不出寫 L）；接點、按鈕、熱動接點的舊式細部畫法沒有可靠資料，維持 IEC。</p>`;})()}
     <div class="row" style="justify-content:flex-start"><button class="tool" id="schPrev">預覽</button><button class="tool" id="schPrint">列印電路圖（PDF）</button></div>`;}
 function schemSectionBind(){
   const t=$('schTitle');if(t)t.onchange=()=>{const v=t.value.trim().slice(0,60);if(v)S.docTitle=v;else delete S.docTitle;commit();};
+  const so=()=>{const st={sym:$('schSym').value,dir:$('schDir').value};if(st.sym==='iec'&&st.dir==='v')delete S.schemStyle;else S.schemStyle=st;commit();};
+  ['schSym','schDir'].forEach(id=>{const el=$(id);if(el)el.onchange=so;});
   const p=$('schPrint');if(p)p.onclick=()=>toolPrint('schem');
   const v=$('schPrev');if(v)v.onclick=schemPreview;}
 function schemPreview(){

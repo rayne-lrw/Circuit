@@ -571,11 +571,13 @@ main.lc.wl{grid-template-columns:40px minmax(0,1fr) var(--wideW,640px) 320px}
 .s-netv{font-size:2px;font-style:italic}
 .s-xref,.s-xr2{font-size:2.1px}
 .s-in{font-size:2.3px;text-anchor:middle}
+.s-ln{font-size:2.6px;text-anchor:end;fill:#555!important}
 .s-pot{font-size:2.5px;text-anchor:middle;font-weight:700}
 .s-big{font-size:12px;font-weight:700;text-anchor:middle}.s-big2{font-size:6px;text-anchor:middle}.s-cv{font-size:3px;text-anchor:middle}
 .sch-body{position:absolute;left:22mm;top:28mm;width:376mm;font-size:2.9mm;color:#000}
 .s-table{border-collapse:collapse;width:100%}.s-table th,.s-table td{border:.2mm solid #555;padding:.6mm 1.2mm;text-align:left;vertical-align:top}.s-table th{background:#eee}
 .s-idx{width:60%}.s-note{font-size:2.6mm;margin-top:3mm}.s-th{font-size:3.4mm;margin:2.5mm 0 1mm}.s-th:first-child{margin-top:0}
+.sch-opt{display:flex;flex-wrap:wrap;gap:8px;font-size:12px;margin:4px 0}.sch-opt label{display:flex;flex-direction:column;gap:3px}
 .sch-ttl{display:flex;flex-direction:column;gap:3px;font-size:12px;margin:4px 0}
 #schPrevBox{position:fixed;inset:0;z-index:300;background:rgba(40,44,44,.92);display:flex;flex-direction:column}
 #schPrevBox[hidden]{display:none}
