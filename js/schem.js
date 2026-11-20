@@ -68,7 +68,7 @@ function schemModel(){
   const wiredNode=new Set();S.wires.forEach(w=>{const wk=wireKeys.get(w.id);if(wk)wk.keys.forEach(k=>wiredNode.add(f(k)));(wk&&wk.pairs||[]).forEach(([a,b])=>{wiredNode.add(f(a));wiredNode.add(f(b));});});
   // 節點名稱：接在這一點的線最常用的線號
   const cnt=new Map();S.wires.forEach(w=>{const wk=wireKeys.get(w.id);if(!wk)return;const ks=new Set();wk.pairs.forEach(([a,b])=>{ks.add(f(a));ks.add(f(b));});wk.keys.forEach(k=>ks.add(f(k)));
-    ks.forEach(k=>{if(!cnt.has(k))cnt.set(k,new Map());const m=cnt.get(k);m.set(w.no,(m.get(w.no)||0)+1);});});
+    const wt=wk.pairs&&wk.pairs.length>1?.4:1; /* 排線（一條線很多針）的線號比單線不優先 */ks.forEach(k=>{if(!cnt.has(k))cnt.set(k,new Map());const m=cnt.get(k);m.set(w.no,(m.get(w.no)||0)+wt);});});
   const netName=k=>{const m=cnt.get(k);if(!m)return '';return [...m.entries()].sort((a,b)=>b[1]-a[1]||natCmp(a[0],b[0]))[0][0];};
   // 相別：從 AC 電源沿著接點傳下去
   const phase=new Map(),adj=new Map(),link=(x,e)=>{if(!adj.has(x))adj.set(x,[]);adj.get(x).push(e);};

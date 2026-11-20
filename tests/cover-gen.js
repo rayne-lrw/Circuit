@@ -139,5 +139,31 @@ function coverCases(kind){
     const covered=new Set(out.flatMap(c=>[c.tpl,c.att].filter(Boolean)));
     out.untestable=ks.filter(k=>!covered.has(k));
   }
+  if(kind==='tb'){ // 端子台、接地排、牛角轉接座：當中繼，線經過它圖不能斷，並列在端子台頁
+    const ks=Object.keys(TPL).filter(k=>tplOf({tpl:k}).cat==='端子台／接地');
+    const groupsOf=k=>{const SS=S;S=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:860,h:660},door:{w:900,h:700},ducts:[],glands:[],wires:[],devices:[{id:'T',tag:'T',tpl:k,x:10,y:10,sheet:'plate'}]}).state;
+      let r;const sv=SIMST;try{SIMST=null;simReset();SIMST.all=true;r=simRun();}finally{SIMST=sv;}const T=(tplOf(S.devices[0]).terms||[]).filter(t=>!/^CN\d$/.test(t.id));const g={};
+      T.forEach(t=>{const n=r.topo.node(nodeKey({d:'T',t:t.id}));(g[n]=g[n]||[]).push(t.id);});const cn=(tplOf(S.devices[0]).terms||[]).filter(t=>/^CN\d$/.test(t.id)).map(t=>t.id);S=SS;return {G:Object.values(g),cn};};
+    const base=()=>{const C=mk(),{D,W}=C;D('PWR','field-power','field');D('Q0','fuji-bw50');['R','S','T'].forEach((p,i)=>W('PWR',p,'Q0',String(i*2+1)));
+      D('F1','ic60-1P2A');W('Q0','2','F1','1');D('PS','drl120');W('F1','2','PS','L');W('Q0','4','PS','N');return C;};
+    const io=(G,i)=>{const g=G[i%G.length];return [g[0],g[1]||g[0]];}; // 一組有兩個端子：進出各一；只有一個：兩條線接同一個端子
+    ks.forEach(k=>{const {G,cn}=groupsOf(k);if(!G.length)return;
+      [1,2,3].forEach(combo=>{const C=base(),{D,W}=C;const dut=D('DUT',k,'plate',tplOf({tpl:k}).cnt?{cnt:Math.min(tplOf({tpl:k}).cnt,8)}:{});
+        if(cn.length&&combo!==3){ // 牛角座：兩台用排線對接，一台接按鈕、另一台接燈
+          const d2=D('DUT2',k,'plate',{});W(dut,cn[0],d2,cn[cn.length-1]);
+          const ac=combo===2;let fu=null;if(ac){fu=D('FU','tend-tfbr-321');W('Q0','2',fu,'1');}const P=ac?[fu,'2']:['PS','+V1'],N=ac?['Q0','4']:['PS','-V1'];
+          G.slice(0,3).forEach((g,i)=>{const sb=D('SB'+i,'py2201-g','door'),hl=D('HL'+i,'yw1l-g','door');W(P[0],P[1],sb,'3');W(sb,'4',dut,g[0]);W(d2,g[0],hl,'X1');W(hl,'X2',N[0],N[1]);});}
+        else if(combo===2&&G.length>=3&&G.slice(0,3).every(g=>g.length>=2)){ // 主回路經過端子台到馬達
+          D('KM','lc1d18');D('M1','motor3','field');['2','4','6'].forEach((t,i)=>{W('Q0',t,'KM','L'+(i+1));const [a,b]=io(G,i);W('KM','T'+(i+1),dut,a);W(dut,b,'M1','UVW'[i]);});
+          D('SB','py2201-g','door');W('PS','+V1','SB','3');W('SB','4','KM','A1');W('KM','A2','PS','-V1');}
+        else{ // 控制回路經過端子台：＋→端子→按鈕→端子→燈→端子→－
+          const ac=combo===2;let fu=null;if(ac){fu=D('FU','tend-tfbr-321');W('Q0','2',fu,'1');}const P=ac?[fu,'2']:['PS','+V1'],N=ac?['Q0','4']:['PS','-V1'];
+          const g0=io(G,0),g1=io(G,1),g2=io(G,2);D('SB','py2201-g','door');D('HL','yw1l-g','door');
+          W(P[0],P[1],dut,g0[0]);W(dut,g0[1],'SB','3');
+          if(G.length>1){W('SB','4',dut,g1[0]);W(dut,g1[1],'HL','X1');}else W('SB','4','HL','X1');
+          if(G.length>2){W('HL','X2',dut,g2[0]);W(dut,g2[1],N[0],N[1]);}else W('HL','X2',N[0],N[1]);}
+        out.push({tpl:k,k:combo,name:`${k} 組合${combo}`,devs:C.devs,ws:C.ws,dut,tbPage:true});});});
+    const covered=new Set(out.map(c=>c.tpl));out.untestable=ks.filter(k=>!covered.has(k));
+  }
   return out;}
 if(typeof module!=='undefined')module.exports={coverCases};
