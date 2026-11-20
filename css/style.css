@@ -557,6 +557,7 @@ main.lc.wl{grid-template-columns:40px minmax(0,1fr) var(--wideW,640px) 320px}
 .s-svg .s-tb{fill:none;stroke-width:.35}.s-svg .s-tbl{stroke-width:.2}
 .s-svg .s-dev{fill:none;stroke-width:.3}
 .s-svg .s-dot{fill:#000;stroke:none}
+.s-svg .s-grp{fill:none;stroke-dasharray:1.6 1;stroke-width:.25}
 .s-svg .s-rail,.s-svg .s-bus{stroke-width:.5}
 .s-svg .s-mech{stroke-dasharray:1 .8;stroke-width:.2}
 .s-gl{font-size:3px;text-anchor:middle}

@@ -43,13 +43,19 @@ const userFile=process.argv[2];
     ok(/SB2[\s\S]*SB1|SB1[\s\S]*SB2/.test(ctrl.svg)&&/KA/.test(ctrl.svg)&&/>X0</.test(ctrl.svg),'控制回路含按鈕、繼電器線圈、PLC 輸入 X0');
     const main=B.pages.find(x=>/^主回路/.test(x.title));
     ok(main.svg.includes('>PS<')&&new RegExp(`24V 輸出 → 第 ${B.pages.indexOf(ctrl)+1} 頁`).test(main.svg),'主回路：電源供應器標出 24V 輸出在控制回路第幾頁');
-    ok(/>Q1</.test(main.svg)&&/>LP</.test(main.svg),'主回路：Q1 斷路器、AC 燈（KA 接點控制）都畫出來');
+    ok(/>Q1</.test(main.svg)&&/>LP[　<]/.test(main.svg),'主回路：Q1 斷路器、AC 燈（KA 接點控制）都畫出來');
     { // 每一層的分支照編號排，不照用電器具或接線先後
       build([D('F9','ic60-1P2A',200,40),D('F3','ic60-1P2A',220,40),D('LA','lamp',500,-300,'field'),D('LB','lamp',560,-300,'field')],W=>{W('Q1','2','F9','1');W('F9','2','LA','L/+');W('LA','N/−','Q1','4');W('Q1','2','F3','1');W('F3','2','LB','L/+');W('LB','N/−','Q1','4');});
       const sv=schemBuild().pages.find(x=>/^主回路/.test(x.title)).svg,i3=sv.indexOf('>F3<'),i9=sv.indexOf('>F9<'),xa=+/x="([\d.]+)"[^>]*>F3</.exec(sv)[1],xb=+/x="([\d.]+)"[^>]*>F9</.exec(sv)[1];
       ok(i3>0&&i9>0&&xa<xb,`主回路分支照開關編號排（F3 在 F9 左邊，即使 F9 接的燈編號在前）`); build(); B=schemBuild(); }
     // 線圈、負載一律靠下：KM 線圈在下方電源線附近
     { const pos=ctrl.pos.find(o=>o.e&&o.e.k==='coil'&&o.e.d.tag==='KM');ok(pos&&pos.y>SC.RB-25,`線圈靠下對齊（KM 線圈 y=${pos&&Math.round(pos.y)}，下方電源線 ${SC.RB}）`); }
+    // 三線式感測器：電源（棕－藍）和輸出（棕→黑）排在相鄰兩欄，用虛線框起來
+    { const P=ctrl.pos.filter(o=>o.e&&o.e.d.tag==='PX'),pw=P.find(o=>o.e.sensPwr),out=P.find(o=>o.e.k==='sens');
+      ok(pw&&out&&Math.abs(pw.x-out.x)<=SC.U+.1&&Math.abs(pw.y-out.y)<1&&/class="s-grp"/.test(ctrl.svg),'三線式感測器 PX：電源（棕－藍）與輸出（棕→黑）並排在相鄰兩欄，用虛線框起來'); }
+    // 器具名稱完整顯示（放不下換行，不截斷）
+    { const doc=new DOMParser().parseFromString(ctrl.svg,'image/svg+xml'),all=[...doc.querySelectorAll('text')].map(t=>t.textContent.replace(/\s/g,'')).join('|');
+      ok(all.includes(tplOf(devOf('KA')).n.replace(/\s/g,''))&&!/…/.test([...doc.querySelectorAll('text.s-sub')].map(t=>t.textContent).join('')),'控制回路器具名稱完整顯示（KA：'+tplOf(devOf('KA')).n+'），沒有截斷'+([...doc.querySelectorAll('text.s-sub')].map(t=>t.textContent).filter(t=>/…/.test(t)).join('；')||'')); }
     const plcIn=B.pages.find(x=>/PLC 輸入/.test(x.title));ok(/>PX</.test(plcIn.svg)&&/>X0</.test(plcIn.svg),'PLC 輸入頁：X0 接 PX 感測器');
     const html=schemPrintHtml();ok((html.match(/class="pg sch"/g)||[]).length===B.pages.length,'列印 HTML：每頁一個 A3 區塊');
     // 單極斷路器只切 R：S 相（N）在開關那一層要直接通過，從分配線到用電器具是一條連續的線
@@ -82,8 +88,18 @@ const userFile=process.argv[2];
     $('tabTool').click();ok($('schPrint')&&$('schPrev')&&$('schTitle'),'工具分頁有正式電路圖（專案名稱、預覽、列印）');
     $('schPrev').click();ok(document.querySelectorAll('#schPrevBox .pg.sch').length>2,'預覽顯示全部頁面');$('schPrevClose').click();
     if(uj){S=normalize(JSON.parse(uj)).state;resetUi();recompute();const t=performance.now();const U=schemBuild();
+      { const cut=[];U.pages.forEach(pg=>{const doc=new DOMParser().parseFromString(pg.svg,'image/svg+xml');[...doc.querySelectorAll('text')].forEach(t=>{if(/…/.test(t.textContent)&&!/等 \d+ 個/.test(t.textContent))cut.push(`第 ${pg.no} 頁 ${t.textContent}`);});});
+        ok(!cut.length,'使用者專案：文字完整顯示，沒有被截斷（…）'+(cut.length?`：${cut.length} 處，${cut.slice(0,3).join('；')}`:'')); }
       ok(schemVerify(U).length===0&&U.pages.every(pg=>!/\u0001/.test(pg.svg+pg.html)),`使用者專案：${U.pages.length} 頁，${Math.round(performance.now()-t)} ms，圖和配線一致`);}
     return out;},userFile?fs.readFileSync(userFile,'utf8'):null);
+  // 其他接線：沒有動作資料的器具（二極體）接的線，畫在「其他接線」頁
+  res.push(...await p.evaluate(()=>{const out=[],ok=(c,m)=>out.push((c?'✓ ':'✗ ')+m);
+    const D=(id,tpl,x,y,sheet='plate')=>({id,tag:id,tpl,x,y,sheet});
+    S=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:860,h:660},door:{w:900,h:700},ducts:[],glands:[],wires:[],devices:[D('PWR','field-power',0,-300,'field'),D('Q1','ic60-3P16A',40,40),D('PS','drl120',160,40),D('KA','my2n-24',300,250),D('DX','diode',700,400)]}).state;resetUi();
+    let n=0;const W=(a,at,bb,bt)=>S.wires.push({id:'w'+(++n),no:'W'+n,a:{d:a,t:at},b:{d:bb,t:bt},wps:[],gauge:.75,color:'black'});
+    W('PWR','R','Q1','1');W('PWR','S','Q1','3');W('Q1','2','PS','L');W('Q1','4','PS','N');W('PS','+V1','KA','14');W('KA','13','PS','-V1');W('DX','A','KA','13');W('DX','K','KA','14');recompute();
+    const pg=schemBuild().pages.find(x=>/^其他接線/.test(x.title)&&/DX/.test(x.title));ok(pg&&/>KA：13</.test(pg.svg)&&/>KA：14</.test(pg.svg),'其他接線頁：沒畫在其他頁的器具（二極體 DX）列出端子與對端'+(pg?'':'；其他頁：'+schemBuild().pages.filter(x=>/^其他/.test(x.title)).map(x=>x.title).join('、')));
+    return out;}));
   // 伺服接線圖
   res.push(...await p.evaluate(()=>{const out=[],ok=(c,m)=>out.push((c?'✓ ':'✗ ')+m),D=(id,tpl,x,y,sheet='plate',extra={})=>({id,tag:id,tpl,x,y,sheet,...extra});
     S=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:860,h:660},door:{w:900,h:700},ducts:[],glands:[],wires:[],
