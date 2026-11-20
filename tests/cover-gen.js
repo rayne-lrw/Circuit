@@ -240,5 +240,53 @@ function coverCases(kind){
       out.push({tpl:b,k:combo,name:`${b} 組合${combo}`,devs:C.devs,ws:C.ws,dut:'DUT',plc:true});});});
     const covered=new Set(out.flatMap(c=>c.devs.map(d=>d.tpl)));out.untestable=ks.filter(k=>!covered.has(k));
   }
+  if(kind==='misc'){ // 其餘：伺服、電源與濾波、網路與插座、其他元件、現場馬達／感測器／接線盒
+    const CATS=['伺服驅動','電源／濾波','網路／插座','其他元件','現場：馬達','現場：接線盒與其他','現場：感測器'];
+    const ks=Object.keys(TPL).filter(k=>CATS.includes(tplOf({tpl:k}).cat)&&!tplOf({tpl:k}).attach&&elsOf(k).length);
+    const base=()=>{const C=mk(),{D,W}=C;D('PWR','field-power','field');D('Q0','fuji-bw50');['R','S','T'].forEach((p,i)=>W('PWR',p,'Q0',String(i*2+1)));
+      D('F1','ic60-1P2A');W('Q0','2','F1','1');D('PS','drl120');W('F1','2','PS','L');W('Q0','4','PS','N');C.cables=[];return C;};
+    const isAC=t=>/^(L|N|L\d+|R|S|T)$/.test(t);
+    const adapterFor=g=>{const want=g.replace('母','#').replace('公','母').replace('#','公');return Object.keys(TPL).find(q=>elsOf(q).some(e=>e.k==='grp'&&e.t===want)&&elsOf(q).some(e=>e.k==='pass'&&/^V[+-]$/.test(e.b)));};
+    const buildServo=(k,combo)=>{const C=base(),{D,W}=C;const dut=D('DUT',k),E=elsOf(k);D('KM','lc1d18');['2','4','6'].forEach((t,i)=>W('Q0',t,'KM','L'+(i+1)));['L1','L2','L3'].forEach((t,i)=>W('KM','T'+(i+1),dut,t));
+      if(E.some(e=>e.a==='L11')){D('F2','ic60-1P2A');W('Q0','2','F2','1');W('F2','2',dut,'L11');W(dut,'L21','Q0','4');}
+      D('SBK','py2201-g','door');W('PS','+V1','SBK','3');W('SBK','4','KM','A1');W('KM','A2','PS','-V1');
+      const mt=Object.keys(TPL).find(q=>tplOf({tpl:q}).cat==='現場：馬達'&&/^hg/.test(q)&&(combo<2||elsOf(q).some(e=>e.a==='B1')));D('M1',mt,'field');['U','V','W'].forEach(t=>W(dut,t,'M1',t));
+      if(combo>=2){if(elsOf(mt).some(e=>e.a==='B1')){D('KB','my2n-24');D('SBB','py2201-g','door');W('PS','+V1','SBB','3');W('SBB','4','KB','14');W('KB','13','PS','-V1');W('PS','+V1','KB','9');W('KB','5','M1','B1');W('M1','B2','PS','-V1');}
+        C.cables.push({id:'c1',no:'C1',spec:'伺服編碼線',cores:[{n:'1',c:'black',g:.5}],wps:[],plug:{a:{d:dut,t:'CN2'},b:{d:'M1',t:'ENC'}}});}
+      if(combo===3){D('SSC','fx540ssc');W('PS','+V1','SSC','24V');W('SSC','0V','PS','-V1');C.cables.push({id:'c2',no:'C2',spec:'SSCNET 光纖',cores:[{n:'1',c:'black',g:.5}],wps:[],plug:{a:{d:'SSC',t:'SSCNET'},b:{d:dut,t:'CN1A'}}});
+        if(TPL.rxlg&&(tplOf({tpl:k}).terms||[]).some(t=>t.id==='C')){D('RG','rxlg');W(dut,'P+','RG','P');W('RG','C',dut,'C');}}
+      return C;};
+    const buildGen=(k,combo)=>{const C=base(),{D,W}=C,E=elsOf(k),T=tplOf({tpl:k});let n=0;
+      if(E.some(e=>e.k==='ac')){const dut=D('DUT2',k,'field');const ph=E.find(e=>e.k==='ac').ph;D('QX','ic60-3P16A');ph.forEach((p,i)=>W('DUT2',p,'QX',String(i*2+1)));D('MX','motor3','field');['2','4','6'].slice(0,ph.length).forEach((t,i)=>W('QX',t,'MX','UVW'[i]));C.dut='DUT2';return C;}
+      const dut=D('DUT',k,T.sheet==='field'?'field':'plate');C.dut='DUT';
+      const tb=combo===2?(()=>{D('TBX','w2202-1401','plate',{cnt:8});let i=0;return ()=>{i++;return ['TBX',i+'A','TBX',i+'C'];};})():null;
+      const WW=(a,at,b,bt)=>{if(tb){const [t1,x1,t2,x2]=tb();W(a,at,t1,x1);W(t2,x2,b,bt);}else W(a,at,b,bt);};
+      const passes=E.some(e=>e.k==='src')?[]:E.filter(e=>e.k==='pass'&&!/\./.test(e.a)); // 電源供應器的 +V1↔+V2 不是濾波器
+      if(passes.length){const ph=passes.filter(e=>!/PE/.test(e.a));
+        if(ph.length>=3){ph.slice(0,3).forEach((e,i)=>{W('Q0',String(i*2+2),dut,e.a);});D('MX','motor3','field');ph.slice(0,3).forEach((e,i)=>WW(dut,e.b,'MX','UVW'[i]));}
+        else if(ph.length===2){W('F1','2',dut,ph[0].a);W('Q0','4',dut,ph[1].a);D('FX','fan4');WW(dut,ph[0].b,'FX','L');WW(dut,ph[1].b,'FX','N');}}
+      E.filter(e=>e.k==='src').forEach(e=>{if(e.in&&!/\./.test(e.in[0])){W('F1','2',dut,e.in[0]);W(dut,e.in[1],'Q0','4');}if(!/\./.test(e.p)){D('HLS','yw1l-g','door');WW(dut,e.p,'HLS','X1');W('HLS','X2',dut,e.n);}});
+      E.filter(e=>(e.k==='load'||e.k==='pwr')&&!e.aux).forEach(e=>{
+        if(/\./.test(e.a)){const g=e.a.split('.')[0],ad=adapterFor(g);if(ad){const A=D('AD'+(++n),ad);W('PS','+V1',A,'V+');W(A,'V-','PS','-V1');W(A,elsOf(ad).find(q=>q.k==='grp').t,dut,g);}return;}
+        if(isAC(e.a)&&isAC(e.b)){W('F1','2',dut,e.a);WW(dut,e.b,'Q0','4');}
+        else if(combo===3){D('KL'+(++n),'my2n-24');const kk='KL'+n;D('SL'+n,'py2201-g','door');W('PS','+V1','SL'+n,'3');W('SL'+n,'4',kk,'14');W(kk,'13','PS','-V1');W('PS','+V1',kk,'9');W(kk,'5',dut,e.a);W(dut,e.b,'PS','-V1');}
+        else{WW('PS','+V1',dut,e.a);W(dut,e.b,'PS','-V1');}});
+      const sens=E.filter(e=>e.k==='sens');if(sens.length){let plc=null;if(combo===3){plc=D('PLC','fx5u32');W('F1','2',plc,'L');W(plc,'N','Q0','4');W(plc,'S/S','PS','-V1');}
+        const neg=(E.find(e=>e.k==='pwr')||{}).b;sens.forEach((e,i)=>{const h=D('HS'+i,'yw1l-g','door');if(e.to===neg){W('PS','+V1',h,'X1');WW(h,'X2',dut,e.out);return;} /* NPN（輸出接到藍）：燈接在＋和輸出之間 */if(plc)WW(dut,e.out,plc,'X'+i);else{WW(dut,e.out,h,'X1');W(h,'X2','PS','-V1');}});}
+      const sws=E.filter(e=>e.k==='sw');const usedT=new Set();sws.forEach(e=>{const common=usedT.has(e.a);usedT.add(e.a);const h=D('HW'+(++n),'yw1l-g','door');if(!common)WW('PS','+V1',dut,e.a);W(dut,e.b,h,'X1');W(h,'X2','PS','-V1');});
+      return C;};
+    ks.forEach(k=>[1,2,3].forEach(combo=>{const C=elsOf(k).some(e=>e.a==='L11'||(e.k==='load'&&e.a==='L1'&&e.b==='L2'))?buildServo(k,combo):buildGen(k,combo);out.push({tpl:k,k:combo,name:`${k} 組合${combo}`,devs:C.devs,ws:C.ws,cables:C.cables,dut:C.dut||'DUT'});}));
+    const covered=new Set(out.flatMap(c=>c.devs.map(d=>d.tpl)));out.untestable=Object.keys(TPL).filter(k=>CATS.includes(tplOf({tpl:k}).cat)&&!covered.has(k));
+  }
+  if(kind==='nosim'){ // 沒有動作資料的器具：接了線要列在「其他接線」頁、端子都在
+    const ks=Object.keys(TPL).filter(k=>{const T=tplOf({tpl:k});return !elsOf(k).length&&!T.attach&&!T.rack&&!T.cbHost&&!T.ssrHost&&!T.ilock&&(T.terms||[]).filter(t=>!/^CN\d/.test(t.id)).length>=2&&!(typeof isTB==='function'&&isTB({tpl:k,id:'x'}));});
+    ks.forEach(k=>{const T=tplOf({tpl:k}),ts=(T.terms||[]).filter(t=>!/^CN\d/.test(t.id)&&!/^(E|PE|FG|SHD)$/.test(t.id)).map(t=>t.id);if(ts.length<2)return;
+      [1,2,3].forEach(combo=>{const C=mk(),{D,W}=C;D('PWR','field-power','field');D('Q0','fuji-bw50');['R','S','T'].forEach((p,i)=>W('PWR',p,'Q0',String(i*2+1)));
+        D('F1','ic60-1P2A');W('Q0','2','F1','1');D('PS','drl120');W('F1','2','PS','L');W('Q0','4','PS','N');D('DUT',k);
+        const pick=combo===1?ts.slice(0,2):combo===2?ts.slice(-2):ts.slice(0,Math.min(6,ts.length));
+        pick.forEach((t,i)=>{const h=D('H'+i,'yw1l-g','door');W('DUT',t,h,'X1');W(h,'X2','PS','-V1');});
+        out.push({tpl:k,k:combo,name:`${k} 組合${combo}`,devs:C.devs,ws:C.ws,dut:'DUT',expectOther:pick});});});
+    out.untestable=[];
+  }
   return out;}
 if(typeof module!=='undefined')module.exports={coverCases};

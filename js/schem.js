@@ -627,7 +627,7 @@ function scConnPages(M,newPage,pages,devList,title,kind,keep){if(!devList.length
     rows.forEach((r,i)=>{const y=by+4+i*RH+RH/2,xl=bx+bw,xr=x0+96,lim=band&&y>band[0]-3&&y<band[1]+3?x0+117:x0+colW;
       h+=scTx('s-term',xl-1,y+.9,scTL(sv,r.t),bw-6,SCF.term);
       if(r.miss){h+=`<line x1="${xl}" y1="${y}" x2="${xl+6}" y2="${y}"/>`+scTx('s-sub',xl+8,y+1,`${r.t}（編碼器）：沒有接線`,colW-bw-14,SCF.sub,'fill:#a00');return;}
-      const fiber=r.ws.some(w=>/光纖|SSCNET|fiber/i.test(w.no||'')||/^CN1[AB]$/.test(r.t)),self=r.ends.length&&r.ends.every(e=>e.d===sv);
+      const fiber=r.ws.some(w=>/光纖|SSCNET|fiber/i.test(w.no||''))||/^CN1[AB]$/.test(r.t)||(r.pl||[]).some(q=>/光纖|SSCNET|fiber/i.test((q.c.spec||'')+(q.c.no||''))), /* 只有接頭電纜（沒有散線）的光纖也畫虛線 */self=r.ends.length&&r.ends.every(e=>e.d===sv);
       const isMot=mot&&r.ends.some(e=>e.d===mot);
       const xe=isMot?x0+120:xr;
       h+=`<line x1="${xl}" y1="${y}" x2="${xe}" y2="${y}"${fiber?' stroke-dasharray="2 1.2"':''}/>`;
