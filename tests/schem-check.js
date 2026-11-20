@@ -94,6 +94,9 @@ const userFile=process.argv[2];
     const B=schemBuild(),pg=B.pages.find(x=>/^伺服接線/.test(x.title));
     ok(pg&&/>M</.test(pg.svg)&&/stroke-dasharray="2 1.2"/.test(pg.svg)&&/SSC：SSCNET/.test(pg.svg),'伺服接線圖：馬達、光纖（虛線）接到 40SSC');
     ok(pg&&/CN2（編碼器）：沒有接線/.test(pg.svg),'伺服接線圖：編碼器 CN2 沒接線時提醒');
+    // 兩端都是接頭的電纜（編碼器線）沒有芯線、也沒有導線，仍然算接上
+    S.cables=[{id:'c1',no:'C9',spec:'伺服編碼線',cores:[{n:'1',c:'black',g:.5}],plug:{a:{d:'SV',t:'CN2'},b:{d:'M',t:'ENC'}}}];recompute();
+    { const pg2=schemBuild().pages.find(x=>/^伺服接線/.test(x.title));ok(pg2&&!/CN2（編碼器）：沒有接線/.test(pg2.svg)&&/C9　伺服編碼線/.test(pg2.svg),'伺服接線圖：兩端接頭的編碼器電纜（沒有芯線）也算接上，標電纜編號'); }
     return out;}));
   // 重疊：測試電路與使用者專案，兩種畫法
   await p.addScriptTag({content:schemOverlaps.toString()});await p.emulateMedia({media:'print'});

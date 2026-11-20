@@ -438,13 +438,19 @@ function scServoPages(M,newPage){
       if(more.length&&more.length<=2){more.forEach(m=>out.push({...m,via:`${od.tag}:${termLabel(od,o.t)}`}));return;}}
     if(!out.some(x=>x.d===od&&x.t===o.t))out.push({d:od,t:o.t});});
     return out;};
+  // 電纜接頭端：plug.a／plug.b 直接插在器具接頭上（兩端都是接頭時沒有芯線）
+  const plugsAt=(d,t)=>(S.cables||[]).filter(c=>c.plug&&['a','b'].some(k=>c.plug[k]&&c.plug[k].d===d.id&&c.plug[k].t===t)).map(c=>{const k=c.plug.a&&c.plug.a.d===d.id&&c.plug.a.t===t?'a':'b',o=c.plug[k==='a'?'b':'a'];return {c,o:o&&devOf(o.d)?{d:devOf(o.d),t:o.t}:null};});
+  const termsWired=d=>[...new Set([...S.wires.flatMap(w=>[w.a,w.b]).filter(e=>e.d===d.id).map(e=>e.t),...(S.cables||[]).flatMap(c=>c.plug?['a','b'].map(k=>c.plug[k]).filter(q=>q&&q.d===d.id).map(q=>q.t):[])])];
   const cabNo=w=>{const c=w.cab&&(S.cables||[]).find(c=>c.id===w.cab);return c?c.no||'':'';};
   const ORD=['L1','L2','L3','L11','L21','P+','C','D','P3','P4','N-','U','V','W','PE','E','PE2','CN1A','CN1B','CN2','CN2L','CN3','CN4','CN5','CN8'];
   const ordOf=t=>{const i=ORD.indexOf(t);return i<0?500:i;};
-  const blocks=servos.map(sv=>{const T=tplOf(sv),wired=[...new Set(S.wires.flatMap(w=>[w.a,w.b]).filter(e=>e.d===sv.id).map(e=>e.t))].sort((a,b)=>ordOf(a)-ordOf(b)||natCmp(a,b));
-    const rows=wired.map(t=>({t,ends:ends(sv,t),ws:wiresAt(sv,t)}));
+  const blocks=servos.map(sv=>{const T=tplOf(sv),wired=termsWired(sv).sort((a,b)=>ordOf(a)-ordOf(b)||natCmp(a,b));
+    const rows=wired.map(t=>{const pl=plugsAt(sv,t);return {t,ends:[...ends(sv,t),...pl.filter(q=>q.o).map(q=>q.o)],ws:wiresAt(sv,t),pl};});
     // 型錄有編碼器接頭但沒接線
-    T.terms.filter(p=>/^CN2/.test(p.id)&&!wired.includes(p.id)).forEach(p=>rows.push({t:p.id,miss:true}));
+    T.terms.filter(p=>/^CN2$/.test(p.id)&&!wired.includes(p.id)).forEach(p=>rows.push({t:p.id,miss:true})); // CN2L（線性編碼器）是選配，不提醒
+    // 接到同一台馬達的列排在一起（U V W、接地、編碼器），收線時不會穿過其他列
+    const mi=r=>!r.miss&&r.ends.length&&/馬達/.test(tplOf(r.ends[0].d).cat||'');const f0=rows.findIndex(mi);
+    if(f0>=0){const mr=rows.filter(mi),rest=rows.filter(r=>!mi(r));rest.splice(f0,0,...mr);rows.length=0;rows.push(...rest);}
     return {sv,rows};});
   const RH=7.2,colW=190;
   const draw=(B,x0,pg)=>{const {sv,rows}=B;let h=`<text class="s-sec" x="${x0}" y="34">${scEsc(sv.tag)}　${scEsc(scTrim(tplOf(sv).n,28))}</text>`;
@@ -452,7 +458,7 @@ function scServoPages(M,newPage){
     h+=`<rect class="s-dev" x="${bx}" y="${by}" width="${bw}" height="${bh}"/>`+scTx('s-tag',bx+2,by+bh-2,sv.tag,bw-4,SCF.tag);
     // 馬達：U／V／W／E 接到同一台馬達的列，收成一個馬達符號
     const motorRows=rows.filter(r=>!r.miss&&r.ends.length&&/馬達/.test(tplOf(r.ends[0].d).cat||'')),mot=motorRows.length?motorRows[0].ends[0].d:null;
-    let band=null;if(mot){const my0=by+4+rows.indexOf(motorRows[0])*RH+motorRows.length*RH/2,no=[...new Set(S.wires.flatMap(w=>[w.a,w.b]).filter(e=>e.d===mot.id).map(e=>e.t))].length-motorRows.length;band=[my0-7,my0+10+Math.max(0,no)*6.4+5];}
+    let band=null;if(mot){const my0=by+4+rows.indexOf(motorRows[0])*RH+motorRows.length*RH/2,no=termsWired(mot).length-motorRows.length;band=[my0-7,my0+10+Math.max(0,no)*6.4+5];}
     rows.forEach((r,i)=>{const y=by+4+i*RH+RH/2,xl=bx+bw,xr=x0+96,lim=band&&y>band[0]-3&&y<band[1]+3?x0+117:x0+colW;
       h+=scTx('s-term',xl-1,y+.9,termLabel(sv,r.t)||r.t,bw-12,SCF.term);
       if(r.miss){h+=`<line x1="${xl}" y1="${y}" x2="${xl+6}" y2="${y}"/>`+scTx('s-sub',xl+8,y+1,`${r.t}（編碼器）：沒有接線`,colW-bw-14,SCF.sub,'fill:#a00');return;}
@@ -460,7 +466,7 @@ function scServoPages(M,newPage){
       const isMot=mot&&r.ends.some(e=>e.d===mot);
       const xe=isMot?x0+120:xr;
       h+=`<line x1="${xl}" y1="${y}" x2="${xe}" y2="${y}"${fiber?' stroke-dasharray="2 1.2"':''}/>`;
-      const lab=r.ws.map(w=>w.no+(cabNo(w)?`（${cabNo(w)}）`:'')).filter((v,j,a)=>a.indexOf(v)===j).join('、');
+      const lab=[...r.ws.map(w=>w.no+(cabNo(w)?`（${cabNo(w)}）`:'')),...(r.pl||[]).map(q=>`${q.c.no}　${q.c.spec||''}`)].filter((v,j,a)=>a.indexOf(v)===j).join('、');
       if(lab)h+=scTx('s-net',xl+2,y-1,lab,xe-xl-4,SCF.net);
       if(isMot){const mx=x0+132,my=by+4+rows.indexOf(motorRows[0])*RH+motorRows.length*RH/2;h+=`<line x1="${xe}" y1="${y}" x2="${mx-7}" y2="${my}"/>`;return;}
       const far=self?r.ends.map(e=>`${termLabel(sv,e.t)}（同一台）`).join('、'):r.ends.map(e=>`${e.d.tag}：${termLabel(e.d,e.t)}${e.via?`（經 ${e.via}）`:''}`).join('、');
@@ -471,9 +477,9 @@ function scServoPages(M,newPage){
     if(mot){const mr=motorRows,mx=x0+132,my=by+4+rows.indexOf(mr[0])*RH+mr.length*RH/2;
       h+=SY.motor(mx,my,'')+scTx('s-tag',mx+8,my-1,mot.tag,colW-(mx-x0)-10,SCF.tag)+scTx('s-sub',mx+8,my+3,tplOf(mot).n,colW-(mx-x0)-10,SCF.sub);
       // 馬達自己的其他端子（煞車、編碼器…）
-      const others=[...new Set(S.wires.flatMap(w=>[w.a,w.b]).filter(e=>e.d===mot.id).map(e=>e.t))].filter(t=>!mr.some(r=>r.ends.some(e=>e.d===mot&&e.t===t)));
+      const others=termsWired(mot).filter(t=>!mr.some(r=>r.ends.some(e=>e.d===mot&&e.t===t)));
       const brakeEl=M.E.find(e=>e.d===mot&&e.load);
-      others.forEach((t,i)=>{const y=my+10+i*6.4,w=wiresAt(mot,t),ed=ends(mot,t).filter(e=>e.d!==mot);
+      others.forEach((t,i)=>{const y=my+10+i*6.4,w=[...wiresAt(mot,t),...plugsAt(mot,t).map(q=>({no:q.c.no}))],ed=[...ends(mot,t),...plugsAt(mot,t).filter(q=>q.o).map(q=>q.o)].filter(e=>e.d!==mot);
         h+=`<line x1="${mx}" y1="${my+5.5}" x2="${mx}" y2="${y}"/><line x1="${mx}" y1="${y}" x2="${mx+6}" y2="${y}"/>`+scTx('s-term',mx-1,y+.9,termLabel(mot,t),9,SCF.term);
         h+=scTx('s-sub',mx+7,y+1,`${w.map(q=>q.no).join('、')} → ${ed.map(e=>`${e.d.tag}：${termLabel(e.d,e.t)}`).join('、')||'—'}`,colW-(mx-x0)-9,SCF.sub);});
       if(brakeEl&&others.length)h+=scTx('s-xr2',mx+7,my+10+others.length*6.4+2,`${brakeEl.name||'煞車'}的控制見第 \u0001D:${mot.id}\u0001 頁`,colW-(mx-x0)-9,SCF.xref);}
