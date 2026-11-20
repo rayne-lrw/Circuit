@@ -3,8 +3,11 @@
 // - 控制回路：從圖反推回每個接點、線圈的兩端，要和配線完全一致（schemVerify）；自保持畫成並聯
 // - 線圈下方列出接點在哪一頁哪一欄；主回路的電源供應器標出 DC 輸出在第幾頁
 // - 很寬的迴路會拉出中間電位、跨頁接續，仍然和配線一致
+// - 伺服接線圖：光纖虛線、馬達與煞車、沒接的編碼器提醒
+// - 重疊：實際排出每一頁，文字不能和文字、器具方框／圓、線重疊（IEC 垂直與舊 JIS 水平都檢查，含使用者專案）
 // 用法：node tests/schem-check.js [使用者專案檔.json]（有給檔案時也檢查那份）
 const {chromium}=require('playwright'),path=require('path'),fs=require('fs');
+const {schemOverlaps}=require('./schem-overlap.js');
 const userFile=process.argv[2];
 (async()=>{
   const b=await chromium.launch(),p=await b.newPage({viewport:{width:1400,height:900}});
@@ -81,6 +84,24 @@ const userFile=process.argv[2];
     if(uj){S=normalize(JSON.parse(uj)).state;resetUi();recompute();const t=performance.now();const U=schemBuild();
       ok(schemVerify(U).length===0&&U.pages.every(pg=>!/\u0001/.test(pg.svg+pg.html)),`使用者專案：${U.pages.length} 頁，${Math.round(performance.now()-t)} ms，圖和配線一致`);}
     return out;},userFile?fs.readFileSync(userFile,'utf8'):null);
+  // 伺服接線圖
+  res.push(...await p.evaluate(()=>{const out=[],ok=(c,m)=>out.push((c?'✓ ':'✗ ')+m),D=(id,tpl,x,y,sheet='plate',extra={})=>({id,tag:id,tpl,x,y,sheet,...extra});
+    S=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:860,h:660},door:{w:900,h:700},ducts:[],glands:[],wires:[],
+      devices:[D('PWR','field-power',0,-300,'field'),D('Q1','ic60-3P16A',40,40),D('SV','je40',300,40),D('SSC','fx540ssc',500,40),D('M','hgkn43',300,-300,'field')]}).state;resetUi();
+    let n=0;const W=(a,at,bb,bt,no)=>S.wires.push({id:'w'+(++n),no:no||'W'+n,a:{d:a,t:at},b:{d:bb,t:bt},wps:[],gauge:.75,color:'black'});
+    W('PWR','R','Q1','1');W('PWR','S','Q1','3');W('PWR','T','Q1','5');W('Q1','2','SV','L1');W('Q1','4','SV','L2');W('Q1','6','SV','L3');
+    W('SV','U','M','U');W('SV','V','M','V');W('SV','W','M','W');W('SSC','SSCNET','SV','CN1A','光纖1');recompute();
+    const B=schemBuild(),pg=B.pages.find(x=>/^伺服接線/.test(x.title));
+    ok(pg&&/>M</.test(pg.svg)&&/stroke-dasharray="2 1.2"/.test(pg.svg)&&/SSC：SSCNET/.test(pg.svg),'伺服接線圖：馬達、光纖（虛線）接到 40SSC');
+    ok(pg&&/CN2（編碼器）：沒有接線/.test(pg.svg),'伺服接線圖：編碼器 CN2 沒接線時提醒');
+    return out;}));
+  // 重疊：測試電路與使用者專案，兩種畫法
+  await p.addScriptTag({content:schemOverlaps.toString()});await p.emulateMedia({media:'print'});
+  const ovl=async(label,uj,st)=>{const r=await p.evaluate(([uj,st,label])=>{if(uj){S=normalize(JSON.parse(uj)).state;resetUi();recompute();}
+      if(st)S.schemStyle=st;else delete S.schemStyle;document.getElementById('print').innerHTML=schemPrintHtml();return schemOverlaps().map(o=>`第 ${o.page} 頁 ${o.kind}：${o.a}｜${o.b}`);},[uj,st,label]);
+    res.push((r.length?'✗ ':'✓ ')+`${label}：文字沒有和其他文字、器具、線重疊`+(r.length?`（${r.length} 處：${r.slice(0,3).join('；')}）`:''));};
+  await ovl('測試電路（IEC 垂直）',null,null);await ovl('測試電路（舊 JIS 水平）',null,{sym:'jis',dir:'h'});
+  if(userFile){const uj=fs.readFileSync(userFile,'utf8');await ovl('使用者專案（IEC 垂直）',uj,null);await ovl('使用者專案（舊 JIS 水平）',uj,{sym:'jis',dir:'h'});}
   await b.close();
   res.forEach(l=>console.log(l));errs.forEach(e=>console.log('✗ 頁面錯誤：'+e));
   const fail=res.filter(l=>l.startsWith('✗')).length+errs.length;console.log(fail?`\n失敗 ${fail} 項`:'\n全部通過');process.exit(fail?1:0);
