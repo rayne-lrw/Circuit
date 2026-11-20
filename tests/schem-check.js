@@ -41,6 +41,10 @@ const userFile=process.argv[2];
     const main=B.pages.find(x=>/^主回路/.test(x.title));
     ok(main.svg.includes('>PS<')&&new RegExp(`24V 輸出 → 第 ${B.pages.indexOf(ctrl)+1} 頁`).test(main.svg),'主回路：電源供應器標出 24V 輸出在控制回路第幾頁');
     ok(/>Q1</.test(main.svg)&&/>LP</.test(main.svg),'主回路：Q1 斷路器、AC 燈（KA 接點控制）都畫出來');
+    { // 每一層的分支照編號排，不照用電器具或接線先後
+      build([D('F9','ic60-1P2A',200,40),D('F3','ic60-1P2A',220,40),D('LA','lamp',500,-300,'field'),D('LB','lamp',560,-300,'field')],W=>{W('Q1','2','F9','1');W('F9','2','LA','L/+');W('LA','N/−','Q1','4');W('Q1','2','F3','1');W('F3','2','LB','L/+');W('LB','N/−','Q1','4');});
+      const sv=schemBuild().pages.find(x=>/^主回路/.test(x.title)).svg,i3=sv.indexOf('>F3<'),i9=sv.indexOf('>F9<'),xa=+/x="([\d.]+)"[^>]*>F3</.exec(sv)[1],xb=+/x="([\d.]+)"[^>]*>F9</.exec(sv)[1];
+      ok(i3>0&&i9>0&&xa<xb,`主回路分支照開關編號排（F3 在 F9 左邊，即使 F9 接的燈編號在前）`); build(); B=schemBuild(); }
     // 線圈、負載一律靠下：KM 線圈在下方電源線附近
     { const pos=ctrl.pos.find(o=>o.e&&o.e.k==='coil'&&o.e.d.tag==='KM');ok(pos&&pos.y>SC.RB-25,`線圈靠下對齊（KM 線圈 y=${pos&&Math.round(pos.y)}，下方電源線 ${SC.RB}）`); }
     const plcIn=B.pages.find(x=>/PLC 輸入/.test(x.title));ok(/>PX</.test(plcIn.svg)&&/>X0</.test(plcIn.svg),'PLC 輸入頁：X0 接 PX 感測器');

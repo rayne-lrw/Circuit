@@ -180,6 +180,10 @@ function scMainPages(M,pages,newPage,meta){
   const items=[];
   E.filter(e=>e.load&&!e.aux&&e.k!=='plcx').forEach(e=>{if(phase.has(e.u)&&phase.has(e.v)&&M.wiredNode.has(e.u))items.push({d:e.d,terms:[{k:e.u,t:e.ta},{k:e.v,t:e.tb}],name:e.k==='coil'?'線圈':e.name});});
   M.srcs.forEach(s=>{if(s.inK){const a=f(s.inK[0]),b=f(s.inK[1]);if(phase.has(a)&&phase.has(b))items.push({d:s.d,terms:[{k:a,t:s.inT[0]},{k:b,t:s.inT[1]}],name:'AC 輸入',src:s});}});
+  { const taken=new Set(items.flatMap(it=>it.terms.map(t=>t.k)));
+    S.devices.filter(d=>simElems(d).some(e=>e.k==='grp'&&e.t==='插頭')&&simElems(d).some(e=>e.k==='pass')).forEach(d=>{
+      const T=['L','N'].map(t=>({k:f(nodeKey({d:d.id,t})),t})).filter(t=>phase.has(t.k)&&M.wiredNode.has(t.k));
+      if(T.length===2&&!taken.has(T[0].k))items.push({d,terms:T,name:'插座'}); /* 只看火線 L 有沒有被插著的器具用到（N 是很多器具共用的） */}); }
   if(!items.length)return;
   const groups=new Map();
   items.forEach(it=>{const chains=it.terms.map(t=>({t,edges:pathTo(t.k),ph:phase.get(t.k)}));
@@ -198,6 +202,9 @@ function scMainPages(M,pages,newPage,meta){
     g.levels.forEach(ids=>{key+='>'+ids.join('+');if(!nodes.has(key)){const nd={id:key,devs:ids.map(devOf),d:devOf(ids[0]),kids:[],poles:new Map()};nodes.set(key,nd);cur.kids.push(nd);}cur=nodes.get(key);
       g.chains.forEach(ch=>ch.edges.filter(e=>ids.includes(e.d.id)).forEach(e=>{if(!cur.poles.has(e.id))cur.poles.set(e.id,{e,ph:ch.ph});}));});
     const leaf={id:key+'>C:'+g.d.id+g.names.join(),d:g.d,kids:[],poles:new Map(),cons:g,chains:g.chains};cur.kids.push(leaf);});
+  // 每一層的分支照編號排（F101、F102、…），不受用電器具編號或接線先後影響
+  const tagKey=nd=>nd.cons?nd.d.tag:nd.devs.map(d=>d.tag).sort(natCmp)[0];
+  const sortKids=nd=>{nd.kids.sort((a,b)=>natCmp(tagKey(a),tagKey(b)));nd.kids.forEach(sortKids);};sortKids(root);
   const phases=[...new Set(acNodes.map(a=>a[1]))].sort((a,b)=>phOrd(a)-phOrd(b));
   const PX=5.5,BS=5,phX=ph=>Math.max(0,phases.indexOf(ph))*PX;
   const ownW=nd=>nd.cons?Math.max(2,Math.ceil((phases.length*PX+18)/SC.U)):Math.max(1,Math.ceil((phases.length*PX+16)/SC.U));
@@ -211,7 +218,7 @@ function scMainPages(M,pages,newPage,meta){
       c.terms.forEach(t=>{const ph=phase.get(t.k),xx=x+3+phX(ph);h+=SY.line(xx,y,y+10)+`<text class="s-term" x="${xx-.6}" y="${y+9.4}">${scEsc(termLabel(c.d,t.t)||t.t)}</text>`;const nm=M.netName(t.k);if(nm)h+=`<text class="s-netv" transform="translate(${xx+.8} ${y+.8}) rotate(90)">${scEsc(nm)}</text>`;});
       const nmTxt=c.names.filter(n=>n&&n!=='AC 輸入'&&n!=='電源').join('、');
       h+=`<rect class="s-dev" x="${bx}" y="${y+10}" width="${w}" height="16"/><text class="s-tag" x="${bx+1.5}" y="${y+14.4}">${scEsc(c.d.tag)}${nmTxt?`<tspan class="s-sub" dx="1.5">${scEsc(scTrim(nmTxt,8))}</tspan>`:''}</text><text class="s-sub" x="${bx+1.5}" y="${y+18.6}">${scEsc(scTrim(tplOf(c.d).n,Math.floor(w/2.4)))}</text>`;
-      if(c.src)h+=`<text class="s-xr2" x="${bx+1.5}" y="${y+23}">${scEsc(c.src.v)} 輸出 → 第 \u0001S:${scEsc(c.d.id)}\u0001 頁</text>`;
+      if(c.src)h+=`<text class="s-xr2" x="${bx+1.5}" y="${y+23}">${scEsc(c.src.v)} 輸出\u0001S:${scEsc(c.d.id)}\u0001</text>`;
       // 接在這台 U／V／W 的馬達（同一台器具只畫一次）
       if(!motorDone.has(c.d.id)){const mot=scMotorsOf(M,c);if(mot.length){motorDone.add(c.d.id);mot.forEach((m,i)=>{const mx=x+(i+.5)*(w/mot.length)+1;h+=SY.line(mx,y+26,y+30)+SY.motor(mx,y+36,'')+`<text class="s-tag" x="${mx+7}" y="${y+35}">${scEsc(m.tag)}</text><text class="s-sub" x="${mx+7}" y="${y+38.5}">${scEsc(scTrim(tplOf(m).n,10))}</text>`;ctx.put({motor:m,x:mx,y:y+36});});}}
       ctx.put({e:{d:c.d,act:c.d.id,k:'cons'},x:bx,y:y+14});
@@ -289,6 +296,9 @@ function scCtrlPages(M,pages,newPage){
     const edges=M.E.filter(e=>!e.aux&&!(M.phase.has(e.u)&&M.phase.has(e.v))&&M.wiredNode.has(e.u)&&M.wiredNode.has(e.v)).map(e=>({u:e.u,v:e.v,t:scLeaf(e)}));
     const tree=spReduce(edges,G.p,G.n);if(!tree)return;
     const lv=scLeaves(tree);lv.forEach(l=>used.add(l.e.id));secs.push({G,tree});});
+  const loadKey=t=>{const L=scLeaves(t).filter(l=>scIsLoad(l.e));if(!L.length)return '';const e=L[0].e;return e.k==='plcx'?'~'+e.d.tag+' '+ptName(e):e.d.tag;};
+  const sortPar=t=>{if(t.t==='leaf')return;t.c.forEach(sortPar);if(t.t==='par')t.c.sort((a,b)=>natCmp(loadKey(a),loadKey(b)));};
+  secs.forEach(s=>sortPar(s.tree));
   M.ctrlTrees=secs; // 測試用
   // 排版：每段先算好要畫的分支（太寬時拉出中間電位），再依序排進頁面；放得下的小段共用同一頁
   let pg=null,x=0;const ctrlPgs=[];
@@ -409,7 +419,7 @@ function schemBuild(){
     return L.slice(0,4).map((t,i)=>`<tspan x="0" dy="${i?2.7:0}">${scEsc(t)}</tspan>`).join('')+(L.length>4?`<tspan x="0" dy="2.7">…等 ${L.length} 個</tspan>`:'');};
   const srcPage=id=>{const pg=pages.find(p=>p.kind==='ctrl'&&(p.src||[]).includes(id));return pg?pg.no:'—';};
   const fill=s=>s.replace(/<text class="s-xref" x="([\d.]+)" y="([\d.]+)">\u0001C:([^\u0001]*)\u0001<\/text>/g,(m,x,y,a)=>`<text class="s-xref" transform="translate(${x} ${y})">${xref(a.replace(/&amp;/g,'&'))}</text>`)
-    .replace(/\u0001S:([^\u0001]*)\u0001/g,(m,id)=>srcPage(id)).replace(/\u0001T:([^\u0001]*)\u0001/g,(m,id)=>{const g=(M.contPage||{})[id.replace(/&gt;/g,'>').replace(/&amp;/g,'&')];return g&&g.pg?g.pg.no:'—';}).replace(/\u0001M:([^\u0001]*)\u0001/g,(m,id)=>{const k=id.replace(/&gt;/g,'>').replace(/&amp;/g,'&');const pg=pages.find(p=>p.pos.some(o=>o.node===k));return pg?pg.no:'—';}).replace(/\u0001P:(\d+)\u0001/g,'$1').replace(/\u0001N\u0001/g,String(pages.length));
+    .replace(/\u0001S:([^\u0001]*)\u0001/g,(m,id)=>{const n=srcPage(id);return n==='—'?'（沒有接負載）':` → 第 ${n} 頁`;}).replace(/\u0001T:([^\u0001]*)\u0001/g,(m,id)=>{const g=(M.contPage||{})[id.replace(/&gt;/g,'>').replace(/&amp;/g,'&')];return g&&g.pg?g.pg.no:'—';}).replace(/\u0001M:([^\u0001]*)\u0001/g,(m,id)=>{const k=id.replace(/&gt;/g,'>').replace(/&amp;/g,'&');const pg=pages.find(p=>p.pos.some(o=>o.node===k));return pg?pg.no:'—';}).replace(/\u0001P:(\d+)\u0001/g,'$1').replace(/\u0001N\u0001/g,String(pages.length));
   return {M,pages:pages.map(pg=>({...pg,svg:fill(`<svg class="s-svg" viewBox="0 0 ${SC.W} ${SC.H}" xmlns="http://www.w3.org/2000/svg">${scFrame(pg,meta)}<text class="s-ptitle" x="${SC.M+8}" y="${SC.M+13}">${scEsc(pg.title)}</text>${pg.body}</svg>`),html:fill(pg.html||'')})),used,meta};
 }
 // 圖例
