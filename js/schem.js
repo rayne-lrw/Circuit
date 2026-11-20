@@ -273,27 +273,29 @@ function scMainPages(M,pages,newPage,meta){
       items.push({d,terms:[{k:sc.p,t:tb},{k:sc.n,t:''}],name:'控制回路',ctlRef:{v}});}); }
   const ctlNodes=new Set();M.srcs.filter(q=>q.ac).forEach(q=>{const st=[q.p];ctlNodes.add(q.p);while(st.length){const x=st.pop();(adj.get(x)||[]).forEach(e=>{if(q.excl.has(e.id))return;const y=e.u===x?e.v:e.u;if(!ctlNodes.has(y)&&y!==q.nn){ctlNodes.add(y);st.push(y);}});}});
   { const used=new Set();items.forEach(it=>it.terms.forEach(t=>pathTo(t.k).forEach(e=>used.add(e.d.id))));const dead=new Map();
-    E.filter(e=>e.ctl&&['brk','no','nc','fuse','ol'].includes(e.k)&&phase.has(e.u)&&phase.has(e.v)).forEach(e=>[e.u,e.v].forEach(k=>{
-      const p=par.get(k);if(!p||p.e!==e||(adj.get(k)||[]).length!==1||items.some(it=>it.terms.some(t=>t.k===k))||E.some(q=>q.load&&(q.u===k||q.v===k))||ctlNodes.has(k))return; // 下游端、後面沒有別的接點，也不是接負載（負載在控制回路頁）
-      if(!dead.has(e.d.id))dead.set(e.d.id,{d:e.d,terms:[]});dead.get(e.d.id).terms.push({k,t:k===e.u?e.ta:e.tb});}));
-    dead.forEach(o=>{if(used.has(o.d.id)&&o.terms.length<2)return; /* 已用到的器具剩一極沒接：備用極，不畫 */o.terms.sort((a,b)=>SC_PH.indexOf(phase.get(a.k))-SC_PH.indexOf(phase.get(b.k)));items.push({d:o.d,terms:o.terms,name:'出線',outlet:true});}); }
+    const SWK=['brk','no','nc','fuse','ol'],isSw=e=>e.ctl&&SWK.includes(e.k)&&phase.has(e.u)&&phase.has(e.v),dl=new Map(),dOf=k=>{if(!dl.has(k))dl.set(k,pathTo(k).length);return dl.get(k);};
+    const downOf=e=>dOf(e.u)<dOf(e.v)?e.v:dOf(e.v)<dOf(e.u)?e.u:e.v; // 一樣遠時（正反轉＋積熱電驛的橋接）照器具端子方向：L→T、1→2
+    const deadNode=k=>!items.some(it=>it.terms.some(t=>t.k===k))&&!E.some(q=>q.load&&(q.u===k||q.v===k))&&!ctlNodes.has(k)&&(adj.get(k)||[]).every(q=>isSw(q)&&downOf(q)===k); // 後面沒有別的接點、也沒接負載（負載在控制回路頁）
+    E.filter(isSw).forEach(e=>{const k=downOf(e);if(k==null||!deadNode(k))return;const up=k===e.u?e.v:e.u,others=(adj.get(k)||[]).filter(q=>q.d!==e.d).map(q=>q.d.tag);
+      if(!dead.has(e.d.id))dead.set(e.d.id,{d:e.d,terms:[],with:new Set()});const o=dead.get(e.d.id);others.forEach(t=>o.with.add(t));o.terms.push({k,t:k===e.u?e.ta:e.tb,edges:[...pathTo(up),e],ph:phase.get(up)});});
+    dead.forEach(o=>{if(used.has(o.d.id)&&o.terms.length<2)return; /* 已用到的器具剩一極沒接：備用極，不畫 */o.terms.sort((a,b)=>SC_PH.indexOf(a.ph)-SC_PH.indexOf(b.ph));items.push({d:o.d,terms:o.terms,name:'出線',outlet:true,with:[...o.with]});}); }
   if(!items.length)return;
-  const groups=new Map();
-  items.forEach(it=>{const chains=it.terms.map(t=>({t,edges:pathTo(t.k),ph:phase.get(t.k)}));
+  const groups=new Map(),dl2=new Map(),dOf2=k=>{if(!dl2.has(k))dl2.set(k,pathTo(k).length);return dl2.get(k);},upPh=e=>phase.get(dOf2(e.u)<=dOf2(e.v)?e.u:e.v);
+  items.forEach(it=>{const chains=it.terms.map(t=>({t,edges:t.edges||pathTo(t.k),ph:t.ph||phase.get(t.k)}));
     // 每台開關在各相路徑上最早出現的位置；同一層的器具（例如兩相各走一個單極斷路器）放在同一格
     const rank=new Map();chains.forEach(ch=>ch.edges.forEach((e,i)=>{const id=e.d.id;if(!rank.has(id)||rank.get(id)>i)rank.set(id,i);}));
     const lv=new Map();rank.forEach((r,id)=>{if(!lv.has(r))lv.set(r,[]);lv.get(r).push(id);});
     const levels=[...lv.entries()].sort((a,b)=>a[0]-b[0]).map(([,ids])=>ids.sort());
     const sig=it.d.id+'|'+levels.map(l=>l.join('+')).join('>');
     if(!groups.has(sig))groups.set(sig,{d:it.d,terms:[],names:[],chains:[],levels,src:null});
-    const g=groups.get(sig);if(it.outlet)g.outlet=true;if(it.ctlRef)g.ctlRef=it.ctlRef;if(it.plugged&&it.plugged.length)g.plugged=it.plugged;it.terms.forEach(t=>{if(!g.terms.some(x=>x.k===t.k))g.terms.push(t);});if(!g.names.includes(it.name))g.names.push(it.name);g.chains.push(...chains);if(it.src)g.src=it.src;});
+    const g=groups.get(sig);if(it.outlet){g.outlet=true;g.with=it.with||[];}if(it.ctlRef)g.ctlRef=it.ctlRef;if(it.plugged&&it.plugged.length)g.plugged=it.plugged;it.terms.forEach(t=>{if(!g.terms.some(x=>x.k===t.k))g.terms.push(t);});if(!g.names.includes(it.name))g.names.push(it.name);g.chains.push(...chains);if(it.src)g.src=it.src;});
   // 樹：節點是一層開關（多極算一台），葉子是用電項目
   const root={id:'ROOT',kids:[],poles:new Map(),devs:[]},nodes=new Map([['ROOT',root]]);
   const phOrd=p=>{const i=SC_PH.indexOf(p);return i<0?99:i;};
   [...groups.values()].sort((a,b)=>natCmp(a.d.tag,b.d.tag)).forEach(g=>{
     let cur=root,key='ROOT';
     g.levels.forEach(ids=>{key+='>'+ids.join('+');if(!nodes.has(key)){const nd={id:key,devs:ids.map(devOf),d:devOf(ids[0]),kids:[],poles:new Map()};nodes.set(key,nd);cur.kids.push(nd);}cur=nodes.get(key);
-      g.chains.forEach(ch=>ch.edges.filter(e=>ids.includes(e.d.id)).forEach(e=>{if(!cur.poles.has(e.id))cur.poles.set(e.id,{e,ph:ch.ph});}));});
+      g.chains.forEach(ch=>ch.edges.filter(e=>ids.includes(e.d.id)).forEach(e=>{if(!cur.poles.has(e.id))cur.poles.set(e.id,{e,ph:upPh(e)||ch.ph});}));});
     const leaf={id:key+'>C:'+g.d.id+g.names.join(),d:g.d,kids:[],poles:new Map(),cons:g,chains:g.chains};cur.kids.push(leaf);});
   // 每一層的分支照編號排（F101、F102、…），不受用電器具編號或接線先後影響
   const tagKey=nd=>nd.cons?nd.d.tag:nd.devs.map(d=>d.tag).sort(natCmp)[0];
@@ -313,10 +315,10 @@ function scMainPages(M,pages,newPage,meta){
       ctx.put({e:{d:c.d,act:c.d.id,k:'cons'},x:x+1,y:y+12,terms:[]});return h;}
     if(nd.cons&&nd.cons.outlet){ // 出線：開關後面沒有用電器具，標出接到哪裡
       const c=nd.cons,w=ownW(nd)*SC.U-4;let x9=x+3;
-      c.terms.forEach(t=>{const xx=x+3+phX(phase.get(t.k));x9=Math.max(x9,xx);const w0=S.wires.find(q=>q.no&&[q.a,q.b].some(z=>z.d===c.d.id&&z.t===t.t));
+      c.terms.forEach(t=>{const xx=x+3+phX(t.ph||phase.get(t.k));x9=Math.max(x9,xx);const w0=S.wires.find(q=>q.no&&[q.a,q.b].some(z=>z.d===c.d.id&&z.t===t.t));
         h+=SY.line(xx,y,y+8)+`<path d="M${xx-1.2} ${y+6.4} L${xx} ${y+8.6} L${xx+1.2} ${y+6.4}"/>`+(w0?`<text class="s-netv" transform="translate(${xx+.8} ${y+.6}) rotate(90)">${scEsc(w0.no)}</text>`:'');});
       const to=[...new Set(c.terms.flatMap(t=>S.wires.flatMap(q=>[[q.a,q.b],[q.b,q.a]]).filter(([a])=>a.d===c.d.id&&a.t===t.t).map(([,b])=>{const o=devOf(b.d);return o?`${o.tag}：${termLabel(o,b.t)}`:'';}).filter(Boolean)))];
-      h+=scTx('s-tag',x+1,y+13,'出線',w,SCF.tag)+scTxW('s-sub',x+1,y+16.8,to.length?'→ '+to.join('、'):'（沒有接用電器具）',w,SCF.sub,3,2.9);
+      h+=scTx('s-tag',x+1,y+13,'出線',w,SCF.tag)+scTxW('s-sub',x+1,y+16.8,(to.length?'→ '+to.join('、'):'（沒有接用電器具）')+(c.with&&c.with.length?`（與 ${[...new Set(c.with)].join('、')} 出線並接）`:''),w,SCF.sub,4,2.9);
       ctx.put({e:{d:c.d,act:c.d.id,k:'cons'},x:x+1,y:y+12,terms:c.terms.map(t=>c.d.id+'|'+t.t)});return h;}
     if(nd.cons){ // 用電項目：方框，上緣各相端子
       const c=nd.cons,w=ownW(nd)*SC.U-4,bx=x+1;
@@ -448,7 +450,7 @@ function scCtrlPages(M,pages,newPage){
     all.forEach((it,ii)=>{const w=scWidth(it.t),sid=sensOf(it.t),prev=ii>0?sensOf(all[ii-1].t):null;let need=w;
       if(sid&&sid!==prev)for(let j=ii+1;j<all.length&&sensOf(all[j].t)===sid&&all[j].seg===it.seg;j++)need+=scWidth(all[j].t);
       if(x+(need*SC.U>SC.X1-SC.X0?w:need)*SC.U>SC.X1+0.1){open();first=true;}
-      if(!pg.secs.includes(sec)){pg.secs.push(sec);pg.src.push(...sec.ids);pg.pos.push({x:0,y:0,terms:G.srcs.flatMap(q=>[q.d.id+'|'+q.e.p,q.d.id+'|'+q.e.n])});}
+      if(!pg.secs.includes(sec)){pg.secs.push(sec);pg.src.push(...sec.ids);pg.pos.push({x:0,y:0,terms:G.srcs.flatMap(q=>[q.d.id+'|'+q.e.p,q.d.id+'|'+q.e.n,...(tplOf(q.d).terms||[]).filter(t=>[G.p,G.n].includes(M.f(nodeKey({d:q.d.id,t:t.id})))).map(t=>q.d.id+'|'+t.id)])});}
       let sp=pg.spans[pg.spans.length-1];if(!sp||sp.seg!==it.seg||sp.sec!==sec){sp={seg:it.seg,sec,x0:x,x1:x,items:[],LH,head:first?'':'（續）',newSec:!pg.spans.some(s=>s.sec===sec)};pg.spans.push(sp);first=false;}
       sp.items.push({...it,x});sp.x1=x;x+=w*SC.U;});
   });

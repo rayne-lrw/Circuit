@@ -108,6 +108,22 @@ const userFile=process.argv[2];
     const pg=schemBuild().pages.find(x=>/^其他接線/.test(x.title)&&/BD/.test(x.title));ok(pg&&/>KA：9</.test(pg.svg)&&/>PS：-V1</.test(pg.svg),'其他接線頁：沒畫在其他頁的器具（擴充板 BD）列出端子與對端'+(pg?'':'；其他頁：'+schemBuild().pages.filter(x=>/^其他/.test(x.title)).map(x=>x.title).join('、')));
     return out;}));
   // 伺服接線圖
+  // AC 控制回路（自保持、積熱電驛）、正反轉接觸器的主回路
+  res.push(...await p.evaluate(()=>{const out=[],ok=(c,m)=>out.push((c?'✓ ':'✗ ')+m),D=(id,tpl,x,y,sheet='plate',extra={})=>({id,tag:id,tpl,x,y,sheet,...extra});
+    S=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:860,h:660},door:{w:900,h:700},ducts:[],glands:[],wires:[],devices:[D('PWR','field-power',0,-300,'field'),D('QF','ic60-3P16A',40,40),
+      D('KMF','sp12',120,40),D('KMR','sp12',170,40),D('TH','thp12r',120,120),D('TBM','w2202-1401',240,40,'plate',{cnt:4}),D('FU1','tend-tfbr-321',300,40),D('SBS','py2201-r',600,100,'door'),D('SBR','py2201-g',650,100,'door'),D('HLF','yw1l-r',700,100,'door')]}).state;resetUi();
+    let n=0;const W=(a,at,bb,bt)=>S.wires.push({id:'w'+(++n),no:'W'+n,a:{d:a,t:at},b:{d:bb,t:bt},wps:[],gauge:.75,color:'black'});
+    W('PWR','R','QF','1');W('PWR','S','QF','3');W('PWR','T','QF','5');
+    W('QF','2','KMF','L1');W('QF','4','KMF','L2');W('QF','6','KMF','L3');W('QF','2','KMR','L3');W('QF','4','KMR','L2');W('QF','6','KMR','L1');
+    W('KMF','T1','TH','L1');W('KMF','T2','TH','L2');W('KMF','T3','TH','L3');W('TH','T1','TBM','1A');W('TH','T2','TBM','2A');W('TH','T3','TBM','3A');W('KMR','T1','TBM','1B');W('KMR','T2','TBM','2B');W('KMR','T3','TBM','3B');
+    W('QF','2','FU1','1');W('FU1','2','TH','95');W('TH','96','SBS','1');W('SBS','2','SBR','3');W('SBR','4','KMF','A1');W('KMF','A2','QF','4');W('SBS','2','KMF','13');W('KMF','14','KMF','A1');
+    W('FU1','2','TH','97');W('TH','98','HLF','X1');W('HLF','X2','QF','4');recompute();
+    const B=schemBuild(),mn=B.pages.filter(x=>/^主回路/.test(x.title)).map(x=>x.svg).join(''),ac=B.pages.find(x=>/^控制回路 AC/.test(x.title));
+    ok(ac&&/>SBR</.test(ac.svg)&&/>SBS</.test(ac.svg)&&/>HLF</.test(ac.svg)&&/>96</.test(ac.svg)&&/>98</.test(ac.svg),'AC 控制回路：保險絲後面有線圈的支路畫成控制回路展開圖（自保持的啟動按鈕、積熱電驛 95-96／97-98、指示燈都在）');
+    ok(/>控制回路</.test(mn)&&/→ 第 \d+ 頁/.test(mn)&&!/>SBR</.test(mn),'主回路：AC 控制回路只標「控制回路 → 第 N 頁」');
+    ok(/>KMF</.test(mn)&&/>KMR</.test(mn)&&/>TH</.test(mn)&&/>5</.test(mn)&&/>6</.test(mn)&&(mn.match(/>出線</g)||[]).length===2,'主回路：正反轉接觸器 KMF／KMR 的主接點、熱動元件 TH 都畫出來，QF 三極都在，出線兩處'+JSON.stringify([/>KMF</.test(mn),/>KMR</.test(mn),/>TH</.test(mn),/>5</.test(mn),/>6</.test(mn),(mn.match(/>出線</g)||[]).length,B.pages.map(x=>x.title)]));
+    ok(schemVerify(B).length===0,'正反轉＋AC 控制回路：圖反推回去和配線一致');
+    return out;}));
   res.push(...await p.evaluate(()=>{const out=[],ok=(c,m)=>out.push((c?'✓ ':'✗ ')+m),D=(id,tpl,x,y,sheet='plate',extra={})=>({id,tag:id,tpl,x,y,sheet,...extra});
     S=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:860,h:660},door:{w:900,h:700},ducts:[],glands:[],wires:[],
       devices:[D('PWR','field-power',0,-300,'field'),D('Q1','ic60-3P16A',40,40),D('SV','je40',300,40),D('SSC','fx540ssc',500,40),D('M','hgkn43',300,-300,'field')]}).state;resetUi();
