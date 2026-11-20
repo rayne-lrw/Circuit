@@ -42,7 +42,7 @@ main{display:grid;grid-template-columns:250px minmax(0,1fr) 320px;gap:10px;min-h
 #left .strip{display:none;flex-direction:column;align-items:center;gap:8px;padding:8px 0;height:100%}
 #left .strip .tool{padding:6px 0;width:30px;display:flex;justify-content:center}
 .vt{writing-mode:vertical-rl;letter-spacing:.12em;font-size:13px}
-#left .strip .vt{padding:10px 0}
+#left .strip .vt{padding:10px 0;align-items:center} /* 直寫時 flex 主軸是直的，水平置中要用 align-items */
 .vver{writing-mode:vertical-rl;font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:auto}
 #leftClose{flex:none;padding:6px 10px}
 main.lc{grid-template-columns:40px minmax(0,1fr) 320px}
