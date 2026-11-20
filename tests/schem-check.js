@@ -50,9 +50,9 @@ const userFile=process.argv[2];
       ok(i3>0&&i9>0&&xa<xb,`主回路分支照開關編號排（F3 在 F9 左邊，即使 F9 接的燈編號在前）`); build(); B=schemBuild(); }
     // 線圈、負載一律靠下：KM 線圈在下方電源線附近
     { const pos=ctrl.pos.find(o=>o.e&&o.e.k==='coil'&&o.e.d.tag==='KM');ok(pos&&pos.y>SC.RB-25,`線圈靠下對齊（KM 線圈 y=${pos&&Math.round(pos.y)}，下方電源線 ${SC.RB}）`); }
-    // 三線式感測器：電源（棕－藍）和輸出（棕→黑）排在相鄰兩欄，用虛線框起來
+    // 三線式感測器：一個「感測器」方塊（棕接上、藍接下），黑線從方塊右側直接拉到相鄰欄往下；不畫虛線框、不畫第二條棕線
     { const P=ctrl.pos.filter(o=>o.e&&o.e.d.tag==='PX'),pw=P.find(o=>o.e.sensPwr),out=P.find(o=>o.e.k==='sens');
-      ok(pw&&out&&Math.abs(pw.x-out.x)<=SC.U+.1&&Math.abs(pw.y-out.y)<1&&/class="s-grp"/.test(ctrl.svg),'三線式感測器 PX：電源（棕－藍）與輸出（棕→黑）並排在相鄰兩欄，用虛線框起來'); }
+      ok(pw&&out&&out.x>pw.x&&out.x-pw.x<=SC.U+.1&&Math.abs(out.y-pw.y)<3&&!/class="s-grp"/.test(ctrl.svg)&&/>感測器</.test(ctrl.svg)&&ctrl.svg.includes(`<line x1="${pw.x+6.5}" y1="${out.y}" x2="${out.x}" y2="${out.y}"/>`),'三線式感測器 PX：一個方塊，黑線從方塊右側直接拉出到相鄰欄'); }
     // 器具名稱完整顯示（放不下換行，不截斷）
     { const doc=new DOMParser().parseFromString(ctrl.svg,'image/svg+xml'),all=[...doc.querySelectorAll('text')].map(t=>t.textContent.replace(/\s/g,'')).join('|');
       ok(all.includes(tplOf(devOf('KA')).n.replace(/\s/g,''))&&!/…/.test([...doc.querySelectorAll('text.s-sub')].map(t=>t.textContent).join('')),'控制回路器具名稱完整顯示（KA：'+tplOf(devOf('KA')).n+'），沒有截斷'+([...doc.querySelectorAll('text.s-sub')].map(t=>t.textContent).filter(t=>/…/.test(t)).join('；')||'')); }
