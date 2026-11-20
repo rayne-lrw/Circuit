@@ -4,6 +4,7 @@
 // - 線圈下方列出接點在哪一頁哪一欄；主回路的電源供應器標出 DC 輸出在第幾頁
 // - 很寬的迴路會拉出中間電位、跨頁接續，仍然和配線一致
 // - 伺服接線圖：光纖虛線、馬達與煞車、沒接的編碼器提醒
+// - 隨機電路 40 組（tests/schem-fuzz.js）
 // - 重疊：實際排出每一頁，文字不能和文字、器具方框／圓、線重疊（含使用者專案）
 // 用法：node tests/schem-check.js [使用者專案檔.json]（有給檔案時也檢查那份）
 const {chromium}=require('playwright'),path=require('path'),fs=require('fs');
@@ -139,6 +140,15 @@ const userFile=process.argv[2];
     res.push((r.length?'✗ ':'✓ ')+`${label}：文字沒有和其他文字、器具、線重疊`+(r.length?`（${r.length} 處：${r.slice(0,3).join('；')}）`:''));};
   await ovl('測試電路',null,null);
   if(userFile){const uj=fs.readFileSync(userFile,'utf8');await ovl('使用者專案',uj,null);}
+  // 隨機電路（tests/schem-fuzz.js，固定種子）：不能出錯、圖和配線一致、沒有重疊、沒有截斷、有接線的器具都畫得出來
+  { const {schemFuzzGen}=require('./schem-fuzz.js');const NG=[];
+    for(let sd=1;sd<=40;sd++){const {devs,ws}=schemFuzzGen(sd);
+      const r=await p.evaluate(([devs,ws])=>{try{S=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:860,h:660},door:{w:900,h:700},ducts:[],glands:[],wires:ws,devices:devs}).state;resetUi();recompute();
+        const B=schemBuild();document.getElementById('print').innerHTML=schemPrintHtml();const svg=B.pages.map(x=>x.svg).join('');
+        const miss=S.devices.filter(d=>!isTB(d)&&d.tpl!=='field-power'&&S.wires.some(w=>w.a.d===d.id||w.b.d===d.id)&&!B.pages.some(x=>new RegExp('>'+d.tag+'[<　（＊]').test(x.svg||''))).map(d=>d.tag);
+        const v=schemVerify(B),ov=schemOverlaps();return [v.length?'對不上 '+v.slice(0,2).join('、'):'',/>[^<]*…[^<]*</.test(svg)?'有截斷':'',/\u0001/.test(svg)?'佔位符號':'',miss.length?'沒畫出 '+miss.join('、'):'',ov.length?`重疊 ${ov.length}（${ov[0].page} ${ov[0].a}｜${ov[0].b}）`:''].filter(Boolean).join('；');}catch(e){return '錯誤 '+e.message;}},[devs,ws]);
+      if(r)NG.push(`種子 ${sd}：${r}`);}
+    res.push((NG.length?'✗ ':'✓ ')+`隨機電路 40 組（主回路、AC 控制、正反轉、插座、24V 控制、PLC、感測器、端子台中繼）都能正確畫出`+(NG.length?'：'+NG.slice(0,3).join('　'):'')); }
   await b.close();
   res.forEach(l=>console.log(l));errs.forEach(e=>console.log('✗ 頁面錯誤：'+e));
   if(res.length<30){console.log(`✗ 檢查項目只跑了 ${res.length} 項（電路圖程式可能出錯中斷）`);errs.push('too few');}

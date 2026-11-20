@@ -254,6 +254,13 @@ function scMainPages(M,pages,newPage,meta){
       const d=sc.edge.d,tb=sc.edge.u===sc.p?sc.edge.ta:sc.edge.tb,v=`AC ${phase.get(sc.p)||''}-${phase.get(sc.n)||''}`;
       M.srcs.push({d,e:{p:tb,n:phase.get(sc.n)||''},p:sc.p,nn:sc.n,v,ac:true,excl:sc.excl});
       items.push({d,terms:[{k:sc.p,t:tb},{k:sc.n,t:''}],name:'控制回路',ctlRef:{v}});}); }
+  // 多相負載的每一相都走同一台開關（正反轉時不會一相走 KMF、一相走 KMR）；另一台在後面畫成「並接」
+  { const dlA=new Map(),dA=k=>{if(!dlA.has(k))dlA.set(k,pathTo(k).length);return dlA.get(k);},SW=['brk','no','nc','fuse','ol'];
+    items.forEach(it=>{if(it.terms.length<2||it.terms.some(t=>t.edges))return;
+      const feeds=it.terms.map(t=>(adj.get(t.k)||[]).filter(e=>SW.includes(e.k)&&phase.has(e.u)&&phase.has(e.v)).filter(e=>{const o=e.u===t.k?e.v:e.u;return dA(o)<dA(t.k)||(dA(o)===dA(t.k)&&e.v===t.k);}));
+      const last=it.terms.map(t=>{const q=par.get(t.k);return q?q.e.d:null;});if(last.every(d=>d===last[0]))return;
+      const cand=[...new Set(feeds[0].map(e=>e.d))].filter(d=>feeds.every(F=>F.some(e=>e.d===d))).sort((a,b)=>natCmp(a.tag,b.tag));if(!cand.length)return;
+      it.terms.forEach((t,i)=>{const e=feeds[i].find(q=>q.d===cand[0]),up=e.u===t.k?e.v:e.u;t.edges=[...pathTo(up),e];t.ph=phase.get(up);});}); }
   const ctlNodes=new Set();M.srcs.filter(q=>q.ac).forEach(q=>{const st=[q.p];ctlNodes.add(q.p);while(st.length){const x=st.pop();(adj.get(x)||[]).forEach(e=>{if(q.excl.has(e.id))return;const y=e.u===x?e.v:e.u;if(!ctlNodes.has(y)&&y!==q.nn){ctlNodes.add(y);st.push(y);}});}});
   { const used=new Set();items.forEach(it=>it.terms.forEach(t=>pathTo(t.k).forEach(e=>used.add(e.d.id))));const dead=new Map();
     const SWK=['brk','no','nc','fuse','ol'],isSw=e=>e.ctl&&SWK.includes(e.k)&&phase.has(e.u)&&phase.has(e.v),dl=new Map(),dOf=k=>{if(!dl.has(k))dl.set(k,pathTo(k).length);return dl.get(k);};
@@ -286,6 +293,8 @@ function scMainPages(M,pages,newPage,meta){
       g.chains.forEach(ch=>ch.edges.filter(e=>ids.includes(e.d.id)).forEach(e=>{if(!cur.poles.has(e.id))cur.poles.set(e.id,{e,ph:upPh(e)||ch.ph});}));});
     const leaf={id:key+'>C:'+g.d.id+g.names.join(),d:g.d,kids:[],poles:new Map(),cons:g,chains:g.chains};cur.kids.push(leaf);});
   // 每一層的分支照編號排（F101、F102、…），不受用電器具編號或接線先後影響
+  { const usedE=new Set();nodes.forEach(nd=>nd.poles.forEach((v,k)=>usedE.add(k)));
+    nodes.forEach(nd=>{if(!nd.devs)return;E.filter(e=>e.k==='brk'&&nd.devs.includes(e.d)&&!usedE.has(e.id)).forEach(e=>{const ph=upPh(e);if(!ph||[...nd.poles.values()].some(q=>q.ph===ph))return;nd.poles.set(e.id,{e,ph});usedE.add(e.id);});}); }
   const tagKey=nd=>nd.cons?nd.d.tag:nd.devs.map(d=>d.tag).sort(natCmp)[0];
   const sortKids=nd=>{nd.kids.sort((a,b)=>natCmp(tagKey(a),tagKey(b)));nd.kids.forEach(sortKids);};sortKids(root);
   const phases=[...new Set(acNodes.map(a=>a[1]))].sort((a,b)=>phOrd(a)-phOrd(b));
@@ -405,12 +414,19 @@ function scMotorsOf(M,c){const out=new Set(),UVW=/^(U|V|W)\d?$/;const t=tplOf(c.
   return [...out];}
 
 /* ---------- 7. 控制回路（DC）：每個電源一段展開圖 ---------- */
+// 一段控制回路（一組上下電源線）的元素化簡成樹。AC 段：排除保護器上游；
+// 只留在上下電源線之間的部分：從上面走得到（不經過下面）、也從下面走得到（不經過上面），掛在電源線外的東西（例如 N 相接到主回路）不算
+function scSecTree(M,G){const ac=G.srcs[0].ac;
+  const edges=M.E.filter(e=>!e.aux&&(ac?!G.srcs.some(q=>q.excl.has(e.id)):!(M.phase.has(e.u)&&M.phase.has(e.v)))&&M.wiredNode.has(e.u)&&M.wiredNode.has(e.v)).map(e=>({u:e.u,v:e.v,t:scLeaf(e)}));
+  const ad=new Map();edges.forEach(e=>{[[e.u,e.v],[e.v,e.u]].forEach(([x,y])=>{if(!ad.has(x))ad.set(x,[]);ad.get(x).push(y);});});
+  const reach=(a,stop)=>{const R=new Set([a]),st=[a];while(st.length){const x=st.pop();if(x===stop)continue;(ad.get(x)||[]).forEach(y=>{if(!R.has(y)){R.add(y);st.push(y);}});}return R;};
+  const R1=reach(G.p,G.n),R2=reach(G.n,G.p),inn=k=>R1.has(k)&&R2.has(k);
+  return spReduce(edges.filter(e=>inn(e.u)&&inn(e.v)),G.p,G.n);}
 function scCtrlPages(M,pages,newPage){
   const groups=new Map();M.srcs.forEach(s=>{const p=M.f(s.p),n=M.f(s.nn);if(!M.wiredNode.has(p))return;const k=p+'|'+n;if(!groups.has(k))groups.set(k,{p,n,srcs:[]});groups.get(k).srcs.push(s);});
   const used=new Set();const secs=[];
   [...groups.values()].sort((a,b)=>natCmp(a.srcs[0].d.tag,b.srcs[0].d.tag)).forEach(G=>{
-    const ac=G.srcs[0].ac,edges=M.E.filter(e=>!e.aux&&(ac?!G.srcs.some(q=>q.excl.has(e.id)):!(M.phase.has(e.u)&&M.phase.has(e.v)))&&M.wiredNode.has(e.u)&&M.wiredNode.has(e.v)).map(e=>({u:e.u,v:e.v,t:scLeaf(e)}));
-    const tree=spReduce(edges,G.p,G.n);if(!tree)return;
+    const tree=scSecTree(M,G);if(!tree)return;
     const lv=scLeaves(tree);lv.forEach(l=>used.add(l.e.id));secs.push({G,tree});});
   const loadKey=t=>{const sl=scLeaves(t).find(l=>l.e.k==='sens'||l.e.sensPwr);if(sl)return sl.e.d.tag+(sl.e.sensPwr?' 0':' 1'+sl.e.tb);const L=scLeaves(t).filter(l=>scIsLoad(l.e));if(!L.length)return '';const e=L[0].e;return e.k==='plcx'?'~'+e.d.tag+' '+ptName(e):e.d.tag;};
   const sortPar=t=>{if(t.t==='leaf')return;t.c.forEach(sortPar);if(t.t!=='par')return;t.c.sort((a,b)=>natCmp(loadKey(a),loadKey(b)));
@@ -482,9 +498,9 @@ function scHeadOf(t){if(t.t==='leaf')return {leaf:t,rest:null,node:null};
 const scTopT=l=>l.rev?l.e.tb:l.e.ta;
 const scCoPair=(a,b)=>!!(a&&b&&a.leaf.e.d===b.leaf.e.d&&a.leaf.e.act===b.leaf.e.act&&a.leaf.e.k==='no'&&b.leaf.e.k==='nc'&&scTopT(a.leaf)===scTopT(b.leaf));
 // 常閉那一欄：從切換接點右側拉過來，再往下畫其餘部分
-function scCoOut(b,x1,c,x2,yEnd,ctx){const e=b.leaf.e,tb=b.leaf.rev?e.ta:e.tb,yy=c+3.2;let h=scTx('s-term',x2-1,c+7.4,termLabel(e.d,tb)||tb,Math.min(9,SC.U*.32),SCF.term);
+function scCoOut(b,x1,c,x2,yEnd,ctx){const e=b.leaf.e,tb=b.leaf.rev?e.ta:e.tb,yy=Math.max(c+3.2,Math.min(c+14,yEnd-ctx.LH));let h=scTx('s-term',x2-1,c+7.4,termLabel(e.d,tb)||tb,Math.min(9,SC.U*.32),SCF.term);
   const nm=b.node!=null?ctx.M.netName(b.node):'';if(nm)h+=scTx('s-net',x2-1,c+10.6,nm,SC.U*.4,SCF.net,'text-anchor:end');
-  h+=b.rest?scDraw(b.rest,x2,yy,yEnd-yy,ctx):SY.line(x2,yy,yEnd);ctx.put({e,x:x2,y:c});return h;}
+  h+=SY.line(x2,c+3.2,yy)+(b.rest?scDraw(b.rest,x2,yy,yEnd-yy,ctx):SY.line(x2,yy,yEnd));ctx.put({e,x:x2,y:c});return h;} // 常閉那一欄的其餘部分從文字下面開始
 // 支路開頭是感測器輸出（sens）時，回傳那個葉子與後面剩下的部分
 function scSensHead(t){if(t.t==='leaf')return t.e.k==='sens'?{leaf:t,rest:null,node:null}:null;
   if(t.t==='ser'&&t.c[0].t==='leaf'&&t.c[0].e.k==='sens'){const r=t.c.slice(1);return {leaf:t.c[0],rest:r.length===1?r[0]:{t:'ser',c:r,nodes:(t.nodes||[]).slice(1)},node:(t.nodes||[])[0]};}return null;}
@@ -513,9 +529,10 @@ function scPlcPages(M,pages,newPage){
         if(['no','nc','sens','brk','plcy'].includes(g))h+=SY.line(x,c-4,c-3)+SY.line(x,c+3,c+4);
         if((g==='no'||g==='nc')&&(f0.by==='btn'||f0.by==='op'))h+=SY.btn(x,c);
         const ad=devOf(String(f0.act).split('#')[0]),tg=f0.ctl&&ad&&ad!==f0.d&&['coil','host','op'].includes(f0.by)?ad.tag:f0.d.tag;
-        h+=scTx('s-tag',x+4.6,c-.4,tg,cw-6,SCF.tag)+scTxW('s-sub',x+4.6,c+3,(f0.d.model&&tplOf(f0.d).model?f0.d.model:'')||tplOf(f0.d).n,cw-6,SCF.sub,5,2.9);
+        const sb0=(f0.d.model&&tplOf(f0.d).model?f0.d.model:'')||tplOf(f0.d).n,nl=Math.min(nb.length>1?4:5,scWrap(sb0,cw-6,SCF.sub).length);
+        h+=scTx('s-tag',x+4.6,c-.4,tg,cw-6,SCF.tag)+scTxW('s-sub',x+4.6,c+3,sb0,cw-6,SCF.sub,nb.length>1?4:5,2.9);
         const far=f0.u===k?f0.v:f0.u,fn=M.netName(far);h+=`<text class="s-pot" x="${x}" y="${yo+10}">${scEsc(fn||'')}</text>`;
-        if(nb.length>1)h+=scTx('s-sub',x-1.2,yo+38,`另有 ${nb.length-1} 個`,cw/2-3,SCF.sub,'text-anchor:end');
+        if(nb.length>1)h+=scTx('s-sub',x+4.6,c+3+nl*2.9,`＋${[...new Set(nb.slice(1).map(q=>q.d.tag))].join('、')}`,cw-6,SCF.sub); // 同一點還接了別的器具：列編號
         pg.pos.push({e:f0,x,y:c});}
       else h+=`<text class="s-sub" x="${x+1.2}" y="${yo+60}">（只有接線）</text>`;
       pg.pos.push({e,x,y:by});});
@@ -674,9 +691,8 @@ function schemPrintHtml(){const B=schemBuild();return B.pages.map(pg=>`<section 
 function schemVerify(B){
   B=B||schemBuild();const M=B.M,bad=[];let checked=0;
   // 控制回路：每個葉子從樹的位置推出兩端節點，必須等於元素真正的兩端
-  const groups=new Map();M.srcs.forEach(s=>{const p=M.f(s.p),n=M.f(s.nn);if(M.wiredNode.has(p))groups.set(p+'|'+n,{p,n});});
-  groups.forEach(G=>{const edges=M.E.filter(e=>!e.aux&&!(M.phase.has(e.u)&&M.phase.has(e.v))&&M.wiredNode.has(e.u)&&M.wiredNode.has(e.v)).map(e=>({u:e.u,v:e.v,t:scLeaf(e)}));
-    const tree=spReduce(edges,G.p,G.n);if(!tree)return;
+  const groups=new Map();M.srcs.forEach(s=>{const p=M.f(s.p),n=M.f(s.nn);if(!M.wiredNode.has(p))return;const k=p+'|'+n;if(!groups.has(k))groups.set(k,{p,n,srcs:[]});groups.get(k).srcs.push(s);});
+  groups.forEach(G=>{const tree=scSecTree(M,G);if(!tree)return;
     const walk=(t,a,b)=>{if(t.t==='leaf'){if(t.dup)return;checked++;const [x,y]=t.rev?[t.e.v,t.e.u]:[t.e.u,t.e.v];if(x!==a||y!==b)bad.push(`${t.e.d.tag} ${t.e.ta}-${t.e.tb}`);return;}
       if(t.t==='par'){t.c.forEach(c=>walk(c,a,b));return;}
       const ns=[a,...(t.nodes||[]),b];if(ns.length!==t.c.length+1){t.c.forEach(c=>{if(c.t==='leaf')return;});return;}t.c.forEach((c,i)=>walk(c,ns[i],ns[i+1]));};
