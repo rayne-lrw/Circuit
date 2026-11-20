@@ -95,9 +95,14 @@ const userFile=process.argv[2];
   // 其他接線：沒有動作資料的器具（二極體）接的線，畫在「其他接線」頁
   res.push(...await p.evaluate(()=>{const out=[],ok=(c,m)=>out.push((c?'✓ ':'✗ ')+m);
     const D=(id,tpl,x,y,sheet='plate')=>({id,tag:id,tpl,x,y,sheet});
-    S=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:860,h:660},door:{w:900,h:700},ducts:[],glands:[],wires:[],devices:[D('PWR','field-power',0,-300,'field'),D('Q1','ic60-3P16A',40,40),D('PS','drl120',160,40),D('KA','my2n-24',300,250),D('DX','diode',700,400)]}).state;resetUi();
+    S=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:860,h:660},door:{w:900,h:700},ducts:[],glands:[],wires:[],devices:[D('PWR','field-power',0,-300,'field'),D('Q1','ic60-3P16A',40,40),D('PS','drl120',160,40),D('KA','my2n-24',300,250),D('DX','diode',700,400),D('XS','ac30',500,40),D('HM','nextech',600,-300,'field'),D('BD','fx5-232bd',700,200),D('TBX','w2202-1401',760,200)]}).state;resetUi();
     let n=0;const W=(a,at,bb,bt)=>S.wires.push({id:'w'+(++n),no:'W'+n,a:{d:a,t:at},b:{d:bb,t:bt},wps:[],gauge:.75,color:'black'});
     W('PWR','R','Q1','1');W('PWR','S','Q1','3');W('Q1','2','PS','L');W('Q1','4','PS','N');W('PS','+V1','KA','14');W('KA','13','PS','-V1');W('DX','A','KA','13');W('DX','K','KA','14');recompute();
+    // 插座與插在上面的器具：主回路畫 F→插座→插著的器具；針腳固定的端子標出腳位
+    W('Q1','2','XS','L');W('XS','N','Q1','4');S.wires.push({id:'wp',no:'HMPOW',a:{d:'XS',t:'插頭'},b:{d:'HM',t:'DC-IN'},wps:[],gauge:.75,color:'black'});W('BD','RD','KA','9');W('BD','SG','PS','-V1');recompute();
+    { const B2=schemBuild(),mn=B2.pages.filter(x=>/^主回路/.test(x.title)).map(x=>x.svg).join(''),ix=mn.indexOf('>XS'),ih=mn.indexOf('>HM<'),oth=B2.pages.filter(x=>/^其他接線/.test(x.title)).map(x=>x.svg).join('');
+      ok(ix>0&&ih>ix&&/>HMPOW</.test(mn)&&/>插座口</.test(mn),'主回路：插在插座上的器具畫在插座下方（XS → 插座口 → HM），標插頭線號');
+      ok(/>RD（2腳）</.test(oth)&&/>SG（5腳）</.test(oth),'接線圖：D-sub 等針腳固定的端子標出腳位（RD 2 腳、SG 5 腳）'); }
     const pg=schemBuild().pages.find(x=>/^其他接線/.test(x.title)&&/DX/.test(x.title));ok(pg&&/>KA：13</.test(pg.svg)&&/>KA：14</.test(pg.svg),'其他接線頁：沒畫在其他頁的器具（二極體 DX）列出端子與對端'+(pg?'':'；其他頁：'+schemBuild().pages.filter(x=>/^其他/.test(x.title)).map(x=>x.title).join('、')));
     return out;}));
   // 伺服接線圖

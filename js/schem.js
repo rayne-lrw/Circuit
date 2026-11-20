@@ -246,10 +246,12 @@ function scMainPages(M,pages,newPage,meta){
   const items=[];
   E.filter(e=>e.load&&!e.aux&&e.k!=='plcx').forEach(e=>{if(phase.has(e.u)&&phase.has(e.v)&&M.wiredNode.has(e.u))items.push({d:e.d,terms:[{k:e.u,t:e.ta},{k:e.v,t:e.tb}],name:e.k==='coil'?'線圈':e.name});});
   M.srcs.forEach(s=>{if(s.inK){const a=f(s.inK[0]),b=f(s.inK[1]);if(phase.has(a)&&phase.has(b))items.push({d:s.d,terms:[{k:a,t:s.inT[0]},{k:b,t:s.inT[1]}],name:'AC 輸入',src:s});}});
-  { const taken=new Set(items.flatMap(it=>it.terms.map(t=>t.k)));
-    S.devices.filter(d=>simElems(d).some(e=>e.k==='grp'&&e.t==='插頭')&&simElems(d).some(e=>e.k==='pass')).forEach(d=>{
-      const T=['L','N'].map(t=>({k:f(nodeKey({d:d.id,t})),t})).filter(t=>phase.has(t.k)&&M.wiredNode.has(t.k));
-      if(T.length===2&&!taken.has(T[0].k))items.push({d,terms:T,name:'插座'}); /* 只看火線 L 有沒有被插著的器具用到（N 是很多器具共用的） */}); }
+  S.devices.filter(d=>simElems(d).some(e=>e.k==='grp'&&e.t==='插頭')&&simElems(d).some(e=>e.k==='pass')).forEach(d=>{
+    const T=['L','N'].map(t=>({k:f(nodeKey({d:d.id,t})),t})).filter(t=>phase.has(t.k)&&M.wiredNode.has(t.k));if(T.length!==2)return;
+    // 插著的器具：插頭線（或電纜接頭）一端在插座口、另一端在這台器具，而且它的電源接在插座的火線 L 上
+    const pl=scPlugged(d),plugged=[];
+    for(let i=items.length-1;i>=0;i--){const it=items[i],p=pl.find(q=>q.d===it.d);if(p&&it.terms.some(t=>t.k===T[0].k)){plugged.unshift({...it,via:p});items.splice(i,1);}}
+    items.push({d,terms:T,name:'插座',plugged});});
   if(!items.length)return;
   const groups=new Map();
   items.forEach(it=>{const chains=it.terms.map(t=>({t,edges:pathTo(t.k),ph:phase.get(t.k)}));
@@ -259,7 +261,7 @@ function scMainPages(M,pages,newPage,meta){
     const levels=[...lv.entries()].sort((a,b)=>a[0]-b[0]).map(([,ids])=>ids.sort());
     const sig=it.d.id+'|'+levels.map(l=>l.join('+')).join('>');
     if(!groups.has(sig))groups.set(sig,{d:it.d,terms:[],names:[],chains:[],levels,src:null});
-    const g=groups.get(sig);it.terms.forEach(t=>{if(!g.terms.some(x=>x.k===t.k))g.terms.push(t);});if(!g.names.includes(it.name))g.names.push(it.name);g.chains.push(...chains);if(it.src)g.src=it.src;});
+    const g=groups.get(sig);if(it.plugged&&it.plugged.length)g.plugged=it.plugged;it.terms.forEach(t=>{if(!g.terms.some(x=>x.k===t.k))g.terms.push(t);});if(!g.names.includes(it.name))g.names.push(it.name);g.chains.push(...chains);if(it.src)g.src=it.src;});
   // 樹：節點是一層開關（多極算一台），葉子是用電項目
   const root={id:'ROOT',kids:[],poles:new Map(),devs:[]},nodes=new Map([['ROOT',root]]);
   const phOrd=p=>{const i=SC_PH.indexOf(p);return i<0?99:i;};
@@ -281,13 +283,19 @@ function scMainPages(M,pages,newPage,meta){
     let h='';
     if(nd.cons){ // 用電項目：方框，上緣各相端子
       const c=nd.cons,w=ownW(nd)*SC.U-4,bx=x+1;
-      c.terms.forEach(t=>{const ph=phase.get(t.k),xx=x+3+phX(ph);h+=SY.line(xx,y,y+10)+`<text class="s-term" x="${xx-.6}" y="${y+9.4}">${scEsc(termLabel(c.d,t.t)||t.t)}</text>`;const nm=M.netName(t.k);if(nm){const F=scFit(nm,8.6,2.3,1.3);h+=`<text class="s-netv" transform="translate(${xx+.8} ${y+.6}) rotate(90)"${F.fs!==2.3?` style="font-size:${F.fs}px"`:''}>${scEsc(F.t)}</text>`;}});
+      c.terms.forEach(t=>{const ph=phase.get(t.k),xx=x+3+phX(ph);h+=SY.line(xx,y,y+10)+`<text class="s-term" x="${xx-.6}" y="${y+9.4}">${scEsc(termLabel(c.d,t.t)||t.t)}</text>`;const w0=S.wires.find(w=>w.no&&[w.a,w.b].some(q=>q.d===c.d.id&&q.t===t.t)),nm=w0?w0.no:M.netName(t.k); /* 先用接在這個端子上的線號 */if(nm){const F=scFit(nm,8.6,2.3,1.3);h+=`<text class="s-netv" transform="translate(${xx+.8} ${y+.6}) rotate(90)"${F.fs!==2.3?` style="font-size:${F.fs}px"`:''}>${scEsc(F.t)}</text>`;}});
       const nmTxt=c.names.filter(n=>n&&n!=='AC 輸入'&&n!=='電源').join('、');
       h+=`<rect class="s-dev" x="${bx}" y="${y+10}" width="${w}" height="22"/>`+scTx('s-tag',bx+1.5,y+14.6,c.d.tag+(nmTxt?'　'+nmTxt:''),w-3,SCF.tag)+scTxW('s-sub',bx+1.5,y+18.6,tplOf(c.d).n,w-3,SCF.sub,2,2.9);
       if(c.src)h+=`<text class="s-xr2" x="${bx+1.5}" y="${y+29.4}">${scEsc(c.src.v)} 輸出\u0001S:${scEsc(c.d.id)}\u0001</text>`;
       // 接在這台 U／V／W 的馬達（同一台器具只畫一次）
       if(!motorDone.has(c.d.id)){const mot=scMotorsOf(M,c);if(mot.length){motorDone.add(c.d.id);mot.forEach((m,i)=>{const mx=x+(i+.5)*(w/mot.length)+1,mw=w/mot.length-9;h+=SY.line(mx,y+32,y+36)+SY.motor(mx,y+42,'')+scTx('s-tag',mx+7,y+41,m.tag,mw,SCF.tag)+scTxW('s-sub',mx+7,y+44.5,tplOf(m).n,mw,SCF.sub,2,2.9);ctx.put({motor:m,x:mx,y:y+42});});}}
       ctx.put({e:{d:c.d,act:c.d.id,k:'cons'},x:bx,y:y+14,terms:c.terms.map(t=>c.d.id+'|'+t.t)});
+      // 插在這個插座上的器具：從插座口往下畫插頭線，再畫器具方框
+      (c.plugged||[]).forEach((p,i,A)=>{const pw=(w-(A.length-1)*2)/A.length,px=bx+i*(pw+2),lx=px+9,cy=y+32;
+        h+=SY.line(lx,cy,cy+9)+scTx('s-term',lx-.6,cy+3.2,'插座口',8,SCF.term)+(p.via.no?scTx('s-net',lx+1.2,cy+5.2,p.via.no,pw-12,SCF.net):'')+scTx('s-term',lx-.6,cy+8.4,termLabel(p.d,p.via.t)||p.via.t,8,SCF.term);
+        h+=`<rect class="s-dev" x="${px}" y="${cy+9}" width="${pw}" height="17"/>`+scTx('s-tag',px+1.5,cy+13.6,p.d.tag+(p.name&&p.name!=='電源'&&p.name!=='AC 輸入'?'　'+p.name:''),pw-3,SCF.tag)+scTxW('s-sub',px+1.5,cy+17.6,tplOf(p.d).n,pw-3,SCF.sub,2,2.9);
+        if(p.src)h+=`<text class="s-xr2" x="${px+1.5}" y="${cy+24.4}">${scEsc(p.src.v)} 輸出\u0001S:${scEsc(p.d.id)}\u0001</text>`;
+        ctx.put({e:{d:p.d,act:p.d.id,k:'cons'},x:px,y:cy+13,terms:[p.d.id+'|'+p.via.t,c.d.id+'|插頭',...p.terms.map(t=>p.d.id+'|'+t.t)]});});
       return h;}
     // 開關：每一極一個符號；同一層有好幾台時，每極下面標自己的器具編號
     const poles=[...nd.poles.values()].sort((a,b)=>phOrd(a.ph)-phOrd(b.ph)),multi=nd.devs.length>1,c0=y+10;
@@ -353,6 +361,10 @@ function scMainPages(M,pages,newPage,meta){
 
 function scUses(nd,ph){if(nd.cons)return nd.cons.terms.some(t=>nd.chains.some(c=>c.t.k===t.k&&c.ph===ph));for(const p of nd.poles.values())if(p.ph===ph)return true;return nd.kids.some(k=>scUses(k,ph));}
 // 接在用電器具 U／V／W 的馬達（照導線與端子台的同電位找）
+// 插在插座口（插頭）上的器具：導線或兩端接頭的電纜
+function scPlugged(d){const isP=t=>t==='插頭'||String(t).startsWith('插頭.'),out=[];
+  S.wires.forEach(w=>[[w.a,w.b],[w.b,w.a]].forEach(([a,b])=>{if(a.d===d.id&&isP(a.t)&&b.d!==d.id){const o=devOf(b.d);if(o&&!isTB(o))out.push({d:o,t:b.t,no:w.no||''});}}));
+  (S.cables||[]).forEach(c=>{const P=c.plug||{};[['a','b'],['b','a']].forEach(([x,y])=>{if(P[x]&&P[y]&&P[x].d===d.id&&isP(P[x].t)){const o=devOf(P[y].d);if(o)out.push({d:o,t:P[y].t,no:c.no||''});}});});return out;}
 function scMotorsOf(M,c){const out=new Set(),UVW=/^(U|V|W)\d?$/;const t=tplOf(c.d);
   t.terms.filter(p=>UVW.test(p.id)).forEach(p=>{const k=M.f(nodeKey({d:c.d.id,t:p.id}));if(!M.wiredNode.has(k))return;
     S.devices.forEach(m=>{if(m===c.d||!/馬達/.test(tplOf(m).cat||''))return;if(tplOf(m).terms.some(q=>UVW.test(q.id)&&M.f(nodeKey({d:m.id,t:q.id}))===k))out.add(m);});});
@@ -483,6 +495,7 @@ function scOtherPages(M,newPage,pages){
   pages.forEach(pg=>pg.pos.forEach(o=>{const e=o.e;if(e&&e.d){if(e.ta)addC(e.d.id+'|'+e.ta);if(e.tb)addC(e.d.id+'|'+e.tb);}(o.terms||[]).forEach(addC);}));
   const devs=S.devices.filter(d=>!isTB(d)&&!busOf(d)).filter(d=>scTermsWired(d).some(t=>!cov.has(d.id+'|'+t)&&!scEarth(d,t))).sort((a,b)=>natCmp(a.tag,b.tag));
   scConnPages(M,newPage,pages,devs,'其他接線','other',t=>d=>!cov.has(d.id+'|'+t)&&!scEarth(d,t));}
+const scTL=(d,t)=>{const l=termLabel(d,t)||t,q=termOf(d,t),m=q&&/^第\s*(\d+)\s*腳/.exec(q.desc||'');return m&&l!==m[1]?`${l}（${m[1]}腳）`:l;};
 const scEarth=(d,t)=>{const p=termOf(d,t);return typeof isEarthTerm==='function'&&!!p&&isEarthTerm(p);};
 const scTermsWired=d=>[...new Set([...S.wires.flatMap(w=>[w.a,w.b]).filter(e=>e.d===d.id).map(e=>e.t),...(S.cables||[]).flatMap(c=>c.plug?['a','b'].map(k=>c.plug[k]).filter(q=>q&&q.d===d.id).map(q=>q.t):[])])];
 function scConnPages(M,newPage,pages,devList,title,kind,keep){if(!devList.length)return;
@@ -517,7 +530,7 @@ function scConnPages(M,newPage,pages,devList,title,kind,keep){if(!devList.length
     const motorRows=rows.filter(r=>kind==='servo'&&!r.miss&&r.ends.length&&/馬達/.test(tplOf(r.ends[0].d).cat||'')),mot=motorRows.length?motorRows[0].ends[0].d:null;
     let band=null;if(mot){const my0=by+4+rows.indexOf(motorRows[0])*RH+motorRows.length*RH/2,no=termsWired(mot).length-motorRows.length;band=[my0-7,my0+10+Math.max(0,no)*6.4+5];}
     rows.forEach((r,i)=>{const y=by+4+i*RH+RH/2,xl=bx+bw,xr=x0+96,lim=band&&y>band[0]-3&&y<band[1]+3?x0+117:x0+colW;
-      h+=scTx('s-term',xl-1,y+.9,termLabel(sv,r.t)||r.t,bw-12,SCF.term);
+      h+=scTx('s-term',xl-1,y+.9,scTL(sv,r.t),bw-6,SCF.term);
       if(r.miss){h+=`<line x1="${xl}" y1="${y}" x2="${xl+6}" y2="${y}"/>`+scTx('s-sub',xl+8,y+1,`${r.t}（編碼器）：沒有接線`,colW-bw-14,SCF.sub,'fill:#a00');return;}
       const fiber=r.ws.some(w=>/光纖|SSCNET|fiber/i.test(w.no||'')||/^CN1[AB]$/.test(r.t)),self=r.ends.length&&r.ends.every(e=>e.d===sv);
       const isMot=mot&&r.ends.some(e=>e.d===mot);
@@ -527,7 +540,7 @@ function scConnPages(M,newPage,pages,devList,title,kind,keep){if(!devList.length
       if(lab)h+=scTx('s-net',xl+2,y-1,lab,xe-xl-4,SCF.net);
       pg.pos.push({x:xl,y,terms:[sv.id+'|'+r.t,...r.ends.map(e=>e.d.id+'|'+e.t)]});
       if(isMot){const mx=x0+132,my=by+4+rows.indexOf(motorRows[0])*RH+motorRows.length*RH/2;h+=`<line x1="${xe}" y1="${y}" x2="${mx-7}" y2="${my}"/>`;return;}
-      const far=self?r.ends.map(e=>`${termLabel(sv,e.t)}（同一台）`).join('、'):r.ends.map(e=>`${e.d.tag}：${termLabel(e.d,e.t)}${e.via?`（經 ${e.via}）`:''}`).join('、');
+      const far=self?r.ends.map(e=>`${scTL(sv,e.t)}（同一台）`).join('、'):r.ends.map(e=>`${e.d.tag}：${scTL(e.d,e.t)}${e.via?`（經 ${e.via}）`:''}`).join('、');
       // 對端編號，後面同一行接型號（灰色小字）
       const room=lim-xr-4,F=scFit(far||'—',room,3.1,1.8);h+=`<text class="s-tag" x="${xr+1.5}" y="${y+1.1}" style="font-size:${F.fs}px">${scEsc(F.t)}</text>`;
       const used=scTW(F.t,F.fs)+3,nm=r.ends.length&&!self?tplOf(r.ends[0].d).n:'';if(nm&&scTW(nm,SCF.sub*.9*.85)<=room-used)h+=scTx('s-sub',xr+1.5+used,y+1.1,nm,room-used,SCF.sub*.9,'fill:#555'); // 型號是補充資訊：放得下完整才寫
