@@ -559,23 +559,23 @@ main.lc.wl{grid-template-columns:40px minmax(0,1fr) var(--wideW,640px) 320px}
 .s-svg .s-dot{fill:#000;stroke:none}
 .s-svg .s-rail,.s-svg .s-bus{stroke-width:.5}
 .s-svg .s-mech{stroke-dasharray:1 .8;stroke-width:.2}
-.s-gl{font-size:2.6px;text-anchor:middle}
-.s-svg .s-tbk{font-size:1.7px;fill:#555}.s-tbv{font-size:3px;font-weight:700}.s-tbs{font-size:1.8px}
-.s-ptitle{font-size:3.6px;font-weight:700}
-.s-sec{font-size:2.8px;font-weight:700}
-.s-railn{font-size:2.4px;font-weight:700}
-.s-tag{font-size:2.4px;font-weight:700}
-.s-sub{font-size:1.7px}
-.s-term{font-size:1.6px;text-anchor:end}
-.s-net{font-size:1.6px;font-style:italic}
-.s-netv{font-size:1.5px;font-style:italic}
-.s-xref,.s-xr2{font-size:1.6px}
-.s-in{font-size:1.8px;text-anchor:middle}
-.s-pot{font-size:1.9px;text-anchor:middle;font-weight:700}
+.s-gl{font-size:3px;text-anchor:middle}
+.s-svg .s-tbk{font-size:2px;fill:#555}.s-tbv{font-size:3.4px;font-weight:700}.s-tbs{font-size:2.2px}
+.s-ptitle{font-size:4.4px;font-weight:700}
+.s-sec{font-size:3.6px;font-weight:700}
+.s-railn{font-size:3.2px;font-weight:700}
+.s-tag{font-size:3.2px;font-weight:700}
+.s-sub{font-size:2.3px}
+.s-term{font-size:2.1px;text-anchor:end}
+.s-net{font-size:2.1px;font-style:italic}
+.s-netv{font-size:2px;font-style:italic}
+.s-xref,.s-xr2{font-size:2.1px}
+.s-in{font-size:2.3px;text-anchor:middle}
+.s-pot{font-size:2.5px;text-anchor:middle;font-weight:700}
 .s-big{font-size:12px;font-weight:700;text-anchor:middle}.s-big2{font-size:6px;text-anchor:middle}.s-cv{font-size:3px;text-anchor:middle}
 .sch-body{position:absolute;left:22mm;top:28mm;width:376mm;font-size:2.9mm;color:#000}
 .s-table{border-collapse:collapse;width:100%}.s-table th,.s-table td{border:.2mm solid #555;padding:.6mm 1.2mm;text-align:left;vertical-align:top}.s-table th{background:#eee}
-.s-idx{width:60%}.s-note{font-size:2.6mm;margin-top:3mm}
+.s-idx{width:60%}.s-note{font-size:2.6mm;margin-top:3mm}.s-th{font-size:3.4mm;margin:2.5mm 0 1mm}.s-th:first-child{margin-top:0}
 .sch-ttl{display:flex;flex-direction:column;gap:3px;font-size:12px;margin:4px 0}
 #schPrevBox{position:fixed;inset:0;z-index:300;background:rgba(40,44,44,.92);display:flex;flex-direction:column}
 #schPrevBox[hidden]{display:none}

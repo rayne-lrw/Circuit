@@ -28,7 +28,7 @@ const userFile=process.argv[2];
       if(extraW)extraW(W);recompute();};
     build();
     let B=schemBuild();const T=B.pages.map(x=>x.title);
-    ok(T[0]==='封面與圖例'&&T[1]==='圖面目錄'&&T.some(t=>/^主回路/.test(t))&&T.some(t=>/^控制回路 24V（PS）/.test(t))&&T.some(t=>/PLC 輸入/.test(t))&&T.some(t=>/PLC 輸出/.test(t))&&T.some(t=>/^線號表/.test(t))&&T.some(t=>/^材料表/.test(t)),`頁面組成（${B.pages.length} 頁）：${T.slice(0,8).join('、')}…`);
+    ok(T[0]==='封面與圖例'&&T[1]==='圖面目錄'&&T.some(t=>/^主回路/.test(t))&&T.some(t=>/^控制回路 24V（PS）/.test(t))&&T.some(t=>/^PLC 輸入 PLC、輸出 PLC$/.test(t))&&T.some(t=>/^線號表/.test(t))&&T.some(t=>/^材料表/.test(t)),`頁面組成（${B.pages.length} 頁，PLC 輸入輸出合在同一頁）：${T.slice(0,8).join('、')}…`);
     ok(B.pages.every(pg=>!/\u0001/.test(pg.svg+pg.html))&&B.pages.every((pg,i)=>pg.svg.includes(`>${i+1} / ${B.pages.length}<`)),'每頁標題欄頁次「n / 總頁數」，沒有殘留的佔位符號');
     ok(B.pages.every(pg=>/viewBox="0 0 420 297"/.test(pg.svg)&&/s-frame/.test(pg.svg)),'每頁都是 A3 橫式圖框（420×297）');
     { const v=schemVerify(B);ok(v.length===0&&v.checked>=10,`控制回路：從圖反推回每個元素的兩端，和配線完全一致（檢查 ${v.checked} 個）`); }
@@ -41,8 +41,18 @@ const userFile=process.argv[2];
     const main=B.pages.find(x=>/^主回路/.test(x.title));
     ok(main.svg.includes('>PS<')&&new RegExp(`24V 輸出 → 第 ${B.pages.indexOf(ctrl)+1} 頁`).test(main.svg),'主回路：電源供應器標出 24V 輸出在控制回路第幾頁');
     ok(/>Q1</.test(main.svg)&&/>LP</.test(main.svg),'主回路：Q1 斷路器、AC 燈（KA 接點控制）都畫出來');
+    // 線圈、負載一律靠下：KM 線圈在下方電源線附近
+    { const pos=ctrl.pos.find(o=>o.e&&o.e.k==='coil'&&o.e.d.tag==='KM');ok(pos&&pos.y>SC.RB-25,`線圈靠下對齊（KM 線圈 y=${pos&&Math.round(pos.y)}，下方電源線 ${SC.RB}）`); }
     const plcIn=B.pages.find(x=>/PLC 輸入/.test(x.title));ok(/>PX</.test(plcIn.svg)&&/>X0</.test(plcIn.svg),'PLC 輸入頁：X0 接 PX 感測器');
     const html=schemPrintHtml();ok((html.match(/class="pg sch"/g)||[]).length===B.pages.length,'列印 HTML：每頁一個 A3 區塊');
+    // 單極斷路器只切 R：S 相（N）在開關那一層要直接通過，從分配線到用電器具是一條連續的線
+    build([D('F2','ic60-1P2A',200,40),D('L2','lamp',500,-300,'field')],W=>{W('Q1','2','F2','1');W('F2','2','L2','L/+');W('L2','N/−','Q1','4');});
+    B=schemBuild();
+    { const svg=B.pages.find(x=>/^主回路/.test(x.title)).svg,doc=new DOMParser().parseFromString(svg,'image/svg+xml');
+      const lab=[...doc.querySelectorAll('text.s-term')].filter(t=>t.textContent==='N/−');let okAll=lab.length>0;
+      lab.forEach(t=>{const x=+t.getAttribute('x')+.6,y=+t.getAttribute('y');const iv=[...doc.querySelectorAll('line')].filter(l=>Math.abs(+l.getAttribute('x1')-x)<.01&&Math.abs(+l.getAttribute('x2')-x)<.01).map(l=>[Math.min(+l.getAttribute('y1'),+l.getAttribute('y2')),Math.max(+l.getAttribute('y1'),+l.getAttribute('y2'))]).filter(v=>v[0]<y+2).sort((a,b)=>a[0]-b[0]);
+        let end=iv.length?iv[0][1]:0;for(const v of iv.slice(1)){if(v[0]>end+6.5){okAll=false;break;} /* 開關符號本身有 6 mm 的接點空隙，之前的斷線是整段 20 幾 mm */end=Math.max(end,v[1]);}if(end<y-3)okAll=false;});
+      ok(okAll,`主回路：單極斷路器沒切的相（燈的 N）從分配線到器具是連續的線（${lab.length} 處）`); }
     // 很寬的迴路：30 個燈並聯在 SB1 後面 → 拉出中間電位、跨頁，仍然一致
     build([...Array(30)].map((_,i)=>D('H'+i,'yw1l-g',20+i*10,400,'door')),W=>{for(let i=0;i<30;i++){W('KM','A1','H'+i,'X1');W('H'+i,'X2','PS','-V1');}});
     B=schemBuild();const cp=B.pages.filter(x=>/^控制回路 24V（PS）/.test(x.title));
