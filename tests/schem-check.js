@@ -4,7 +4,7 @@
 // - 線圈下方列出接點在哪一頁哪一欄；主回路的電源供應器標出 DC 輸出在第幾頁
 // - 很寬的迴路會拉出中間電位、跨頁接續，仍然和配線一致
 // - 伺服接線圖：光纖虛線、馬達與煞車、沒接的編碼器提醒
-// - 重疊：實際排出每一頁，文字不能和文字、器具方框／圓、線重疊（IEC 垂直與舊 JIS 水平都檢查，含使用者專案）
+// - 重疊：實際排出每一頁，文字不能和文字、器具方框／圓、線重疊（含使用者專案）
 // 用法：node tests/schem-check.js [使用者專案檔.json]（有給檔案時也檢查那份）
 const {chromium}=require('playwright'),path=require('path'),fs=require('fs');
 const {schemOverlaps}=require('./schem-overlap.js');
@@ -72,17 +72,9 @@ const userFile=process.argv[2];
     ok(cp.length>=2&&schemVerify(B).length===0&&cp.slice(1).some(pg=>/>W11</.test(pg.svg)),`太寬時拉出中間電位（W11）跨頁接續（${cp.length} 頁），仍然和配線一致`);
     // 電源線名稱用實際線號（PS 的 +V1 接 W8），不自己編「24V ＋」
     { build();const cp=schemBuild().pages.find(x=>/^控制回路/.test(x.title));ok(/>W8<tspan[^>]*>（PS \+V1）/.test(cp.svg)&&!/24V ＋/.test(cp.svg),'電源線名稱用實際線號（W8，小字註明 PS +V1），不寫「24V ＋」'); }
-    // 舊 JIS＋水平：線圈畫圓、燈寫顏色字、電源線在左右、行號、交互參照「頁-行」，仍和配線一致
-    { build();S.schemStyle={sym:'jis',dir:'h'};const J=schemBuild(),cp=J.pages.find(x=>/^控制回路/.test(x.title)),doc=new DOMParser().parseFromString(cp.svg,'image/svg+xml');
-      const rails=[...doc.querySelectorAll('line.s-rail')];
-      ok(schemVerify(J).length===0&&rails.length>=2&&rails.every(l=>l.getAttribute('x1')===l.getAttribute('x2')),'水平：電源線是左右兩條直線，圖和配線仍一致');
-      ok(doc.querySelectorAll('text.s-ln').length>=3,'水平：每一行有行號');
-      ok(/<circle[^>]*r="3.4"/.test(cp.svg)&&!/<rect x="[\d.]+" y="[\d.]+" width="5.2" height="8"/.test(cp.svg),'舊 JIS：線圈畫成圓');
-      const main=J.pages.find(x=>/^主回路/.test(x.title));ok(/>R<\/text>/.test(main.svg)||/>G<\/text>/.test(cp.svg)||/>L<\/text>/.test(main.svg),'舊 JIS：指示燈圓圈內寫顏色字');
-      ok(/∟53-54 \d+-\d+/.test(cp.svg)||/∟\d+-\d+/.test(cp.svg),'水平：交互參照用「頁-行」');
-      ok(J.pages[0].svg.includes('舊 JIS 習慣畫法'),'封面圖例標明畫法');
-      const n=normalize({...JSON.parse(JSON.stringify(S)),schemStyle:{sym:'jis',dir:'x'}}).state;ok(n.schemStyle&&n.schemStyle.sym==='jis'&&n.schemStyle.dir==='v','畫法選項存檔（不合法的值改回預設）');
-      delete S.schemStyle;ok(schemBuild().pages.find(x=>/^控制回路/.test(x.title)).svg.match(/<line class="s-rail"[^>]*>/g).every(l=>/y1="(\S+)"[^>]*y2="\1"/.test(l)),'改回 IEC 垂直：電源線又是上下水平'); }
+    // 舊 JIS／水平畫法已拿掉：舊檔的 schemStyle 讀檔時丟掉，畫出來一律 IEC 垂直
+    { const n=normalize({...JSON.parse(JSON.stringify(S)),schemStyle:{sym:'jis',dir:'h'}}).state;ok(!('schemStyle' in n),'舊檔的畫法選項（舊 JIS／水平）讀檔時丟掉');
+      ok(schemBuild().pages.find(x=>/^控制回路/.test(x.title)).svg.match(/<line class="s-rail"[^>]*>/g).every(l=>/y1="(\S+)"[^>]*y2="\1"/.test(l)),'控制回路電源線一律上下水平'); }
     // 專案名稱存檔
     { const n=normalize({...JSON.parse(JSON.stringify(S)),docTitle:'  測試專案  '}).state;ok(n.docTitle==='測試專案','標題欄專案名稱存在專案檔'); S.docTitle='測試專案';ok(schemBuild().pages[2].svg.includes('測試專案'),'標題欄顯示專案名稱'); }
     $('tabTool').click();ok($('schPrint')&&$('schPrev')&&$('schTitle'),'工具分頁有正式電路圖（專案名稱、預覽、列印）');
@@ -111,17 +103,20 @@ const userFile=process.argv[2];
   // AC 控制回路（自保持、積熱電驛）、正反轉接觸器的主回路
   res.push(...await p.evaluate(()=>{const out=[],ok=(c,m)=>out.push((c?'✓ ':'✗ ')+m),D=(id,tpl,x,y,sheet='plate',extra={})=>({id,tag:id,tpl,x,y,sheet,...extra});
     S=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:860,h:660},door:{w:900,h:700},ducts:[],glands:[],wires:[],devices:[D('PWR','field-power',0,-300,'field'),D('QF','ic60-3P16A',40,40),
-      D('KMF','sp12',120,40),D('KMR','sp12',170,40),D('TH','thp12r',120,120),D('TBM','w2202-1401',240,40,'plate',{cnt:4}),D('FU1','tend-tfbr-321',300,40),D('SBS','py2201-r',600,100,'door'),D('SBR','py2201-g',650,100,'door'),D('HLF','yw1l-r',700,100,'door')]}).state;resetUi();
+      D('KMF','sp12',120,40),D('KMR','sp12',170,40),D('TH','thp12r',120,120),D('TBM','w2202-1401',240,40,'plate',{cnt:4}),D('FU1','tend-tfbr-321',300,40),D('SBS','py2201-r',600,100,'door'),D('SBR','py2201-g',650,100,'door'),D('HLF','yw1l-r',700,100,'door'),D('M1','motor3',100,-300,'field'),D('LS','d4mc',200,-300,'field'),D('HLA','yw1l-g',750,100,'door'),D('HLB','yw1l-g',800,100,'door')]}).state;resetUi();
     let n=0;const W=(a,at,bb,bt)=>S.wires.push({id:'w'+(++n),no:'W'+n,a:{d:a,t:at},b:{d:bb,t:bt},wps:[],gauge:.75,color:'black'});
     W('PWR','R','QF','1');W('PWR','S','QF','3');W('PWR','T','QF','5');
     W('QF','2','KMF','L1');W('QF','4','KMF','L2');W('QF','6','KMF','L3');W('QF','2','KMR','L3');W('QF','4','KMR','L2');W('QF','6','KMR','L1');
     W('KMF','T1','TH','L1');W('KMF','T2','TH','L2');W('KMF','T3','TH','L3');W('TH','T1','TBM','1A');W('TH','T2','TBM','2A');W('TH','T3','TBM','3A');W('KMR','T1','TBM','1B');W('KMR','T2','TBM','2B');W('KMR','T3','TBM','3B');
     W('QF','2','FU1','1');W('FU1','2','TH','95');W('TH','96','SBS','1');W('SBS','2','SBR','3');W('SBR','4','KMF','A1');W('KMF','A2','QF','4');W('SBS','2','KMF','13');W('KMF','14','KMF','A1');
-    W('FU1','2','TH','97');W('TH','98','HLF','X1');W('HLF','X2','QF','4');recompute();
+    W('FU1','2','TH','97');W('TH','98','HLF','X1');W('HLF','X2','QF','4');W('TBM','1C','M1','U');W('TBM','2C','M1','V');W('TBM','3C','M1','W');
+    W('FU1','2','LS','C');W('LS','A','HLA','X1');W('HLA','X2','QF','4');W('LS','B','HLB','X1');W('HLB','X2','QF','4');recompute();
     const B=schemBuild(),mn=B.pages.filter(x=>/^主回路/.test(x.title)).map(x=>x.svg).join(''),ac=B.pages.find(x=>/^控制回路 AC/.test(x.title));
     ok(ac&&/>SBR</.test(ac.svg)&&/>SBS</.test(ac.svg)&&/>HLF</.test(ac.svg)&&/>96</.test(ac.svg)&&/>98</.test(ac.svg),'AC 控制回路：保險絲後面有線圈的支路畫成控制回路展開圖（自保持的啟動按鈕、積熱電驛 95-96／97-98、指示燈都在）');
     ok(/>控制回路</.test(mn)&&/→ 第 \d+ 頁/.test(mn)&&!/>SBR</.test(mn),'主回路：AC 控制回路只標「控制回路 → 第 N 頁」');
-    ok(/>KMF</.test(mn)&&/>KMR</.test(mn)&&/>TH</.test(mn)&&/>5</.test(mn)&&/>6</.test(mn)&&(mn.match(/>出線</g)||[]).length===2,'主回路：正反轉接觸器 KMF／KMR 的主接點、熱動元件 TH 都畫出來，QF 三極都在，出線兩處'+JSON.stringify([/>KMF</.test(mn),/>KMR</.test(mn),/>TH</.test(mn),/>5</.test(mn),/>6</.test(mn),(mn.match(/>出線</g)||[]).length,B.pages.map(x=>x.title)]));
+    ok(/>KMF</.test(mn)&&/>KMR</.test(mn)&&/>TH</.test(mn)&&/>5</.test(mn)&&/>6</.test(mn),'主回路：正反轉接觸器 KMF／KMR 的主接點、熱動元件 TH 都畫出來，QF 三極都在'+JSON.stringify([/>KMF</.test(mn),/>KMR</.test(mn),/>TH</.test(mn),/>5</.test(mn),/>6</.test(mn),(mn.match(/>出線</g)||[]).length,B.pages.map(x=>x.title)]));
+    ok(/>M<\/text>/.test(mn)&&/>3~</.test(mn)&&/>M1</.test(mn)&&/>並接</.test(mn),'主回路：三相馬達 M1 畫成 M 3~，正反轉另一路標「並接」');
+    ok(ac&&(ac.svg.match(/>LS</g)||[]).length===1&&/>B</.test(ac.svg)&&/>A</.test(ac.svg)&&/>C</.test(ac.svg),'切換接點（極限 LS 的 C-A／C-B）畫成一個 1C 符號，常閉拉到旁邊一欄');
     ok(schemVerify(B).length===0,'正反轉＋AC 控制回路：圖反推回去和配線一致');
     return out;}));
   res.push(...await p.evaluate(()=>{const out=[],ok=(c,m)=>out.push((c?'✓ ':'✗ ')+m),D=(id,tpl,x,y,sheet='plate',extra={})=>({id,tag:id,tpl,x,y,sheet,...extra});
@@ -137,14 +132,16 @@ const userFile=process.argv[2];
     S.cables=[{id:'c1',no:'C9',spec:'伺服編碼線',cores:[{n:'1',c:'black',g:.5}],plug:{a:{d:'SV',t:'CN2'},b:{d:'M',t:'ENC'}}}];recompute();
     { const pg2=schemBuild().pages.find(x=>/^伺服接線/.test(x.title));ok(pg2&&!/CN2（編碼器）：沒有接線/.test(pg2.svg)&&/C9　伺服編碼線/.test(pg2.svg),'伺服接線圖：兩端接頭的編碼器電纜（沒有芯線）也算接上，標電纜編號'); }
     return out;}));
-  // 重疊：測試電路與使用者專案，兩種畫法
+  // 重疊：測試電路與使用者專案
   await p.addScriptTag({content:schemOverlaps.toString()});await p.emulateMedia({media:'print'});
   const ovl=async(label,uj,st)=>{const r=await p.evaluate(([uj,st,label])=>{if(uj){S=normalize(JSON.parse(uj)).state;resetUi();recompute();}
-      if(st)S.schemStyle=st;else delete S.schemStyle;document.getElementById('print').innerHTML=schemPrintHtml();return schemOverlaps().map(o=>`第 ${o.page} 頁 ${o.kind}：${o.a}｜${o.b}`);},[uj,st,label]);
+      document.getElementById('print').innerHTML=schemPrintHtml();return schemOverlaps().map(o=>`第 ${o.page} 頁 ${o.kind}：${o.a}｜${o.b}`);},[uj,st,label]);
     res.push((r.length?'✗ ':'✓ ')+`${label}：文字沒有和其他文字、器具、線重疊`+(r.length?`（${r.length} 處：${r.slice(0,3).join('；')}）`:''));};
-  await ovl('測試電路（IEC 垂直）',null,null);await ovl('測試電路（舊 JIS 水平）',null,{sym:'jis',dir:'h'});
-  if(userFile){const uj=fs.readFileSync(userFile,'utf8');await ovl('使用者專案（IEC 垂直）',uj,null);await ovl('使用者專案（舊 JIS 水平）',uj,{sym:'jis',dir:'h'});}
+  await ovl('測試電路',null,null);
+  if(userFile){const uj=fs.readFileSync(userFile,'utf8');await ovl('使用者專案',uj,null);}
   await b.close();
   res.forEach(l=>console.log(l));errs.forEach(e=>console.log('✗ 頁面錯誤：'+e));
+  if(res.length<30){console.log(`✗ 檢查項目只跑了 ${res.length} 項（電路圖程式可能出錯中斷）`);errs.push('too few');}
+  errs.forEach(e=>console.log('✗ 頁面錯誤：'+e));
   const fail=res.filter(l=>l.startsWith('✗')).length+errs.length;console.log(fail?`\n失敗 ${fail} 項`:'\n全部通過');process.exit(fail?1:0);
 })();

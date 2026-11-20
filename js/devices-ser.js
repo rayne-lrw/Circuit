@@ -31,7 +31,7 @@ const S={
   'laser-ps':'雷射砲台配件','dc5521f-tb':'雷射砲台配件','dc5525m-tb':'雷射砲台配件','laser-dot':'雷射砲台配件'};
 Object.entries(S).forEach(([id,ser])=>{if(TPL[id]&&!TPL[id].ser)TPL[id].ser=ser;});
 // 沒有廠牌的通用零件：廠牌填「通用」，器具庫才會和其他廠牌一樣顯示「廠牌 系列」
-['h66','diode','diode-coil','lamp','field-power','gnd13','gnd15','laser-ps','dc5521f-tb','dc5525m-tb','laser-dot'].forEach(id=>{if(TPL[id]&&!TPL[id].b)TPL[id].b='通用';});
+['h66','diode','diode-coil','lamp','field-power','motor3','gnd13','gnd15','laser-ps','dc5521f-tb','dc5525m-tb','laser-dot'].forEach(id=>{if(TPL[id]&&!TPL[id].b)TPL[id].b='通用';});
 // 外部電源進線不是馬達，放到「現場：接線盒與其他」
 if(TPL['field-power'])TPL['field-power'].cat='現場：接線盒與其他';
 // 使用者確認：THS-62 是天得；PY2201A、QL-NP 廠牌不明，放「其他」
