@@ -47,5 +47,83 @@ function coverCases(kind){
     attFor.forEach((hs,a)=>hs.slice(0,3).forEach(h=>out.push(build(h,3,a))));
     out.untestable=ks.filter(k=>!elsOf(k).length).concat([...attFor].filter(([a,hs])=>!hs.length).map(([a])=>a));
   }
+  if(kind==='mc'||kind==='relay'){ // 有線圈的器具（接觸器、繼電器、計時器、SSR）＋它的附件（輔助接點、積熱電驛）
+    const CAT=kind==='mc'?'電磁接觸器':'繼電器／計時';
+    const ks=Object.keys(TPL).filter(k=>tplOf({tpl:k}).cat===CAT);
+    const hosts=Object.keys(TPL).filter(k=>{const c=tplOf({tpl:k}).cat;return (c==='電磁接觸器'||c==='繼電器／計時')&&!tplOf({tpl:k}).attach&&elsOf(k).some(e=>e.k==='coil');});
+    const atts=ks.filter(k=>tplOf({tpl:k}).attach&&elsOf(k).length);
+    const fitHosts=a=>hosts.filter(h=>{const H={id:'H',tag:'H',tpl:h,x:100,y:100,sheet:'plate'},O={id:'O',tag:'O',tpl:a,x:100,y:100,sheet:'plate'};try{return hostOk(H,O);}catch(e){return false;}});
+    const attFor=new Map();atts.forEach(a=>attFor.set(a,fitHosts(a)));
+    const hostAtt=new Map();attFor.forEach((hs,a)=>hs.forEach(h=>{if(!hostAtt.has(h))hostAtt.set(h,[]);hostAtt.get(h).push(a);}));
+    const isMain=t=>/^(L\d|R\d|[1-6])(\(\d\))?$/.test(t);
+    const build=(k,combo,att)=>{const C=mk(),{D,W}=C,E=elsOf(k);let lampN=0;
+      D('PWR','field-power','field');D('Q0','fuji-bw50');['R','S','T'].forEach((p,i)=>W('PWR',p,'Q0',String(i*2+1)));
+      D('F1','ic60-1P2A');W('Q0','2','F1','1');D('PS','drl120');W('F1','2','PS','L');W('Q0','4','PS','N');
+      const dut=D('DUT',k);
+      const gs=[...new Set(E.filter(e=>e.k==='coil').map(e=>e.g||''))];
+      const swOf=g=>E.filter(e=>e.k==='sw'&&e.by==='coil'&&(e.g||'')===g);
+      const lamp=(p,n,a,b)=>{const h=D('HL'+(++lampN),'yw1l-g','door');W(p[0],p[1],dut,a);W(dut,b,h,'X1');W(h,'X2',n[0],n[1]);};
+      // 附件
+      let A=null,AE=[];if(att){A=D('AUX',att,'plate',{on:dut});AE=elsOf(att);}
+      const thM=AE.filter(e=>e.k==='pass'),thT=tplOf({tpl:att||k}).terms||[];
+      // 主接點 → 馬達（多組線圈：第二組相序對調，正反轉）
+      let mot=null;const motT=['U','V','W'];
+      const linked=!!tplOf({tpl:k}).links;
+      gs.forEach((g,gi)=>{const M=swOf(g).filter(e=>isMain(e.a));if(!M.length||(gi&&linked))return; // 內部已並聯、換相的第二組不另外接
+        if(M.length>=3){if(!mot)mot=D('M1','motor3','field');
+          M.slice(0,3).forEach((e,i)=>{W('Q0',String((gi?2-i:i)*2+2),dut,e.a);
+            if(gi===0&&A&&tplOf({tpl:att}).attach==='under'){const tt=thT.find(t=>t.id==='T'+(i+1));if(tt)W(A,tt.id,'M1',motT[i]);}
+            else W(dut,e.b,'M1',motT[gi?2-i:i]);});}
+        else{M.forEach((e,i)=>{const h=D('EL'+gi+i,'lamp','field');W('Q0','2',dut,e.a);W(dut,e.b,h,'L/+');W(h,'N/−','Q0','4');});}});
+      // 線圈
+      const ac=combo===2;let fu=null;if(ac){fu=D('FU','tend-tfbr-321');W('Q0','2',fu,'1');}
+      const P=ac?[fu,'2']:['PS','+V1'],N=ac?['Q0','4']:['PS','-V1'];
+      const usedSw=new Set();
+      gs.forEach((g,gi)=>{const c=E.find(e=>e.k==='coil'&&(e.g||'')===g);let cur=P;
+        // 積熱電驛 95-96 串在線圈前面
+        const ol=AE.find(e=>e.k==='sw'&&e.by==='trip'&&e.nc)||E.find(e=>e.k==='sw'&&e.by==='trip'&&e.nc);
+        if(ol&&gi===0){const od=AE.includes(ol)?A:dut;W(cur[0],cur[1],od,ol.a);cur=[od,ol.b];}
+        const sbs=D('SBS'+gi,'py2201-r','door'),sbr=D('SBR'+gi,'py2201-g','door');W(cur[0],cur[1],sbs,'1');W(sbs,'2',sbr,'3');let top=[sbr,'4'];
+        // 互鎖：另一組的常閉輔助
+        const og=gs.find(x=>x!==g);if(og!=null){const nc=swOf(og).find(e=>e.nc&&!isMain(e.a)&&!usedSw.has(e));if(nc){usedSw.add(nc);W(top[0],top[1],dut,nc.a);top=[dut,nc.b];}}
+        W(top[0],top[1],dut,c.a);W(dut,c.b,N[0],N[1]);
+        // 自保持：這一組的第一個常開輔助
+        if(combo!==1){const no=swOf(g).find(e=>!e.nc&&!isMain(e.a)&&!usedSw.has(e));if(no){usedSw.add(no);W(sbs,'2',dut,no.a);W(dut,no.b,sbr,'4');}}});
+      // 其餘輔助接點、積熱電驛 97-98、附件接點：各接一盞燈
+      E.filter(e=>e.k==='sw'&&!isMain(e.a)&&!usedSw.has(e)&&!(e.by==='trip'&&e.nc&&!att)).forEach(e=>lamp(P,N,e.a,e.b));
+      AE.filter(e=>e.k==='sw'&&!(e.by==='trip'&&e.nc)).forEach(e=>{const h=D('HL'+(++lampN),'yw1l-g','door');W(P[0],P[1],A,e.a);W(A,e.b,h,'X1');W(h,'X2',N[0],N[1]);});
+      return {tpl:k,k:combo,att,name:`${k} 組合${combo}${att?'＋'+att:''}`,devs:C.devs,ws:C.ws,dut};};
+    // 積熱電驛（獨立式，有主回路熱動元件）：接在接觸器後面
+    const buildOl=(k,combo)=>{const C=mk(),{D,W}=C,E=elsOf(k);
+      D('PWR','field-power','field');D('Q0','fuji-bw50');['R','S','T'].forEach((p,i)=>W('PWR',p,'Q0',String(i*2+1)));
+      D('F1','ic60-1P2A');W('Q0','2','F1','1');D('PS','drl120');W('F1','2','PS','L');W('Q0','4','PS','N');
+      D('KM','lc1d18');const dut=D('DUT',k);D('M1','motor3','field');
+      E.filter(e=>e.k==='pass').slice(0,3).forEach((e,i)=>{W('Q0',String(i*2+2),'KM','L'+(i+1));if(combo===3){D('TBM','w2202-1401','plate',{cnt:4});W('KM','T'+(i+1),'TBM',(i+1)+'A');W('TBM',(i+1)+'C',dut,e.a);}else W('KM','T'+(i+1),dut,e.a);W(dut,e.b,'M1','UVW'[i]);});
+      const ac=combo===2;let fu=null;if(ac){fu=D('FU','tend-tfbr-321');W('Q0','2',fu,'1');}const P=ac?[fu,'2']:['PS','+V1'],N=ac?['Q0','4']:['PS','-V1'];
+      const nc=E.find(e=>e.k==='sw'&&e.nc),no=E.find(e=>e.k==='sw'&&!e.nc);D('SB','py2201-g','door');
+      W(P[0],P[1],dut,nc.a);W(dut,nc.b,'SB','3');W('SB','4','KM','A1');W('KM','A2',N[0],N[1]);
+      if(no){D('HL','yw1l-r','door');W(P[0],P[1],dut,no.a);W(dut,no.b,'HL','X1');W('HL','X2',N[0],N[1]);}
+      return {tpl:k,k:combo,name:`${k} 組合${combo}`,devs:C.devs,ws:C.ws,dut};};
+    const buildIl=(k,combo)=>{const C=mk(),{D,W}=C,T=tplOf({tpl:k}),base=T.pair,BE=elsOf(base);
+      D('PWR','field-power','field');D('Q0','fuji-bw50');['R','S','T'].forEach((p,i)=>W('PWR',p,'Q0',String(i*2+1)));
+      D('F1','ic60-1P2A');W('Q0','2','F1','1');D('PS','drl120');W('F1','2','PS','L');W('Q0','4','PS','N');
+      D('KMF',base);D('KMR',base);const dut=D('DUT',k,'plate',{pair:['KMF','KMR']});
+      const PW=T.prewire||[['L1','L1'],['L2','L2'],['L3','L3'],['T1','T3'],['T2','T2'],['T3','T1']];PW.forEach(([a,b])=>W('KMF',a,'KMR',b));
+      const main=BE.filter(e=>e.k==='sw'&&isMain(e.a)).slice(0,3);D('M1','motor3','field');
+      main.forEach((e,i)=>{W('Q0',String(i*2+2),'KMF',e.a);if(combo===3){D('TBM','w2202-1401','plate',{cnt:4});W('KMF',e.b,'TBM',(i+1)+'A');W('TBM',(i+1)+'C','M1','UVW'[i]);}else W('KMF',e.b,'M1','UVW'[i]);});
+      const ac=combo===2;let fu=null;if(ac){fu=D('FU','tend-tfbr-321');W('Q0','2',fu,'1');}const P=ac?[fu,'2']:['PS','+V1'],N=ac?['Q0','4']:['PS','-V1'];
+      const coil=BE.find(e=>e.k==='coil'),nc=BE.find(e=>e.k==='sw'&&e.nc&&!isMain(e.a)),no=BE.find(e=>e.k==='sw'&&!e.nc&&!isMain(e.a));
+      D('SBS','py2201-r','door');W(P[0],P[1],'SBS','1');
+      [['KMF','KMR'],['KMR','KMF']].forEach(([me,ot],i)=>{const sb=D('SB'+me,'py2201-g','door');W('SBS','2',sb,'3');let top=[sb,'4'];
+        if(nc){W(top[0],top[1],ot,nc.a);top=[ot,nc.b];}W(top[0],top[1],me,coil.a);W(me,coil.b,N[0],N[1]);
+        if(no&&combo!==1){W('SBS','2',me,no.a);W(me,no.b,sb,'4');}});
+      return {tpl:k,k:combo,name:`${k} 組合${combo}`,devs:C.devs,ws:C.ws,dut};};
+    ks.filter(k=>tplOf({tpl:k}).ilock&&tplOf({tpl:k}).pair&&TPL[tplOf({tpl:k}).pair]).forEach(k=>[1,2,3].forEach(c=>out.push(buildIl(k,c))));
+    ks.filter(k=>hosts.includes(k)).forEach(k=>{const A=hostAtt.get(k)||[];[1,2,3].forEach(c=>out.push(build(k,c,c===3?A[0]||null:null)));});
+    ks.filter(k=>!tplOf({tpl:k}).attach&&!hosts.includes(k)&&elsOf(k).some(e=>e.k==='pass')&&elsOf(k).some(e=>e.by==='trip')).forEach(k=>[1,2,3].forEach(c=>out.push(buildOl(k,c))));
+    attFor.forEach((hs,a)=>hs.slice(0,3).forEach((h,i)=>out.push(build(h,[3,2,1][i],a))));
+    const covered=new Set(out.flatMap(c=>[c.tpl,c.att].filter(Boolean)));
+    out.untestable=ks.filter(k=>!covered.has(k));
+  }
   return out;}
 if(typeof module!=='undefined')module.exports={coverCases};

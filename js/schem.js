@@ -18,7 +18,7 @@ const scTrim=(s,n)=>{s=String(s||'');return s.length>n?s.slice(0,n-1)+'…':s;};
 // 估計文字寬度（mm）：中文字約 1 個字高，英數約 0.6 個字高
 const scTW=(s,fs)=>[...String(s||'')].reduce((a,ch)=>a+(ch.charCodeAt(0)>0x2e80?1:/[A-Z0-9]/.test(ch)?.66:.56),0)*fs;
 // 讓文字放進 w mm：先縮字到 minFs，還放不下就截斷；回傳 {t, fs}
-function scFit(s,w,fs,minFs){s=String(s||'');minFs=minFs||fs*.72;let f=fs;const tw=scTW(s,fs);if(tw>w)f=Math.max(minFs,fs*w/tw);let t=s;while(t.length>1&&scTW(t,f)>w)t=t.slice(0,-1);if(t!==s)t=t.slice(0,-1)+'…';return {t,fs:Math.round(f*100)/100};}
+function scFit(s,w,fs,minFs){s=String(s||'');minFs=minFs||fs*.72;let f=fs;const tw=scTW(s,fs);if(tw>w)f=Math.max(minFs,fs*w/tw*.999);/* .999：縮完剛好等寬時避免浮點誤差又被截 */let t=s;while(t.length>1&&scTW(t,f)>w)t=t.slice(0,-1);if(t!==s)t=t.slice(0,-1)+'…';return {t,fs:Math.round(f*100)/100};}
 const scTx=(cls,x,y,s,w,fs,extra)=>{const F=scFit(s,w,fs);return `<text class="${cls}" x="${x}" y="${y}"${F.fs!==fs||extra?` style="${F.fs!==fs?`font-size:${F.fs}px;`:''}${extra||''}"`:''}>${scEsc(F.t)}</text>`;};
 // 換行：照估算寬度斷行（英數連在一起的盡量不拆），回傳每一行
 function scWrap(s,w,fs){const tk=String(s||'').match(/（[^）]{1,6}）|[A-Za-z0-9.\-_/+#()%ΩØø]+|\s+|./gu)||[],L=[];let cur='';
@@ -236,6 +236,7 @@ const scCol=x=>Math.min(SC.COLS,Math.max(1,Math.floor((x-SC.M)/((SC.W-2*SC.M)/SC
 
 /* ---------- 6. 主回路（AC）：電源 → 開關 → 用電器具 的樹 ---------- */
 function scMainPages(M,pages,newPage,meta){
+  const uidE=e=>e.d.id+(e.el&&e.el.g&&e.el.by==='coil'?'#'+e.el.g:''),devU=u=>devOf(String(u).split('#')[0]); // 一體式正反轉：每組線圈的接點是一個單位
   const {E,phase,adj,acNodes,f,acs}=M;if(!acNodes.length)return;
   // 從電源往下的最短路徑（只走接點）
   const par=new Map(),q=[];acNodes.forEach(([k])=>{if(!par.has(k)){par.set(k,null);q.push(k);}});
@@ -269,20 +270,20 @@ function scMainPages(M,pages,newPage,meta){
   { const dlA=new Map(),dA=k=>{if(!dlA.has(k))dlA.set(k,pathTo(k).length);return dlA.get(k);},SW=['brk','no','nc','fuse','ol'];
     items.forEach(it=>{if(it.terms.length<2||it.terms.some(t=>t.edges))return;
       const feeds=it.terms.map(t=>(adj.get(t.k)||[]).filter(e=>SW.includes(e.k)&&phase.has(e.u)&&phase.has(e.v)).filter(e=>{const o=e.u===t.k?e.v:e.u;return dA(o)<dA(t.k)||(dA(o)===dA(t.k)&&e.v===t.k);}));
-      const last=it.terms.map(t=>{const q=par.get(t.k);return q?q.e.d:null;});if(last.every(d=>d===last[0]))return;
-      const cand=[...new Set(feeds[0].map(e=>e.d))].filter(d=>feeds.every(F=>F.some(e=>e.d===d))).sort((a,b)=>natCmp(a.tag,b.tag));if(!cand.length)return;
-      it.terms.forEach((t,i)=>{const e=feeds[i].find(q=>q.d===cand[0]),up=e.u===t.k?e.v:e.u;t.edges=[...pathTo(up),e];t.ph=phase.get(up);});}); }
+      const last=it.terms.map(t=>{const q=par.get(t.k);return q?uidE(q.e):null;});if(last.every(d=>d===last[0]))return;
+      const cand=[...new Set(feeds[0].map(uidE))].filter(u=>feeds.every(F=>F.some(e=>uidE(e)===u))).sort(natCmp);if(!cand.length)return;
+      it.terms.forEach((t,i)=>{const e=feeds[i].find(q=>uidE(q)===cand[0]),up=e.u===t.k?e.v:e.u;t.edges=[...pathTo(up),e];t.ph=phase.get(up);});}); }
   const ctlNodes=new Set();M.srcs.filter(q=>q.ac).forEach(q=>{const st=[q.p];ctlNodes.add(q.p);while(st.length){const x=st.pop();(adj.get(x)||[]).forEach(e=>{if(q.excl.has(e.id))return;const y=e.u===x?e.v:e.u;if(!ctlNodes.has(y)&&y!==q.nn){ctlNodes.add(y);st.push(y);}});}});
   { const used=new Set();items.forEach(it=>it.terms.forEach(t=>pathTo(t.k).forEach(e=>used.add(e.d.id))));const dead=new Map();
     const SWK=['brk','no','nc','fuse','ol'],isSw=e=>e.ctl&&SWK.includes(e.k)&&phase.has(e.u)&&phase.has(e.v),dl=new Map(),dOf=k=>{if(!dl.has(k))dl.set(k,pathTo(k).length);return dl.get(k);};
     const downOf=e=>dOf(e.u)<dOf(e.v)?e.v:dOf(e.v)<dOf(e.u)?e.u:e.v; // 一樣遠時（正反轉＋積熱電驛的橋接）照器具端子方向：L→T、1→2
     const deadNode=k=>!items.some(it=>it.terms.some(t=>t.k===k))&&!E.some(q=>q.load&&(q.u===k||q.v===k))&&!ctlNodes.has(k)&&(adj.get(k)||[]).every(q=>isSw(q)&&downOf(q)===k); // 後面沒有別的接點、也沒接負載（負載在控制回路頁）
     E.filter(isSw).forEach(e=>{const k=downOf(e);if(k==null||!deadNode(k))return;const up=k===e.u?e.v:e.u,others=(adj.get(k)||[]).filter(q=>q.d!==e.d).map(q=>q.d.tag);
-      if(!dead.has(e.d.id))dead.set(e.d.id,{d:e.d,terms:[],with:new Set()});const o=dead.get(e.d.id);others.forEach(t=>o.with.add(t));o.terms.push({k,t:k===e.u?e.ta:e.tb,edges:[...pathTo(up),e],ph:phase.get(up)});});
+      if(!dead.has(uidE(e)))dead.set(uidE(e),{d:e.d,terms:[],with:new Set()});const o=dead.get(uidE(e));others.forEach(t=>o.with.add(t));o.terms.push({k,t:k===e.u?e.ta:e.tb,edges:[...pathTo(up),e],ph:phase.get(up)});});
     // 並接到用電器具的另一條路（正反轉：KMF→TH 和 KMR 都接到馬達 M1）：主路徑以外的開關也畫一支，標「並接」
     { const onChain=new Set();items.forEach(it=>it.terms.forEach(t=>(t.edges||pathTo(t.k)).forEach(e=>onChain.add(e.id))));const itemNodes=new Set(items.filter(it=>!it.ctlRef).flatMap(it=>it.terms.map(t=>t.k)));
       E.filter(isSw).forEach(e=>{if(onChain.has(e.id))return;const k=downOf(e);if(k==null||!itemNodes.has(k)||ctlNodes.has(k))return;const up=k===e.u?e.v:e.u,on=items.find(it=>it.terms.some(t=>t.k===k));
-        if(!dead.has(e.d.id))dead.set(e.d.id,{d:e.d,terms:[],with:new Set(),to:new Set()});const o=dead.get(e.d.id);(o.to||(o.to=new Set())).add(on.d.tag);(adj.get(k)||[]).filter(q=>q.d!==e.d&&onChain.has(q.id)).forEach(q=>o.with.add(q.d.tag));
+        if(!dead.has(uidE(e)))dead.set(uidE(e),{d:e.d,terms:[],with:new Set(),to:new Set()});const o=dead.get(uidE(e));(o.to||(o.to=new Set())).add(on.d.tag);(adj.get(k)||[]).filter(q=>q.d!==e.d&&onChain.has(q.id)).forEach(q=>o.with.add(q.d.tag));
         o.terms.push({k,t:k===e.u?e.ta:e.tb,edges:[...pathTo(up),e],ph:phase.get(up)});}); }
     dead.forEach(o=>{if(used.has(o.d.id)&&!o.to)return; /* 已用到的器具其他極沒接：備用極，畫在原本那台上，不另外拉出線 */o.terms.sort((a,b)=>SC_PH.indexOf(a.ph)-SC_PH.indexOf(b.ph));items.push({d:o.d,terms:o.terms,name:'出線',outlet:true,with:[...o.with],to:o.to?[...o.to]:null});}); }
   if(!items.length)return;
@@ -290,8 +291,8 @@ function scMainPages(M,pages,newPage,meta){
   items.forEach(it=>{const chains=it.terms.map(t=>({t,edges:t.edges||pathTo(t.k),ph:t.ph||phase.get(t.k)}));
     // 每台開關在各相路徑上最早出現的位置；同一層的器具（例如兩相各走一個單極斷路器）放在同一格
     // 層：每台開關排在它上游所有開關的下一層（例如 N 極直接從電源來的 4P 斷路器，仍排在上游主斷路器下面）
-    const rank=new Map();chains.forEach(ch=>ch.edges.forEach(e=>{if(!rank.has(e.d.id))rank.set(e.d.id,0);}));
-    for(let g=0,ch=true;ch&&g<50;g++){ch=false;chains.forEach(c=>{const ids=c.edges.map(e=>e.d.id).filter((v,i,a)=>a.indexOf(v)===i);for(let i=1;i<ids.length;i++){const need=rank.get(ids[i-1])+1;if(rank.get(ids[i])<need){rank.set(ids[i],need);ch=true;}}});}
+    const rank=new Map();chains.forEach(ch=>ch.edges.forEach(e=>{if(!rank.has(uidE(e)))rank.set(uidE(e),0);}));
+    for(let g=0,ch=true;ch&&g<50;g++){ch=false;chains.forEach(c=>{const ids=c.edges.map(uidE).filter((v,i,a)=>a.indexOf(v)===i);for(let i=1;i<ids.length;i++){const need=rank.get(ids[i-1])+1;if(rank.get(ids[i])<need){rank.set(ids[i],need);ch=true;}}});}
     const lv=new Map();rank.forEach((r,id)=>{if(!lv.has(r))lv.set(r,[]);lv.get(r).push(id);});
     const levels=[...lv.entries()].sort((a,b)=>a[0]-b[0]).map(([,ids])=>ids.sort());
     const sig=it.d.id+'|'+levels.map(l=>l.join('+')).join('>');
@@ -302,12 +303,13 @@ function scMainPages(M,pages,newPage,meta){
   const phOrd=p=>{const i=SC_PH.indexOf(p);return i<0?99:i;};
   [...groups.values()].sort((a,b)=>natCmp(a.d.tag,b.d.tag)).forEach(g=>{
     let cur=root,key='ROOT';
-    g.levels.forEach(ids=>{key+='>'+ids.join('+');if(!nodes.has(key)){const nd={id:key,devs:ids.map(devOf),d:devOf(ids[0]),kids:[],poles:new Map()};nodes.set(key,nd);cur.kids.push(nd);}cur=nodes.get(key);
-      g.chains.forEach(ch=>ch.edges.filter(e=>ids.includes(e.d.id)).forEach(e=>{if(!cur.poles.has(e.id))cur.poles.set(e.id,{e,ph:upPh(e)||ch.ph});}));});
+    g.levels.forEach(ids=>{key+='>'+ids.join('+');if(!nodes.has(key)){const nd={id:key,devs:ids.map(devU),units:ids,d:devU(ids[0]),kids:[],poles:new Map()};nodes.set(key,nd);cur.kids.push(nd);}cur=nodes.get(key);
+      g.chains.forEach(ch=>ch.edges.filter(e=>ids.includes(uidE(e))).forEach(e=>{if(!cur.poles.has(e.id))cur.poles.set(e.id,{e,ph:upPh(e)||ch.ph});}));});
     const leaf={id:key+'>C:'+g.d.id+g.names.join(),d:g.d,kids:[],poles:new Map(),cons:g,chains:g.chains};cur.kids.push(leaf);});
   // 每一層的分支照編號排（F101、F102、…），不受用電器具編號或接線先後影響
   { const usedE=new Set();nodes.forEach(nd=>nd.poles.forEach((v,k)=>usedE.add(k)));
     nodes.forEach(nd=>{if(!nd.devs)return;E.filter(e=>(e.k==='brk'||e.k==='fuse')&&nd.devs.includes(e.d)&&!usedE.has(e.id)).forEach(e=>{const ph=upPh(e);if(!ph||[...nd.poles.values()].some(q=>q.ph===ph))return;nd.poles.set(e.id,{e,ph});usedE.add(e.id);});}); }
+  M.mainNodes=nodes; // 測試用
   const tagKey=nd=>nd.cons?nd.d.tag:nd.devs.map(d=>d.tag).sort(natCmp)[0];
   const sortKids=nd=>{nd.kids.sort((a,b)=>natCmp(tagKey(a),tagKey(b)));nd.kids.forEach(sortKids);};sortKids(root);
   const phases=[...new Set(acNodes.map(a=>a[1]))].sort((a,b)=>phOrd(a)-phOrd(b));
@@ -359,16 +361,21 @@ function scMainPages(M,pages,newPage,meta){
     poles.forEach(p=>{const xx=x+3+phX(p.ph),e=p.e;
       h+=SY.line(xx,y,c0-4)+SY.line(xx,c0+4,y+LV-6);
       h+=e.k==='brk'?SY.brk(xx,c0):e.k==='fuse'?SY.fuse(xx,c0):e.k==='ol'?SY.ol(xx,c0):e.k==='nc'?SY.nc(xx,c0):SY.no(xx,c0);if(e.k!=='fuse'&&e.k!=='ol')h+=SY.line(xx,c0-4,c0-3)+SY.line(xx,c0+3,c0+4);
-      h+=`<text class="s-term" x="${xx-.6}" y="${c0-4.6}">${scEsc(termLabel(e.d,e.ta))}</text><text class="s-term" x="${xx-.6}" y="${c0+7}">${scEsc(termLabel(e.d,e.tb))}</text>`;
+      { const lg=poles.some(q=>scTW(termLabel(q.e.d,q.e.ta),SCF.term)>PX-.9||scTW(termLabel(q.e.d,q.e.tb),SCF.term)>PX-.9),st=0; // 端子號太長（L1(2)）：縮小到放得進極距
+        const fit=t=>{const F=scFit(t,PX-.9,SCF.term,1.4);return `${F.fs!==SCF.term?` style="font-size:${F.fs}px"`:''}>${scEsc(F.t)}`;};
+        h+=`<text class="s-term" x="${xx-.6}" y="${c0-4.6-st}"${fit(termLabel(e.d,e.ta))}</text><text class="s-term" x="${xx-.6}" y="${c0+7+st}"${fit(termLabel(e.d,e.tb))}</text>`; }
       if(multi)h+=`<text class="s-sub" x="${xx+.6}" y="${c0+11}">${scEsc(e.d.tag)}</text>`;
       ctx.put({e,x:xx,y:c0,node:nd.id});});
     // 這一層沒經過開關的相（例如單極斷路器的 N）直接往下通過
     const phs=nd._trunc?poles.map(p=>p.ph):usedPh(nd),poleSet=new Set(poles.map(p=>p.ph));
     phs.forEach(ph=>{if(!poleSet.has(ph))h+=SY.line(x+3+phX(ph),y,y+LV-6);});
     if(nd.devs.length===1&&poles.length>1){const xs=poles.map(p=>x+3+phX(p.ph));h+=`<line class="s-mech" x1="${Math.min(...xs)-3}" y1="${c0}" x2="${Math.max(...xs)-1}" y2="${c0}"/>`;}
-    const p0=poles[0],ac=p0&&devOf(String(p0.e.act||'').split('#')[0]),tg=nd.devs.length>1?nd.devs.map(d=>d.tag).join('、'):(ac&&ac!==nd.d&&p0.e.k!=='brk'?ac.tag:nd.d.tag);
-    const tx=x+4+Math.max(0,...[...phs,...poles.map(p=>p.ph)].map(phX))+2;
-    { const aw=x+wOf(nd)*SC.U-tx-2;h+=scTx('s-tag',tx,y+9.5,tg,aw,SCF.tag)+scTxW('s-sub',tx,y+13.2,tplOf(nd.d).n,aw,SCF.sub,2,2.9); }
+    const p0=poles[0],ac=p0&&devOf(String(p0.e.act||'').split('#')[0]),gs=(nd.units||[]).map(u=>String(u).split('#')[1]).filter(Boolean),tg=(nd.devs.length>1?nd.devs.map(d=>d.tag).join('、'):(ac&&ac!==nd.d&&p0.e.k!=='brk'?ac.tag:nd.d.tag))+(gs.length?`（${gs.join('、')}）`:'');
+    const tx=x+4+Math.max(0,...[...phs,...poles.map(p=>p.ph)].map(phX))+2+(poles.some(p=>p.e.k==='nc'&&phX(p.ph)===Math.max(0,...[...phs,...poles.map(q=>q.ph)].map(phX)))?2.2:0); // 最右一極是常閉時，橫桿往右凸，文字再往右
+    { const aw=x+wOf(nd)*SC.U-tx-2;h+=scTx('s-tag',tx,y+9.5,tg,aw,SCF.tag)+scTxW('s-sub',tx,y+13.2,tplOf(nd.d).n,aw,SCF.sub,2,2.9);
+      const th=S.devices.find(r=>r.on===nd.d.id&&tplOf(r).plug&&tplOf(r).trip);
+      if(th){const cy=y+22;poles.forEach(p=>{const xx=x+3+phX(p.ph);h+=SY.ol(xx,cy);});h+=scTx('s-tag',tx,cy+.6,th.tag,aw,SCF.tag)+scTx('s-sub',tx,cy+3.8,tplOf(th).n,aw,SCF.sub);
+        ctx.put({e:{d:th,act:th.id,k:'cons'},x:tx,y:cy,terms:(tplOf(th).terms||[]).filter(t=>/^[LT]\d$/.test(t.id)).map(t=>th.id+'|'+t.id)});} }
     if(nd._trunc){if(!nd._sameSub){poles.forEach(p=>{const xx=x+3+phX(p.ph);h+=SY.line(xx,y+LV-6,y+LV-2);});h+=`<text class="s-pot" x="${x+3+phX(poles[0]?poles[0].ph:'')+5}" y="${y+LV+2}">→ 第 \u0001T:${scEsc(nd.id)}\u0001 頁</text>`;}return h;}
     h+=drawKids(nd,x,y+LV-6,ctx,phs);
     return h;};
@@ -683,7 +690,7 @@ function schemBuild(){
   const loc=new Map();pages.forEach(pg=>pg.pos.forEach(o=>{if(!o.e)return;const k=o.e.act;if(!loc.has(k))loc.set(k,[]);loc.get(k).push({o,s:`${pg.no}.${scCol(o.x)}`});}));
   // 同一個位置的同類接點（例如主接點 L1-T1、L2-T2、L3-T3）合成一行
   const xrefL=act=>{const G=new Map();(loc.get(act)||[]).filter(x=>x.o.e.ctl&&['no','nc'].includes(x.o.e.k)).forEach(x=>{const pgn=x.s.split(/[.-]/)[0],k=x.o.e.k+'|'+(x.o.e.k&&M.phase.has(x.o.e.u)?pgn:x.s);if(!G.has(k))G.set(k,{nc:x.o.e.k==='nc',s:x.s,c:[],p:[]});const g=G.get(k);if(!g.c.includes(x.s))g.c.push(x.s);g.p.push(`${termLabel(x.o.e.d,x.o.e.ta)}-${termLabel(x.o.e.d,x.o.e.tb)}`);});
-    return [...G.values()].map(g=>`${g.nc?'⊥':'∟'}${g.p.length>2?g.p[0]+'～'+g.p[g.p.length-1]:g.p.join(' ')} ${g.c.length>1?g.c[0]+'–'+g.c[g.c.length-1].split(/[.-]/).pop():g.s}`);};
+    return [...G.values()].map(g=>`${g.nc?'⊥':'∟'}${g.p.length>2?(scTW(g.p[0]+'～'+g.p[g.p.length-1],2.4)>14?'主接點':g.p[0]+'～'+g.p[g.p.length-1]):g.p.join(' ')} ${g.c.length>1?g.c[0]+'–'+g.c[g.c.length-1].split(/[.-]/).pop():g.s}`);};
   const xref=act=>{const L=xrefL(act);
     return L.slice(0,4).map((t,i)=>`<tspan x="0" dy="${i?2.7:0}">${scEsc(t)}</tspan>`).join('')+(L.length>4?`<tspan x="0" dy="2.7">…等 ${L.length} 個</tspan>`:'');};
   const srcPage=id=>{const pg=pages.find(p=>p.kind==='ctrl'&&(p.src||[]).includes(id));return pg?pg.no:'—';};

@@ -1,13 +1,13 @@
 // 器具覆蓋測試：每種器具照它的動作資料套 3 種電路（tests/cover-gen.js），產生正式電路圖並檢查：
 // 不能出錯、圖反推和配線一致、沒有截斷與佔位符號、有接線的器具都畫得出來、文字不重疊、受測器具不會掉到「其他接線」頁、附件有裝上。
-// 用法：node tests/cover-check.js [種類，預設全部]（目前種類：brk 斷路器／保險絲座與附件）
+// 用法：node tests/cover-check.js [種類，預設全部]（brk 斷路器類、mc 接觸器類…）（目前種類：brk 斷路器／保險絲座與附件）
 const {chromium}=require('playwright'),path=require('path'),fs=require('fs');
 const {schemOverlaps}=require(path.resolve('tests/schem-overlap.js'));
 (async()=>{const b=await chromium.launch(),p=await b.newPage({viewport:{width:1600,height:1130}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
 await p.goto('file://'+path.resolve('index.html'));await p.addScriptTag({path:path.resolve('tests/cover-gen.js')});await p.addScriptTag({content:schemOverlaps.toString()});await p.emulateMedia({media:'print'});
-const KINDS=process.argv[2]?[process.argv[2]]:['brk'];let fail=0;
+const KINDS=process.argv[2]?[process.argv[2]]:['brk','mc'];let fail=0;
 for(const kind of KINDS){
-const meta=await p.evaluate(k=>{window.__C=coverCases(k);return {n:__C.length,untestable:__C.untestable||[],tpls:new Set(__C.map(c=>c.tpl)).size};},kind);
+const meta=await p.evaluate(k=>{window.__C=coverCases(k);return {n:__C.length,untestable:[...new Set(__C.untestable||[])],tpls:new Set(__C.flatMap(c=>[c.tpl,c.att].filter(Boolean))).size};},kind);
 console.log(`[${kind}] ${meta.tpls} 種器具、${meta.n} 個組合；沒有動作資料、無法測：${meta.untestable.join('、')||'無'}`);
 const s0=0,s1=meta.n;const ng=[];const cls={};
 for(let i=s0;i<s1;i+=20){
