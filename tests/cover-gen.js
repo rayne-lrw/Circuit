@@ -165,5 +165,29 @@ function coverCases(kind){
         out.push({tpl:k,k:combo,name:`${k} 組合${combo}`,devs:C.devs,ws:C.ws,dut,tbPage:true});});});
     const covered=new Set(out.map(c=>c.tpl));out.untestable=ks.filter(k=>!covered.has(k));
   }
+  if(kind==='panel'){ // 面板：IDEC 操作部（照標準組合裝接點塊）、按鈕、照光按鈕、選擇開關、人機、面板插座
+    const ks=Object.keys(TPL).filter(k=>tplOf({tpl:k}).cat==='面板：按鈕與顯示');
+    const build=(k,combo)=>{const C=mk(),{D,W}=C,T=tplOf({tpl:k});
+      D('PWR','field-power','field');D('Q0','fuji-bw50');['R','S','T'].forEach((p,i)=>W('PWR',p,'Q0',String(i*2+1)));
+      D('F1','ic60-1P2A');W('Q0','2','F1','1');D('PS','drl120');W('F1','2','PS','L');W('Q0','4','PS','N');
+      const dut=D('DUT',k,'door');const parts=[[dut,elsOf(k)]];
+      if(T.cbHost){const cbs=resolveTpl(k).cbs||[];const host=C.devs.find(d=>d.id==='DUT');
+        cbs.forEach((b,i)=>{if(!b)return;const id=D('CB'+i,b,'door',{on:'DUT',rack:i});const o=C.devs.find(d=>d.id===id);o.x=host.x+10*i;o.y=host.y;parts.push([id,elsOf(b)]);});}
+      const ac=combo===2;let fu=null;if(ac){fu=D('FU','tend-tfbr-321');W('Q0','2',fu,'1');}const P=ac?[fu,'2']:['PS','+V1'],N=ac?['Q0','4']:['PS','-V1'];
+      let plc=null,xN=0;if(combo===3&&parts.some(([,E])=>E.some(e=>e.k==='sw'))){plc=D('PLC','fx5u32');W('F1','2',plc,'L');W(plc,'N','Q0','4');W(plc,'S/S','PS','-V1');}
+      let n=0;const usedT=new Set();
+      parts.forEach(([id,E])=>{E.forEach(e=>{
+        if(e.k==='sw'){if(usedT.has(id+e.a)||usedT.has(id+e.b))return;usedT.add(id+e.a);usedT.add(id+e.b);
+          if(plc&&xN<16){W('PS','+V1',id,e.a);W(id,e.b,plc,'X'+(xN<8?xN:xN+2).toString());xN++;}
+          else{const h=D('HL'+(++n),'yw1l-g','door');W(P[0],P[1],id,e.a);W(id,e.b,h,'X1');W(h,'X2',N[0],N[1]);}}
+        else if(e.k==='load'&&/\./.test(e.a)){const g=e.a.split('.')[0],ad=D('ADP'+(++n),'dc5521f-tb');W('PS','+V1',ad,'V+');W(ad,'V-','PS','-V1');W(ad,'5521母',id,g);} // 接頭式電源（DC-IN）：經 5521 轉接座
+        else if(e.k==='load'&&!/\./.test(e.a)){W(combo===3?'PS':P[0],combo===3?'+V1':P[1],id,e.a);W(id,e.b,combo===3?'PS':N[0],combo===3?'-V1':N[1]);}
+        else if(e.k==='pass'&&!/\./.test(e.a)){const h=D('HP'+(++n),'yw1l-g','door');W(P[0],P[1],id,e.a);W(id,e.b,h,'X1');W(h,'X2',N[0],N[1]);}});});
+      if(elsOf(k).some(e=>e.k==='grp'&&e.t==='插頭')){W('F1','2',dut,'L');W(dut,'N','Q0','4');}
+      return {tpl:k,k:combo,name:`${k} 組合${combo}`,devs:C.devs,ws:C.ws,dut};};
+    const ok=k=>{const T=tplOf({tpl:k});return !T.attach&&(T.cbHost||elsOf(k).some(e=>['sw','load','pass'].includes(e.k)));};
+    ks.filter(ok).forEach(k=>[1,2,3].forEach(c=>out.push(build(k,c))));
+    const covered=new Set(out.flatMap(c=>c.devs.map(d=>d.tpl)));out.untestable=ks.filter(k=>!covered.has(k));
+  }
   return out;}
 if(typeof module!=='undefined')module.exports={coverCases};

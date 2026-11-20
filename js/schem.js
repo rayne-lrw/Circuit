@@ -183,7 +183,7 @@ function scLeafSvg(t,x,y,H,ctx){
   if(!['coil','plcx','load','pwr'].includes(e.k)||e.k==='coil'){h+=SY.line(x,c-4,c-3)+SY.line(x,c+3,c+4);}
   // 文字：器具編號（接點標示動作來源）、說明、接點號；從符號右緣外面開始，寬度限制在這一格內
   const hw=e.k==='plcx'?5.5:['load','pwr'].includes(e.k)&&!scLamp(e)?6.5:e.k==='coil'?4:scLamp(e)?3.2:3.6,tx=t.co?t.co.x2+1.6:x+hw+1,tw=e.k==='sens'||e.sensPwr?SC.U-7.5-hw-1.5:SC.U-hw-8.2; // 感測器有虛線框：文字寫到框的右緣為止
-  const actDev=devOf(String(e.act).split('#')[0]),own=d.tag,tag=e.ctl&&actDev&&actDev!==d&&['coil','host','hostbrk','hosttrip','hostel','op'].includes(e.by)?`${actDev.tag}`:own;
+  const actDev=devOf(String(e.act).split('#')[0]),own=d.tag,faHost=!e.ctl&&d.on&&tplOf(d).rackKind==='fa'&&devOf(d.on),tag=faHost?faHost.tag:e.ctl&&actDev&&actDev!==d&&['coil','host','hostbrk','hosttrip','hostel','op'].includes(e.by)?`${actDev.tag}`:own; // 照光按鈕的燈（FA 轉接器）：寫操作部的編號
   const sub=tag!==own?own:e.k==='plcy'?ptName(e):e.k==='plcx'?'':((d.model&&tplOf(d).model?d.model:'')||tplOf(d).n);
   if(e.sensPwr){ // 多線式感測器的方塊：棕接上方、藍接下方，黑／白輸出從右側直接拉出去（在控制回路排版時畫），編號寫在方塊下方
     const w2=SC.U-3;h+=scTx('s-tag',x+1.4,c+8.6,tag,w2,SCF.tag)+scTxW('s-sub',x+1.4,c+11.9,sub,w2,SCF.sub,4,2.9);
@@ -259,9 +259,11 @@ function scMainPages(M,pages,newPage,meta){
     const walk=k=>{const out=[];let x=k,g=0;while(par.get(x)&&g++<200){const q=par.get(x);out.unshift({e:q.e,n:x});x=q.from;}return {src:x,steps:out};};
     const cut=k=>{const w=walk(k);let i=-1;w.steps.forEach((st,j)=>{if(isProt(st.e))i=j;});return i<0?{node:w.src,edge:null,up:[]}:{node:w.steps[i].n,edge:w.steps[i].e,up:w.steps.slice(0,i+1).map(st=>st.e)};};
     const secs=new Map();
-    items.filter(it=>it.name==='線圈').forEach(it=>{const [a,b]=it.terms.map(t=>cut(t.k)),[A,B]=walk(it.terms[0].k).steps.length>=walk(it.terms[1].k).steps.length?[a,b]:[b,a];
+    const ctlIt=it=>it.name==='線圈'||(/燈/.test(it.name||'')&&it.terms.length===2&&it.terms.some(t=>pathTo(t.k).some(e=>e.k==='no'||e.k==='nc')));
+    items.filter(ctlIt).forEach(it=>{const [a,b]=it.terms.map(t=>cut(t.k)),[A,B]=walk(it.terms[0].k).steps.length>=walk(it.terms[1].k).steps.length?[a,b]:[b,a];
       if(!A.edge)return;const key=A.node+'|'+B.node;if(!secs.has(key))secs.set(key,{p:A.node,n:B.node,edge:A.edge,excl:new Set([...A.up,...B.up].map(e=>e.id))});});
     secs.forEach(sc=>{const on=k=>walk(k).steps.some(st=>st.n===sc.p)||k===sc.p;
+      if(items.some(it=>!it.src&&!it.plugged&&!ctlIt(it)&&!(/燈/.test(it.name||'')&&it.terms.length===2)&&it.terms.some(t=>on(t.k))))return; // 這個點還接著主回路的其他負載（例如直接接在主斷路器後面）：不拆成控制回路頁，留在主回路
       for(let i=items.length-1;i>=0;i--){const it=items[i];if(it.src||it.plugged)continue;if(it.terms.some(t=>on(t.k)))items.splice(i,1);}
       const d=sc.edge.d,tb=sc.edge.u===sc.p?sc.edge.ta:sc.edge.tb,v=`AC ${phase.get(sc.p)||''}-${phase.get(sc.n)||''}`;
       M.srcs.push({d,e:{p:tb,n:phase.get(sc.n)||''},p:sc.p,nn:sc.n,v,ac:true,excl:sc.excl});
@@ -372,7 +374,7 @@ function scMainPages(M,pages,newPage,meta){
     if(nd.devs.length===1&&poles.length>1){const xs=poles.map(p=>x+3+phX(p.ph));h+=`<line class="s-mech" x1="${Math.min(...xs)-3}" y1="${c0}" x2="${Math.max(...xs)-1}" y2="${c0}"/>`;}
     const p0=poles[0],ac=p0&&devOf(String(p0.e.act||'').split('#')[0]),gs=(nd.units||[]).map(u=>String(u).split('#')[1]).filter(Boolean),tg=(nd.devs.length>1?nd.devs.map(d=>d.tag).join('、'):(ac&&ac!==nd.d&&p0.e.k!=='brk'?ac.tag:nd.d.tag))+(gs.length?`（${gs.join('、')}）`:'');
     const tx=x+4+Math.max(0,...[...phs,...poles.map(p=>p.ph)].map(phX))+2+(poles.some(p=>p.e.k==='nc'&&phX(p.ph)===Math.max(0,...[...phs,...poles.map(q=>q.ph)].map(phX)))?2.2:0); // 最右一極是常閉時，橫桿往右凸，文字再往右
-    { const aw=x+wOf(nd)*SC.U-tx-2;h+=scTx('s-tag',tx,y+9.5,tg,aw,SCF.tag)+scTxW('s-sub',tx,y+13.2,tplOf(nd.d).n,aw,SCF.sub,2,2.9);
+    { const aw=x+wOf(nd)*SC.U-tx-2;h+=scTx('s-tag',tx,y+9.5,tg,aw,SCF.tag)+scTxW('s-sub',tx,y+13.2,(ac&&ac!==nd.d&&p0.e.k!=='brk'&&nd.devs.length===1?nd.d.tag+'　':'')+tplOf(nd.d).n,aw,SCF.sub,2,2.9); // 別台帶動的接點（接點塊、輔助接點）：說明前面寫自己的編號
       const th=S.devices.find(r=>r.on===nd.d.id&&tplOf(r).plug&&tplOf(r).trip);
       if(th){const cy=y+22;poles.forEach(p=>{const xx=x+3+phX(p.ph);h+=SY.ol(xx,cy);});h+=scTx('s-tag',tx,cy+.6,th.tag,aw,SCF.tag)+scTx('s-sub',tx,cy+3.8,tplOf(th).n,aw,SCF.sub);
         ctx.put({e:{d:th,act:th.id,k:'cons'},x:tx,y:cy,terms:(tplOf(th).terms||[]).filter(t=>/^[LT]\d$/.test(t.id)).map(t=>th.id+'|'+t.id)});} }
@@ -580,6 +582,11 @@ function scServoPages(M,newPage,pages){
 function scOtherPages(M,newPage,pages){
   const cov=new Set(),addC=k=>{cov.add(k);const i=k.indexOf('.',k.indexOf('|'));if(i>0)cov.add(k.slice(0,i));};
   pages.forEach(pg=>pg.pos.forEach(o=>{const e=o.e;if(e&&e.d){if(e.ta)addC(e.d.id+'|'+e.ta);if(e.tb)addC(e.d.id+'|'+e.tb);}(o.terms||[]).forEach(addC);}));
+  // 只有導通的轉接器（5521 轉接座這類）：端子所在的點已經畫在圖上就算畫過
+  const dn=new Set();pages.forEach(pg=>pg.pos.forEach(o=>{const e=o.e;if(e&&e.u!=null){dn.add(e.u);dn.add(e.v);}}));
+  cov.forEach(k=>{const i=k.indexOf('|');if(i>0)dn.add(M.f(nodeKey({d:k.slice(0,i),t:k.slice(i+1)})));});
+  S.devices.forEach(d=>{const E=simElems(d);if(!E.length||!E.every(e=>e.k==='pass'||e.k==='grp'))return;(tplOf(d).terms||[]).forEach(t=>{const sub=E.find(e=>e.k==='grp'&&e.t===t.id);
+    const ks=sub?sub.sub.map(x=>t.id+'.'+x):[t.id];if(ks.every(x=>dn.has(M.f(nodeKey({d:d.id,t:x})))))cov.add(d.id+'|'+t.id);});});
   const devs=S.devices.filter(d=>!isTB(d)&&!busOf(d)).filter(d=>scTermsWired(d).some(t=>!cov.has(d.id+'|'+t)&&!scEarth(d,t))).sort((a,b)=>natCmp(a.tag,b.tag));
   scConnPages(M,newPage,pages,devs,'其他接線','other',t=>d=>!cov.has(d.id+'|'+t)&&!scEarth(d,t));}
 const scTL=(d,t)=>{const l=termLabel(d,t)||t,q=termOf(d,t),m=q&&/^第\s*(\d+)\s*腳/.exec(q.desc||'');return m&&l!==m[1]?`${l}（${m[1]}腳）`:l;};
