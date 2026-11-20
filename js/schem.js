@@ -43,7 +43,7 @@ function schemModel(){
   // 不畫出來的內部導通（電源供應器 +V1／+V2、插座 L／N）先合併
   const isOL=d=>els.some(q=>q.d===d&&q.k==='sw'&&q.by==='trip'); // 積熱電驛：主回路的熱動元件要畫出來
   els.forEach(e=>{if(e.k==='pass'&&!isFuse(e.d)&&!isOL(e.d))un(e.aK,e.bK);});
-  const E=[],srcs=[],acs=[];let n=0;
+  const E=[],srcs=[],acs=[],pnoz=[];let n=0;
   const act=(e)=>{const d=e.d;switch(e.by){case 'coil':return d.id+(e.g?'#'+e.g:'');case 'host':case 'hostbrk':case 'hosttrip':case 'hostel':return d.on||d.id;case 'op':return d.on||d.id;default:return d.id;}};
   const add=(o)=>{o.id='e'+(++n);E.push(o);return o;};
   els.forEach(e=>{const d=e.d;
@@ -57,7 +57,8 @@ function schemModel(){
     else if(e.k==='load'||e.k==='pwr')add({d,el:e,k:e.k,a:e.aK,b:e.bK,ta:e.a,tb:e.b,act:d.id,load:true,name:e.name||(e.k==='pwr'?'電源':'負載'),aux:!!e.aux});
     else if(e.k==='plcX')e.ptsK.forEach(([t,k])=>add({d,el:e,k:'plcx',a:k,b:e.comK,ta:t,tb:e.com,act:d.id,load:true,pt:t}));
     else if(e.k==='src')srcs.push({d,e,p:e.pK,nn:e.nK,v:e.v||'DC',inK:e.inK,inT:e.in});
-    else if(e.k==='ac')acs.push({d,e});});
+    else if(e.k==='ac')acs.push({d,e});
+    else if(e.k==='pnoz'&&e.insK)pnoz.push({d,e});}); // 安全繼電器的輸入迴路：在控制回路頁當成小段畫
   S.devices.filter(d=>/^diode/.test(d.tpl)&&!els.some(e=>e.d===d)).forEach(d=>{const T=(tplOf(d).terms||[]).map(t=>t.id);
     if(T.includes('A')&&T.includes('K'))add({d,k:'diode',a:nodeKey({d:d.id,t:'A'}),b:nodeKey({d:d.id,t:'K'}),ta:'A',tb:'K',act:d.id,ctl:true});});
   E.forEach(e=>{e.u=f(e.a);e.v=f(e.b);});
@@ -75,7 +76,7 @@ function schemModel(){
   const acNodes=[];acs.forEach(({d,e})=>{e.phK.forEach((k,i)=>acNodes.push([f(k),e.ph[i],d]));if(e.nK)acNodes.push([f(e.nK),'N',d]);});
   { const q=[];acNodes.forEach(([k,ph])=>{if(!phase.has(k)){phase.set(k,ph);q.push(k);}});
     while(q.length){const x=q.shift();(adj.get(x)||[]).forEach(e=>{const y=e.u===x?e.v:e.u;if(!phase.has(y)){phase.set(y,phase.get(x));q.push(y);}});} }
-  return {E,srcs,acs,acNodes,f,netName,phase,adj,wiredNode,res:r};
+  return {E,srcs,acs,pnoz,acNodes,f,netName,phase,adj,wiredNode,res:r};
 }
 
 /* ---------- 2. 串並聯化簡 ---------- */
@@ -423,6 +424,10 @@ function scSecTree(M,G){const ac=G.srcs[0].ac;
   const R1=reach(G.p,G.n),R2=reach(G.n,G.p),inn=k=>R1.has(k)&&R2.has(k);
   return spReduce(edges.filter(e=>inn(e.u)&&inn(e.v)),G.p,G.n);}
 function scCtrlPages(M,pages,newPage){
+  // 安全繼電器：輸入端子兩兩之間經過接點（急停、門開關）相通的，各當成一段（上下電源線就是那兩個端子；配對照實際接線找）
+  (M.pnoz||[]).forEach(({d,e})=>{const K=e.insK.map(M.f),used=new Set();
+    for(let i=0;i<K.length;i++)for(let j=i+1;j<K.length;j++){if(used.has(i)||used.has(j)||K[i]===K[j])continue;const t=scSecTree(M,{p:K[i],n:K[j],srcs:[{}]});
+      if(t&&scLeaves(t).length){used.add(i);used.add(j);M.srcs.push({d,e:{p:e.ins[i],n:e.ins[j]},p:K[i],nn:K[j],v:'安全輸入',safety:true});}}});
   const groups=new Map();M.srcs.forEach(s=>{const p=M.f(s.p),n=M.f(s.nn);if(!M.wiredNode.has(p))return;const k=p+'|'+n;if(!groups.has(k))groups.set(k,{p,n,srcs:[]});groups.get(k).srcs.push(s);});
   const used=new Set();const secs=[];
   [...groups.values()].sort((a,b)=>natCmp(a.srcs[0].d.tag,b.srcs[0].d.tag)).forEach(G=>{
@@ -467,9 +472,9 @@ function scCtrlPages(M,pages,newPage){
       let sp=pg.spans[pg.spans.length-1];if(!sp||sp.seg!==it.seg||sp.sec!==sec){sp={seg:it.seg,sec,x0:x,x1:x,items:[],LH,head:first?'':'（續）',newSec:!pg.spans.some(s=>s.sec===sec)};pg.spans.push(sp);first=false;}
       sp.items.push({...it,x});sp.x1=x;x+=w*SC.U;});
   });
-  ctrlPgs.forEach(pg=>{pg.title=`控制回路 ${pg.secs.map(s=>`${s.v}（${s.tags}）`).join('、')}`;let h='';
+  ctrlPgs.forEach(pg=>{pg.title=`控制回路 ${[...new Set(pg.secs.map(s=>`${s.v}（${s.tags}）`))].join('、')}`;let h='';
     pg.spans.forEach(sp=>{const sg=sp.seg,xa=sp.x0-5,xb=sp.x1+7,ctx={LH:sp.LH,M,put:o=>pg.pos.push(o)};
-      if(sp.newSec)h+=`<text class="s-sec" x="${xa}" y="${SC.RT-13}">${scEsc(sp.sec.v)}　電源 ${scEsc(sp.sec.tags)}${sp.head}</text>`;
+      if(sp.newSec)h+=`<text class="s-sec" x="${xa}" y="${SC.RT-13}">${scEsc(sp.sec.v)}　${sp.sec.v==="安全輸入"?"":"電源 "}${scEsc(sp.sec.tags)}${sp.head}</text>`;
       h+=`<line class="s-rail" x1="${xa}" y1="${SC.RT}" x2="${xb}" y2="${SC.RT}"/><line class="s-rail" x1="${xa}" y1="${SC.RB}" x2="${xb}" y2="${SC.RB}"/>`;
       h+=`<text class="s-railn" x="${xa}" y="${SC.RT-2.2}">${scEsc(sg.top)}${sg.topSub?`<tspan class="s-sub" dx="1.5">（${scEsc(sg.topSub)}）</tspan>`:''}</text><text class="s-railn" x="${xa}" y="${SC.RB+4.6}">${scEsc(sg.bot)}${sg.botSub?`<tspan class="s-sub" dx="1.5">（${scEsc(sg.botSub)}）</tspan>`:''}</text>`;
       const outN=new Map();

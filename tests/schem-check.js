@@ -118,6 +118,10 @@ const userFile=process.argv[2];
     ok(/>KMF</.test(mn)&&/>KMR</.test(mn)&&/>TH</.test(mn)&&/>5</.test(mn)&&/>6</.test(mn),'主回路：正反轉接觸器 KMF／KMR 的主接點、熱動元件 TH 都畫出來，QF 三極都在'+JSON.stringify([/>KMF</.test(mn),/>KMR</.test(mn),/>TH</.test(mn),/>5</.test(mn),/>6</.test(mn),(mn.match(/>出線</g)||[]).length,B.pages.map(x=>x.title)]));
     ok(/>M<\/text>/.test(mn)&&/>3~</.test(mn)&&/>M1</.test(mn)&&/>並接</.test(mn),'主回路：三相馬達 M1 畫成 M 3~，正反轉另一路標「並接」');
     ok(ac&&(ac.svg.match(/>LS</g)||[]).length===1&&/>B</.test(ac.svg)&&/>A</.test(ac.svg)&&/>C</.test(ac.svg),'切換接點（極限 LS 的 C-A／C-B）畫成一個 1C 符號，常閉拉到旁邊一欄');
+    { const B2=(()=>{S.devices.push({id:'SMX',tag:'SMX',tpl:'pnoz',x:500,y:300,sheet:'plate'},{id:'PSX',tag:'PSX',tpl:'drl120',x:600,y:300,sheet:'plate'},{id:'ESX',tag:'ESX',tpl:'yw1b',x:600,y:500,sheet:'door'});
+        let k=900;const W2=(a,at,bb,bt)=>S.wires.push({id:'w'+(++k),no:'S'+k,a:{d:a,t:at},b:{d:bb,t:bt},wps:[],gauge:.75,color:'black'});
+        W2('QF','2','PSX','L');W2('QF','4','PSX','N');W2('PSX','+V1','SMX','A1');W2('SMX','A2','PSX','-V1');W2('SMX','S11','ESX','1');W2('ESX','2','SMX','S21');W2('SMX','S12','ESX',"1'");W2('ESX',"2'",'SMX','S22');recompute();return schemBuild();})();
+      const sp=B2.pages.find(x=>/安全輸入（SMX）/.test(x.title));ok(sp&&(sp.svg.match(/>ESX</g)||[]).length===2&&!B2.pages.some(x=>/^其他接線/.test(x.title)&&/ESX/.test(x.title))&&schemVerify(B2).length===0,'安全繼電器：急停接在輸入端子之間的迴路畫在控制回路頁（配對照實際接線找：S11-S21、S12-S22）'); }
     ok(schemVerify(B).length===0,'正反轉＋AC 控制回路：圖反推回去和配線一致');
     return out;}));
   res.push(...await p.evaluate(()=>{const out=[],ok=(c,m)=>out.push((c?'✓ ':'✗ ')+m),D=(id,tpl,x,y,sheet='plate',extra={})=>({id,tag:id,tpl,x,y,sheet,...extra});
