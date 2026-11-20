@@ -172,7 +172,7 @@ const RACK_KIND={pwr:'電源',spwr:'電源',rpwr:'電源',cpu:'CPU',io:'I/O',cb:
 const rackN=t=>t.rackKind==='io'?Math.max(1,Math.round(t.w/27.4)):1;
 // 基板上每一槽被哪一台模組佔用（寬的模組佔好幾槽）
 function rackUse(h,except){const m=new Map();riders(h).forEach(r=>{if(r===except||r.rack==null)return;for(let i=0;i<rackN(tplOf(r));i++)m.set(r.rack+i,r);});return m;}
-function rackFit(h,o,i){const R=tplOf(h).rack,ot=tplOf(o),n=rackN(ot),use=rackUse(h,o);if(!R||!ot.rackKind)return false;if(tplOf(h).noDbl&&ot.dbl)return false;/* 緊急停止不能裝雙接點塊 */for(let k=0;k<n;k++){const s=R[i+k];if(!s||s.k!==ot.rackKind||use.has(i+k))return false;}return true;}
+function rackFit(h,o,i){const R=tplOf(h).rack,ot=tplOf(o),n=rackN(ot),use=rackUse(h,o);if(!R||!ot.rackKind)return false;if(tplOf(h).b&&ot.b&&tplOf(h).b!==ot.b)return false;/* 廠牌不同的不能插（台達 AH 模組不能插三菱 Q 底板） */if(tplOf(h).noDbl&&ot.dbl)return false;/* 緊急停止不能裝雙接點塊 */for(let k=0;k<n;k++){const s=R[i+k];if(!s||s.k!==ot.rackKind||use.has(i+k))return false;}return true;}
 // 離指標最近、種類對、還空著的槽
 function rackPick(h,o,cx){const R=tplOf(h).rack||[],w=tplOf(o).w;let best=null;R.forEach((s,i)=>{if(!rackFit(h,o,i))return;const dd=Math.abs(h.x+s.x+w/2-cx);if(!best||dd<best.d)best={i,d:dd};});return best?best.i:null;}
 // 槽的顯示名稱：電源、CPU、I/O 槽從 0 開始編號

@@ -189,5 +189,56 @@ function coverCases(kind){
     ks.filter(ok).forEach(k=>[1,2,3].forEach(c=>out.push(build(k,c))));
     const covered=new Set(out.flatMap(c=>c.devs.map(d=>d.tpl)));out.untestable=ks.filter(k=>!covered.has(k));
   }
+  if(kind==='plc'){ // PLC：主機、串接模組、插槽模組（底板＋電源＋CPU）、連接器模組；輸入接按鈕、輸出接繼電器，並檢查位址
+    const ks=Object.keys(TPL).filter(k=>tplOf({tpl:k}).cat==='PLC');
+    const T_=k=>tplOf({tpl:k}),has=(k,kk)=>elsOf(k).some(e=>e.k===kk);
+    const hosts=Object.keys(TPL).filter(k=>T_(k).chain&&T_(k).chainAddr);
+    const bases=Object.keys(TPL).filter(k=>T_(k).rack&&!T_(k).ssrHost&&!T_(k).cbHost&&T_(k).rack.some(r=>r.k==='io'));
+    const dv=(id,tpl,x,y,o={})=>({id,tag:id,tpl,x,y,sheet:'plate',...o});
+    const fitsChain=(h,m)=>{try{return chainOk(dv('H',h,100,100),dv('M',m,100,100));}catch(e){return false;}};
+    const fitsRack=(b,m)=>{try{return hostOk(dv('B',b,100,100),dv('M',m,100,100));}catch(e){return false;}};
+    const rackFor=m=>bases.find(b=>fitsRack(b,m));
+    const slotOf=(b,kind,n=0)=>{const R=T_(b).rack;let c=-1;for(let i=0;i<R.length;i++)if(R[i].k===kind&&++c===n)return i;return -1;};
+    const pickFor=(b,kind)=>Object.keys(TPL).find(k=>T_(k).rackKind===kind&&fitsRack(b,k));
+    const ioMod=b=>Object.keys(TPL).find(k=>T_(k).rackKind==='io'&&fitsRack(b,k)&&has(k,'plcX'));
+    let SN=0;const wireIO=(C,id,k,nIn,nOut)=>{const {D,W}=C,E=elsOf(k);let n=0;
+      E.filter(e=>e.k==='pwr').forEach(e=>{if(/^(L|N|AC)/.test(e.a)||/AC/.test(e.a+e.b)){W('F1','2',id,e.a);W(id,e.b,'Q0','4');}else{W('PS','+V1',id,e.a);W(id,e.b,'PS','-V1');}});
+      E.filter(e=>e.k==='load').forEach(e=>{W('PS','+V1',id,e.a);W(id,e.b,'PS','-V1');}); // 接頭腳位（CN1.9）上的電源也接
+      E.filter(e=>e.k==='plcX').forEach(e=>{const pts=(e.pts||[]).slice(0,nIn);if(!pts.length)return;if(e.com)W(id,e.com,'PS','-V1');
+        pts.forEach(pt=>{const sb=D('S'+(++SN),'py2201-g','door');W('PS','+V1',sb,'3');W(sb,'4',id,pt);});nIn-=pts.length;});
+      const plus=new Set(E.filter(e=>e.k==='load'||e.k==='pwr').map(e=>e.a));
+      E.filter(e=>e.k==='plcY').forEach(e=>{const pr=(e.pairs||[]).slice(0,nOut);const coms=new Set();
+        pr.forEach(([y,c])=>{const ka=D('K'+(++SN),'my2n-24');if(c&&plus.has(c)){W(id,y,ka,'14');W(ka,'13','PS','-V1');return;} /* 源型輸出：COM 是 +24V，負載接在 Y 和 0V 之間 */W('PS','+V1',ka,'14');W(ka,'13',id,y);if(c&&!coms.has(c)){coms.add(c);W(id,c,'PS','-V1');}});nOut-=pr.length;});};
+    const base=()=>{SN=0;const C=mk(),{D,W}=C;D('PWR','field-power','field');D('Q0','fuji-bw50');['R','S','T'].forEach((p,i)=>W('PWR',p,'Q0',String(i*2+1)));
+      D('F1','ic60-1P2A');W('Q0','2','F1','1');D('PS','drl120');W('F1','2','PS','L');W('Q0','4','PS','N');return C;};
+    const io3=c=>c===1?[8,0]:c===2?[0,8]:[4,4];
+    ks.forEach(k=>{const T=T_(k);
+      [1,2,3].forEach(combo=>{const C=base(),{D,W}=C;const [nI,nO]=io3(combo);let ok=true;
+        if(T.attach==='chain'&&T.chainKind){const h=hosts.find(q=>fitsChain(q,k));if(!h){ok=false;return;}
+          D('CPU',h);const hd=C.devs.find(d=>d.id==='CPU');hd.x=100;hd.y=200;wireIO(C,'CPU',h,combo===3?2:0,0);
+          const m=D('DUT',k,'plate',{on:'CPU',chain:0});const md=C.devs.find(d=>d.id==='DUT');md.x=hd.x+(T.chainKind==='l'?-T.w:T_(h).w);md.y=hd.y;wireIO(C,'DUT',k,nI,nO);
+          if(combo===3&&T.chainKind==='r'){const m2=D('DUT2',k,'plate',{on:'CPU',chain:1});const d2=C.devs.find(d=>d.id==='DUT2');d2.x=md.x+T.w;d2.y=hd.y;wireIO(C,'DUT2',k,nI,nO);}}
+        else if(T.rackKind&&['io','cpu','pwr','rpwr','spwr'].includes(T.rackKind)){
+          const b=T.rackKind==='io'?rackFor(k):bases.find(q=>fitsRack(q,k));if(!b){ok=false;return;}D('BASE',b);const bd=C.devs.find(d=>d.id==='BASE');bd.x=60;bd.y=200;
+          const put=(id,tpl,slot)=>{if(slot<0||!tpl)return null;D(id,tpl,'plate',{on:'BASE',rack:slot});const o=C.devs.find(d=>d.id===id);o.x=bd.x+T_(b).rack[slot].x;o.y=bd.y;return id;};
+          const pk=T.rackKind==='pwr'||T.rackKind==='rpwr'||T.rackKind==='spwr'?k:pickFor(b,'pwr'),ck=T.rackKind==='cpu'?k:pickFor(b,'cpu');
+          const ps=pk?put(pk===k?'DUT':'PSU',pk,slotOf(b,T_(pk).rackKind)>=0?slotOf(b,T_(pk).rackKind):slotOf(b,'pwr')):null;if(ps)wireIO(C,ps,pk,0,0);
+          const cp=ck&&slotOf(b,'cpu')>=0?put(ck===k?'DUT':'CPU',ck,slotOf(b,'cpu')):null;if(cp)wireIO(C,cp,ck,0,0);
+          if(T.rackKind==='io'){put('DUT',k,slotOf(b,'io',0));wireIO(C,'DUT',k,nI,nO);if(combo===3&&slotOf(b,'io',1)>=0){put('DUT2',k,slotOf(b,'io',1));wireIO(C,'DUT2',k,nI,nO);}}
+          else{const im=ioMod(b);if(im&&slotOf(b,'io',0)>=0){put('IO1',im,slotOf(b,'io',0));wireIO(C,'IO1',im,4,0);}}}
+        else if(!T.attach&&(has(k,'plcX')||has(k,'plcY')||has(k,'pwr')||has(k,'load'))){D('DUT',k);wireIO(C,'DUT',k,nI,nO);
+          if(combo===3&&T.chain){const m=Object.keys(TPL).find(q=>T_(q).chainKind==='r'&&fitsChain(k,q)&&has(q,'plcX'));if(m){const hd=C.devs.find(d=>d.id==='DUT');D('EXT',m,'plate',{on:'DUT',chain:0});const e=C.devs.find(d=>d.id==='EXT');e.x=hd.x+T.w;e.y=hd.y;wireIO(C,'EXT',m,4,0);}}}
+        else ok=false;
+        if(ok)out.push({tpl:k,k:combo,name:`${k} 組合${combo}`,devs:C.devs,ws:C.ws,dut:'DUT',plc:true});});});
+    // 底板（主基板、擴展基板）：裝電源、CPU，I/O 槽裝輸入（組合 1）、輸出（組合 2）、全部槽都裝（組合 3，檢查位址一路接續不重複）
+    const oMod=b=>Object.keys(TPL).find(k=>T_(k).rackKind==='io'&&fitsRack(b,k)&&has(k,'plcY')&&!has(k,'plcX'));
+    bases.forEach(b=>{[1,2,3].forEach(combo=>{const C=base(),{D,W}=C;D('DUT',b);const bd=C.devs.find(d=>d.id==='DUT');bd.x=60;bd.y=200;
+      const put=(id,tpl,slot)=>{if(slot<0||!tpl)return null;D(id,tpl,'plate',{on:'DUT',rack:slot});const o=C.devs.find(d=>d.id===id);o.x=bd.x+T_(b).rack[slot].x;o.y=bd.y;return id;};
+      const pk=pickFor(b,'pwr')||pickFor(b,'rpwr'),ck=pickFor(b,'cpu');if(pk){const ps=put('PSU',pk,slotOf(b,T_(pk).rackKind));if(ps)wireIO(C,ps,pk,0,0);}if(ck&&slotOf(b,'cpu')>=0){put('CPU',ck,slotOf(b,'cpu'));wireIO(C,'CPU',ck,0,0);}
+      const im=ioMod(b),om=oMod(b),nio=T_(b).rack.filter(r=>r.k==='io').length;
+      for(let i=0;i<(combo===3?nio:1);i++){const m=combo===2?om:im;if(!m)break;const id='IO'+i;if(put(id,m,slotOf(b,'io',i)))wireIO(C,id,m,combo===1?4:2,combo===2?4:0);}
+      out.push({tpl:b,k:combo,name:`${b} 組合${combo}`,devs:C.devs,ws:C.ws,dut:'DUT',plc:true});});});
+    const covered=new Set(out.flatMap(c=>c.devs.map(d=>d.tpl)));out.untestable=ks.filter(k=>!covered.has(k));
+  }
   return out;}
 if(typeof module!=='undefined')module.exports={coverCases};

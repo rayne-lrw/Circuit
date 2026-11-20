@@ -19,7 +19,7 @@ const scTrim=(s,n)=>{s=String(s||'');return s.length>n?s.slice(0,n-1)+'…':s;};
 const scTW=(s,fs)=>[...String(s||'')].reduce((a,ch)=>a+(ch.charCodeAt(0)>0x2e80?1:/[A-Z0-9]/.test(ch)?.66:.56),0)*fs;
 // 讓文字放進 w mm：先縮字到 minFs，還放不下就截斷；回傳 {t, fs}
 function scFit(s,w,fs,minFs){s=String(s||'');minFs=minFs||fs*.72;let f=fs;const tw=scTW(s,fs);if(tw>w)f=Math.max(minFs,fs*w/tw*.999);/* .999：縮完剛好等寬時避免浮點誤差又被截 */let t=s;while(t.length>1&&scTW(t,f)>w)t=t.slice(0,-1);if(t!==s)t=t.slice(0,-1)+'…';return {t,fs:Math.round(f*100)/100};}
-const scTx=(cls,x,y,s,w,fs,extra)=>{const F=scFit(s,w,fs);return `<text class="${cls}" x="${x}" y="${y}"${F.fs!==fs||extra?` style="${F.fs!==fs?`font-size:${F.fs}px;`:''}${extra||''}"`:''}>${scEsc(F.t)}</text>`;};
+const scTx=(cls,x,y,s,w,fs,extra,minFs)=>{const F=scFit(s,w,fs,minFs);return `<text class="${cls}" x="${x}" y="${y}"${F.fs!==fs||extra?` style="${F.fs!==fs?`font-size:${F.fs}px;`:''}${extra||''}"`:''}>${scEsc(F.t)}</text>`;};
 // 換行：照估算寬度斷行（英數連在一起的盡量不拆），回傳每一行
 function scWrap(s,w,fs){const tk=String(s||'').match(/（[^）]{1,6}）|[A-Za-z0-9.\-_/+#()%ΩØø]+|\s+|./gu)||[],L=[];let cur='';
   const push=()=>{if(cur.trim())L.push(cur.trim());cur='';};
@@ -196,7 +196,8 @@ function scLeafSvg(t,x,y,H,ctx){
     t._ln=up?0:Math.min(L.length,4);h+=up?scTxW('s-sub',tx,c-4.4-(Math.min(L.length,7)-1)*sfs*1.04-(t2?3.9:0),sub,tw,sfs,7,sfs*1.04):scTxW('s-sub',tx,c+3.6,sub,tw,sfs,4,sfs*1.04);}
   // 端子號在線的左邊、符號上下；左邊空間（到前一格的文字）有限，太長就縮
   const lw=Math.min(9,SC.U*.32),tl=hw>4?c-hw-1.4:c-4.8,bl=hw>4?c+hw+2.9:c+7.4;
-  h+=scTx('s-term',x-1,tl,termLabel(d,tTop)||tTop,lw,SCF.term)+scTx('s-term',x-1,bl,termLabel(d,tBot)||tBot,lw,SCF.term);
+  const tlab=q=>{const L=termLabel(d,q)||q;return scTW(L,1.4)>lw&&/\(.*\)$/.test(L)?L.replace(/\(.*\)$/,''):L;}; // 太長時省掉括號裡的訊號名（位址在 PLC 方框裡有寫）
+  h+=scTx('s-term',x-1,tl,tlab(tTop),lw,SCF.term,'',1.4)+scTx('s-term',x-1,bl,tlab(tBot),lw,SCF.term,'',1.4); // 接頭針腳（CN1-X0.0）比較長：可以縮到 1.4
   ctx.put({e,x,y:c});
   // 線圈的接點對照：寫在線圈「上方」右側（線圈都靠下，下方是電源線）
   if(e.k==='coil')h+=`<text class="s-xref" x="${tx}" y="${c-4.6}">\u0001U:${scEsc(e.act)}\u0001</text>`;
@@ -212,7 +213,7 @@ function scChainGuess(d,p){const T=tplOf(d);if(d.on||T.chainKind!=='r'||typeof c
 function scChainGuessName(d,t){const m=/^([XY])(\d+)(?:\.(\d+))?$/.exec(t);if(!m)return null;const st=scChainGuess(d,m[1]);if(!st||!chainUse(tplOf(d),m[1],st.rule))return null;
   if(st.rule==='word')return m[3]==null?null:`${m[1]}${st.a+(+m[2])}.${m[3]}`;if(!/^[0-7]+$/.test(m[2])||m[3]!=null)return null;return m[1]+(st.a+parseInt(m[2],8)).toString(8);}
 const ptName=e=>{const g=typeof cnSig==='function'?cnSig(e.d,e.pt):e.pt,P=e.k==='plcy'?'Y':'X',alt=/^\d+$/.test(g)?P+g:null;
-  return (typeof qName==='function'&&qName(e.d,g))||(typeof chainName==='function'&&(chainName(e.d,g)||(alt&&chainName(e.d,alt))))||scChainGuessName(e.d,g)||(alt&&scChainGuessName(e.d,alt))||termLabel(e.d,e.pt)||g;};
+  return (typeof qName==='function'&&qName(e.d,g))||(typeof chainName==='function'&&(chainName(e.d,g)||(alt&&chainName(e.d,alt))))||scChainGuessName(e.d,g)||(alt&&scChainGuessName(e.d,alt))||(/^[XY]\d+(\.\d+)?$/.test(g)?g:null)||termLabel(e.d,e.pt)||g;};
 
 /* 水平畫法：控制回路照垂直的版面算好，再把座標對調（x↔y）：電源線變成左右兩條、迴路變成橫的；
    符號跟著轉 90°（接點刀片、按鈕操作線都在線的上方），文字不轉 */
@@ -440,7 +441,7 @@ function scMotorsOf(M,c){const out=new Set(),UVW=/^(U|V|W)\d?$/;const t=tplOf(c.
 // 一段控制回路（一組上下電源線）的元素化簡成樹。AC 段：排除保護器上游；
 // 只留在上下電源線之間的部分：從上面走得到（不經過下面）、也從下面走得到（不經過上面），掛在電源線外的東西（例如 N 相接到主回路）不算
 function scSecTree(M,G){const ac=G.srcs[0].ac;
-  const edges=M.E.filter(e=>!e.aux&&(ac?!G.srcs.some(q=>q.excl.has(e.id)):!(M.phase.has(e.u)&&M.phase.has(e.v)))&&M.wiredNode.has(e.u)&&M.wiredNode.has(e.v)).map(e=>({u:e.u,v:e.v,t:scLeaf(e)}));
+  const edges=M.E.filter(e=>(!e.aux||e.k==='load')&&(ac?!G.srcs.some(q=>q.excl.has(e.id)):!(M.phase.has(e.u)&&M.phase.has(e.v)))&&M.wiredNode.has(e.u)&&M.wiredNode.has(e.v)).map(e=>({u:e.u,v:e.v,t:scLeaf(e)}));
   const ad=new Map();edges.forEach(e=>{[[e.u,e.v],[e.v,e.u]].forEach(([x,y])=>{if(!ad.has(x))ad.set(x,[]);ad.get(x).push(y);});});
   const reach=(a,stop)=>{const R=new Set([a]),st=[a];while(st.length){const x=st.pop();if(x===stop)continue;(ad.get(x)||[]).forEach(y=>{if(!R.has(y)){R.add(y);st.push(y);}});}return R;};
   const R1=reach(G.p,G.n),R2=reach(G.n,G.p),inn=k=>R1.has(k)&&R2.has(k);
