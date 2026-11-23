@@ -84,6 +84,12 @@ const userFile=process.argv[2];
     if(uj){S=normalize(JSON.parse(uj)).state;resetUi();recompute();const t=performance.now();const U=schemBuild();
       { const cut=[];U.pages.forEach(pg=>{const doc=new DOMParser().parseFromString(pg.svg,'image/svg+xml');[...doc.querySelectorAll('text')].forEach(t=>{if(/…/.test(t.textContent)&&!/等 \d+ 個/.test(t.textContent))cut.push(`第 ${pg.no} 頁 ${t.textContent}`);});});
         ok(!cut.length,'使用者專案：文字完整顯示，沒有被截斷（…）'+(cut.length?`：${cut.length} 處，${cut.slice(0,3).join('；')}`:'')); }
+      { const tx=U.pages.filter(pg=>pg.kind!=='table').map(pg=>[...new DOMParser().parseFromString(pg.svg,'image/svg+xml').querySelectorAll('text')].map(t=>t.textContent).join('\n')).join('\n'),
+          miss=[...new Set(S.wires.map(w=>w.no).filter(Boolean))].filter(n=>!tx.includes(n));
+        ok(!miss.length,'使用者專案：每個線號都標在圖上（表格頁以外）'+(miss.length?`：漏 ${miss.slice(0,5).join('、')}`:''));
+        const ctl=U.pages.filter(pg=>pg.kind==='ctrl').map(pg=>pg.svg).join(''),nm=[];let tot=0;
+        (U.M.ctrlTrees||[]).forEach(({tree})=>{const walk=t=>{if(t.t==='leaf')return;(t.nodes||[]).forEach(k=>{const n=U.M.netName(k);if(!n)return;tot++;if(!ctl.includes('>'+n+'<'))nm.push(n);});(t.c||[]).forEach(walk);};walk(tree);});
+        ok(tot>0&&!nm.length,`使用者專案：控制回路 ${tot} 個串聯中間點都標了線號`+(nm.length?`：漏 ${nm.slice(0,5).join('、')}`:'')); }
       ok(schemVerify(U).length===0&&U.pages.every(pg=>!/\u0001/.test(pg.svg+pg.html)),`使用者專案：${U.pages.length} 頁，${Math.round(performance.now()-t)} ms，圖和配線一致`);}
     return out;},userFile?fs.readFileSync(userFile,'utf8'):null);
   // 其他接線：沒有動作資料的器具（二極體）接的線，畫在「其他接線」頁

@@ -184,7 +184,7 @@ function scLeafSvg(t,x,y,H,ctx){
   // 文字：器具編號（接點標示動作來源）、說明、接點號；從符號右緣外面開始，寬度限制在這一格內
   const hw=e.k==='plcx'?5.5:['load','pwr'].includes(e.k)&&!scLamp(e)?6.5:e.k==='coil'?4:scLamp(e)?3.2:3.6,tx=t.co?t.co.x2+1.6:x+hw+1,tw=e.k==='sens'||e.sensPwr?SC.U-7.5-hw-1.5:SC.U-hw-8.2; // 感測器有虛線框：文字寫到框的右緣為止
   const actDev=devOf(String(e.act).split('#')[0]),own=d.tag,faHost=!e.ctl&&d.on&&tplOf(d).rackKind==='fa'&&devOf(d.on),tag=faHost?faHost.tag:e.ctl&&actDev&&actDev!==d&&['coil','host','hostbrk','hosttrip','hostel','op'].includes(e.by)?`${actDev.tag}`:own; // 照光按鈕的燈（FA 轉接器）：寫操作部的編號
-  const sub=tag!==own?own:e.k==='plcy'?ptName(e):e.k==='plcx'?'':((d.model&&tplOf(d).model?d.model:'')||tplOf(d).n);
+  const via=[...new Set([tTop,tBot].map(q=>scViaNo(d,q)).filter(Boolean))],sub=(tag!==own?own:e.k==='plcy'?ptName(e):e.k==='plcx'?'':((d.model&&tplOf(d).model?d.model:'')||tplOf(d).n))+(via.length?`　經 ${via.join('、')}`:''); // 接頭對接頭的整條線（只接在接頭、不是針腳）：寫在說明裡
   if(e.sensPwr){ // 多線式感測器的方塊：棕接上方、藍接下方，黑／白輸出從右側直接拉出去（在控制回路排版時畫），編號寫在方塊下方
     const w2=SC.U-3;h+=scTx('s-tag',x+1.4,c+8.6,tag,w2,SCF.tag)+scTxW('s-sub',x+1.4,c+11.9,sub,w2,SCF.sub,4,2.9);
     h+=scTx('s-term',x-1,c-4.8,termLabel(d,tTop)||tTop,Math.min(9,SC.U*.32),SCF.term)+scTx('s-term',x-1,c+7.4,termLabel(d,tBot)||tBot,Math.min(9,SC.U*.32),SCF.term);
@@ -202,6 +202,10 @@ function scLeafSvg(t,x,y,H,ctx){
   // 線圈的接點對照：寫在線圈「上方」右側（線圈都靠下，下方是電源線）
   if(e.k==='coil')h+=`<text class="s-xref" x="${tx}" y="${c-4.6}">\u0001U:${scEsc(e.act)}\u0001</text>`;
   return h;}
+// 接頭針腳（5525母.+）所在的接頭有整條接頭線（導線或電纜接在接頭本身）：回傳線號
+function scViaNo(d,t){t=String(t||'');const i=t.indexOf('.');if(i<0||!d)return '';const base=t.slice(0,i);
+  const w=S.wires.find(w=>w.no&&[w.a,w.b].some(q=>q.d===d.id&&q.t===base));if(w)return w.no;
+  const c=(S.cables||[]).find(c=>c.no&&c.plug&&['a','b'].some(k=>c.plug[k]&&c.plug[k].d===d.id&&c.plug[k].t===base));return c?c.no:'';}
 // 沒有串接在主機旁的擴充模組（用延長電纜接、或盤面上分開放）：位址照盤面位置推定，排在主機與已串接模組的後面
 function scChainGuess(d,p){const T=tplOf(d);if(d.on||T.chainKind!=='r'||typeof chainOk!=='function')return null;
   const hosts=S.devices.filter(h=>h!==d&&!h.on&&chainOk(h,d)&&tplOf(h).chainAddr);if(!hosts.length)return null;
@@ -493,7 +497,7 @@ function scCtrlPages(M,pages,newPage){
         const ns={top:nmA,bot:nmB,items:[]};segs.push(ns);place(ns,t.c[i]);return;}
       seg.items.push({t});};
     // 電源線名稱用那一點實際的線號（沒有線號才寫電壓），旁邊小字註明是哪台電源的哪個端子
-    const s0={top:M.netName(G.p)||`${v} ＋`,bot:M.netName(G.n)||`${v} −`,topSub:G.srcs.map(q=>`${q.d.tag} ${termLabel(q.d,q.e.p)}`).join('、'),botSub:G.srcs.map(q=>`${q.d.tag} ${termLabel(q.d,q.e.n)}`).join('、'),items:[]};segs.push(s0);place(s0,tree);
+    const s0={top:M.netName(G.p)||`${v} ＋`,bot:M.netName(G.n)||`${v} −`,topSub:G.srcs.map(q=>`${q.d.tag} ${termLabel(q.d,q.e.p)}${scViaNo(q.d,q.e.p)?'，經 '+scViaNo(q.d,q.e.p):''}`).join('、'),botSub:G.srcs.map(q=>`${q.d.tag} ${termLabel(q.d,q.e.n)}${scViaNo(q.d,q.e.n)?'，經 '+scViaNo(q.d,q.e.n):''}`).join('、'),items:[]};segs.push(s0);place(s0,tree);
     const all=[];segs.forEach((sg,si)=>sg.items.forEach(it=>all.push({...it,seg:sg})));
     const total=all.reduce((a,it)=>a+scWidth(it.t),0)*SC.U;
     // 整段放得進這一頁剩下的空間就接著放（中間空一格），否則換新頁
