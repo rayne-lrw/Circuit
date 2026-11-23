@@ -1,7 +1,7 @@
 // 電路圖重疊檢查（給 schem-check 與手動檢查用）：在瀏覽器把每一頁實際排出來，量每段文字的範圍，
 // 檢查文字和文字、文字和器具方框／圓（線圈、燈、馬達…）、文字和線（電源線、導線、符號筆畫）有沒有重疊。
 // 文字整個在方框或圓裡面（器具框裡的名稱、燈裡的顏色字）不算重疊。
-// 也檢查文字、方框、線有沒有超出內框。
+// 也檢查文字、方框、線有沒有超出內框、壓到標題欄（表格頁也查）。
 // 在 page.evaluate 裡呼叫：schemOverlaps(容許值 mm) → [{page,a,b}]
 function schemOverlaps(tol){
   tol=tol==null?0.15:tol;const out=[];
@@ -24,6 +24,12 @@ function schemOverlaps(tol){
     const fr=svg.querySelector('.s-frame2');if(fr){const F=box(fr),o=(b)=>b.x<F.x-.3||b.y<F.y-.3||b.x+b.w>F.x+F.w+.3||b.y+b.h>F.y+F.h+.3;
       texts.forEach(t=>{if(t.b.w>0&&o(t.b))out.push({page:pi+1,kind:'超出圖框',a:t.s,b:'frame'});});shapes.forEach(S=>{if(o(S.b))out.push({page:pi+1,kind:'超出圖框',a:S.el.tagName,b:'frame'});});
       segs.forEach(S=>{if(o({x:Math.min(S.a.x,S.b.x),y:Math.min(S.a.y,S.b.y),w:Math.abs(S.a.x-S.b.x),h:Math.abs(S.a.y-S.b.y)}))out.push({page:pi+1,kind:'超出圖框',a:'line',b:'frame'});});}
+    // 壓到標題欄（右下角）
+    const tbs=[...svg.querySelectorAll('rect.s-tb')].map(box);
+    // 表格頁（HTML）：表格底部不能壓到標題欄
+    const bd=svg.parentElement&&svg.parentElement.querySelector('.sch-body');if(bd&&bd.textContent.trim()){const b=box(bd);tbs.forEach(T=>{if(ov(b,T))out.push({page:pi+1,kind:'壓到標題欄',a:'表格',b:'title'});});}
+    tbs.forEach(T=>{texts.forEach(t=>{if(t.b.w>0&&ov(t.b,T))out.push({page:pi+1,kind:'壓到標題欄',a:t.s,b:'title'});});shapes.forEach(S=>{if(ov(S.b,T))out.push({page:pi+1,kind:'壓到標題欄',a:S.el.tagName,b:'title'});});
+      segs.forEach(S=>{if(segHit(S,T))out.push({page:pi+1,kind:'壓到標題欄',a:'line',b:'title'});});});
     for(let i=0;i<texts.length;i++){const A=texts[i];if(A.b.w<=0||A.b.h<=0)continue;
       for(let j=i+1;j<texts.length;j++){const B=texts[j];if(B.b.w>0&&B.b.h>0&&ov(A.b,B.b))out.push({page:pi+1,kind:'文字↔文字',a:A.s,b:B.s});}
       shapes.forEach(S=>{if(ov(A.b,S.b)&&!inside(A.b,S.b))out.push({page:pi+1,kind:'文字↔方框',a:A.s,b:S.el.tagName+(S.el.getAttribute('class')?'.'+S.el.getAttribute('class'):'')});});

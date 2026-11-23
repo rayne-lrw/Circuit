@@ -322,7 +322,7 @@ function scMainPages(M,pages,newPage,meta){
   const ownW=nd=>nd.cons?Math.max(2,Math.ceil((phases.length*PX+18)/SC.U)):Math.max(1,Math.ceil((phases.length*PX+16)/SC.U));
   const wOf=nd=>nd._w!=null?nd._w:(nd._w=Math.max(ownW(nd),nd.kids.reduce((a,k)=>a+wOf(k),0)));
   const usedPh=nd=>phases.filter(ph=>scUses(nd,ph));
-  const LV=32,motorDone=new Set();
+  let LV=32;const motorDone=new Set(); // 層高：一頁放不下時往下壓（見分頁）
   const drawNode=(nd,x,y,ctx)=>{ // x：這一格的左緣；y：上端
     let h='';
     if(nd.cons&&nd.cons.m3){ // 三相馬達：三條線進 M 3~ 圓圈
@@ -415,6 +415,13 @@ function scMainPages(M,pages,newPage,meta){
   plan.forEach((g,gi)=>{const pg=newPage(`主回路${plan.length>1?`（${gi+1}/${plan.length}）`:''}`,'main');g.pg=pg;let h='';const ctx={put:o=>pg.pos.push(o)};
     if(gi===0)pg.pos.push({x:0,y:0,terms:srcTerms});
     const y0=38,lbl=g.bus?g.bus.lbl:phases.map(ph=>({ph,net:ph})),yTop=y0+lbl.length*BS+6;
+    // 層高：整頁最深的分支要在標題欄上方結束，放不下就把層高從 32 往下壓（插在接觸器下的積熱電驛至少要 30）
+    { const thOf=nd=>!nd.cons&&nd.d&&S.devices.some(r=>r.on===nd.d.id&&tplOf(r).plug&&tplOf(r).trip),anyTh=nd=>thOf(nd)||(!nd._trunc&&nd.kids.some(anyTh));
+      const hOf=nd=>{if(nd.cons){const c=nd.cons;if(c.m3)return 30;if(c.ctlRef||c.outlet)return 18;let h=33;if(scMotorsOf(M,c).length)h=52;if((c.plugged||[]).length)h=Math.max(h,60);return h;}
+        if(nd._trunc)return LV+4;return LV+3+Math.max(0,...nd.kids.map(hOf));};
+      const bot=()=>{let b=yTop+Math.max(0,...g.items.map(hOf));if(g.sub){const ySub=yTop+LV+2;b=Math.max(b,ySub+g.sub.lbl.length*BS+6+Math.max(0,...g.sub.items.map(hOf)));}return b;};
+      const lim=SC.H-SC.M-5-22-3,lo=[...g.items,...(g.sub?g.sub.items:[])].some(anyTh)?30:22;
+      for(LV=32;LV>lo&&bot()>lim;LV--); }
     h+=busRow(lbl,y0,SC.X0-6,SC.X1,SC.X0-7);
     h+=`<text class="s-sec" x="${SC.X0-6}" y="${y0-5}">${g.bus?`接續 ${scEsc(g.bus.from.devs.map(d=>d.tag).join('、'))} 負載側（第 \u0001M:${scEsc(g.bus.from.id)}\u0001 頁）`:`電源 ${scEsc(srcTag)}`}${g.cont?'（續）':''}</text>`;
     h+=hang(g.items,SC.X0,y0,lbl.map(b=>b.ph),yTop,ctx);
@@ -692,7 +699,8 @@ function schemBuild(){
     <text class="s-cv" x="${SC.W/2}" y="82">${scEsc(meta.date)}　${S.devices.length} 器具　${S.wires.length} 條線　共 \u0001N\u0001 頁</text>
     <text class="s-cv" x="${SC.W/2}" y="89">由盤面配線模擬器依配線資料自動產生；符號照 IEC 60617（與現行 JIS C 0617 相同）。器具接點、規格請以原廠資料與實物為準。</text>`+scLegend(112);
   // 圖面目錄
-  const rows=pages.map(p=>[p.no,p.title]);index.html=`<table class="s-table s-idx"><thead><tr><th>頁</th><th>圖名</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${scEsc(r[1])}</td></tr>`).join('')}</tbody></table>`;
+  const rows=pages.map(p=>[p.no,p.title]),IR=30,cols=[];for(let i=0;i<rows.length;i+=IR)cols.push(rows.slice(i,i+IR)); // 一欄 30 頁，超過就並排第二、三欄
+  index.html=`<div class="s-idxw">${cols.map(c=>`<table class="s-table s-idx"><thead><tr><th>頁</th><th>圖名</th></tr></thead><tbody>${c.map(r=>`<tr><td>${r[0]}</td><td>${scEsc(r[1])}</td></tr>`).join('')}</tbody></table>`).join('')}</div>`;
   // 未畫進控制回路、也不在主回路的有接線負載（例如接到沒有動作資料的器具），列在目錄頁
   const noSim=S.devices.filter(x=>!hasSim(x)&&S.wires.some(w=>w.a.d===x.id||w.b.d===x.id)&&!isTB(x)).map(x=>x.tag);
   if(noSim.length)index.html+=`<p class="s-note">沒有動作資料、電路圖只出現在端子台表與線號表的器具：${scEsc(noSim.join('、'))}</p>`;
