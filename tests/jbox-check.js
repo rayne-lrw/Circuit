@@ -2,6 +2,7 @@
 // - 接線盒（TB-PG 10P／15P，3 種組合）：方框在中間，左邊電箱側、右邊外部側；短路片只在電箱側並聯、拉一條線回電箱，外部側每腳各自拉線
 // - 所有有 COM 與 S/S／0V 的 PLC 主機：S/S–0V 短接、COM 串接，畫成一條並聯線＋一條延伸線，不寫「（同一台）」
 // - 伺服短路片（P+–D、P3–P4、P+–R1、C–R2）：直接接起來，沒有對外時不拉延伸線
+// - 一般現場器具（一體化馬達、感測器…）同一腳接電箱又串到另一台：照一般畫法，不畫成電箱側／外部側
 // 每個案例檢查：不出錯、圖反推和配線一致、不重疊、沒有截斷
 // 用法：node tests/jbox-check.js [截圖前綴]
 const {chromium}=require('playwright'),path=require('path');
@@ -38,15 +39,19 @@ const r=await p.evaluate(()=>{
     [['P+','D'],['P3','P4'],['P+','R1'],['C','R2']].filter(([a,b])=>T.has(a)&&T.has(b)).forEach(([a,b2],j)=>W(c,'SV',a,'SV',b2,'短路'+j));
     ['L1','L2','L3'].filter(x=>T.has(x)).forEach((x,j)=>W(c,'TB',`${j+1}B`,'SV',x,'R'+j));
     cases.push(c);});
+  // D. 一般現場器具（一體化馬達、感測器、馬達…）：同一腳同時接電箱端子台與另一台現場器具（像 485 串接），不能畫成電箱側／外部側
+  Object.keys(TPL).filter(id=>{const t=tplOf({tpl:id});return t.sheet==='field'&&!/接線盒|中繼/.test(t.n||'')&&!t.userLinks&&!/^field-power/.test(id);}).forEach(id=>{
+    const terms=tplOf({tpl:id}).terms.map(q=>q.id).filter(x=>!/^(E|PE|FG|接地)$/.test(x)).slice(0,3);if(!terms.length)return;const c=mk();c.name='現場 '+id;c.kind='field';
+    D(c,'TB','w2202-1401','plate');D(c,'A',id,'field');D(c,'B',id,'field');terms.forEach((x,i)=>{W(c,'TB',`${i+1}B`,'A',x,'N'+i);W(c,'A',x,'B',x,'M'+i);});cases.push(c);});
   const res=[];
   cases.forEach((c,ci)=>{try{S=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:860,h:660},door:{w:900,h:700},ducts:[],glands:[],wires:c.ws,devices:c.devs}).state;resetUi();recompute();
     const B=schemBuild();document.getElementById('print').innerHTML=schemPrintHtml();const ov=schemOverlaps(),v=schemVerify(B);
     const pgs=B.pages.filter(x=>/^(其他接線|伺服接線)/.test(x.title)),svg=pgs.map(x=>x.svg).join('');
     const pr=[v.length?'對不上':'',ov.length?'重疊:'+ov[0].kind+' '+ov[0].a+'|'+ov[0].b:'',/（同一台）/.test(svg)?'同一台':'',/>[^<]*…[^<]*</.test(svg)?'截斷':'',
-      c.kind==='jbox'&&!(/電箱側/.test(svg)&&/外部側/.test(svg))?'沒有兩側':'',c.kind==='servo'&&/只有同一台/.test(svg)?'純短接拉了延伸線':'',c.kind!=='jbox'&&c.ws.some(w=>w.a.d===w.b.d)&&!pgs.length&&!B.pages.some(x=>/PLC/.test(x.title))?'沒有接線頁':''].filter(Boolean);
+      c.kind==='jbox'&&!(/電箱側/.test(svg)&&/外部側/.test(svg))?'沒有兩側':'',c.kind==='field'&&/電箱側/.test(B.pages.map(x=>x.svg).join(''))?'一般現場器具畫成兩側':'',c.kind==='servo'&&/只有同一台/.test(svg)?'純短接拉了延伸線':'',c.kind!=='jbox'&&c.ws.some(w=>w.a.d===w.b.d)&&!pgs.length&&!B.pages.some(x=>/PLC/.test(x.title))?'沒有接線頁':''].filter(Boolean);
     res.push({name:c.name,kind:c.kind,pr,ci});}catch(e){res.push({name:c.name,kind:c.kind,pr:['錯誤:'+e.message],ci});}});
   window.__cases=cases;return res;});
-const NM={jbox:'接線盒',plc:'PLC 共點短接',servo:'伺服短路片'};let fail=0;
+const NM={jbox:'接線盒',plc:'PLC 共點短接',servo:'伺服短路片',field:'一般現場器具（不畫兩側）'};let fail=0;
 for(const k of Object.keys(NM)){const all=r.filter(x=>x.kind===k),bad=all.filter(x=>x.pr.length);fail+=bad.length+(all.length?0:1);
   console.log(bad.length||!all.length?`✗ ${NM[k]}：${bad.length} / ${all.length} 個案例有問題`:`✓ ${NM[k]}：${all.length} 個案例全部通過`);bad.slice(0,8).forEach(x=>console.log('  ',x.name,'→',x.pr.join('；')));}
 if(shot){for(const nm of ['tb15 組合1','tb10 組合3','PLC fx5u-64mt-es','伺服 j4700']){const i=r.findIndex(x=>x.name===nm);if(i<0)continue;
