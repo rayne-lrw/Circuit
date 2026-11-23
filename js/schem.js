@@ -633,6 +633,13 @@ function scConnPages(M,newPage,pages,devList,title,kind,keep){if(!devList.length
     // 接到同一台馬達的列排在一起（U V W、接地、編碼器），收線時不會穿過其他列
     const mi=r=>kind==='servo'&&!r.miss&&r.ends.length&&/馬達/.test(tplOf(r.ends[0].d).cat||'');const f0=rows.findIndex(mi);
     if(f0>=0){const mr=rows.filter(mi),rest=rows.filter(r=>!mi(r));rest.splice(f0,0,...mr);rows.length=0;rows.push(...rest);}
+    // 同一台端子之間的短路線：互接的端子排在相鄰列（P+ 後面接 R1），短路線才不會跨過其他列
+    { const par=new Map(rows.map(r=>[r,r])),fd=r=>{while(par.get(r)!==r)r=par.get(r);return r;};
+      rows.forEach(r=>{if(r.miss)return;r.ends.forEach(e=>{if(e.d!==sv||e.via)return;const q=rows.find(x=>x.t===e.t&&!x.miss);if(q)par.set(fd(q),fd(r));});});
+      const G=new Map();rows.forEach(r=>{const k=fd(r);if(!G.has(k))G.set(k,[]);G.get(k).push(r);});
+      const out=[];rows.forEach(r=>{const g=G.get(fd(r));if(out.includes(r))return;if(g.length<2){out.push(r);return;}
+        g.forEach(q=>{q.jc=g;q.rest=q.ends.filter(e=>!(e.d===sv&&!e.via&&g.some(x=>x.t===e.t)));out.push(q);});});
+      rows.length=0;rows.push(...out); }
     return {sv,rows};});
   const RH=7.2,colW=SC.X1-SC.X0+4; // 一欄佔滿頁寬（圖放大後兩欄放不下）
   const draw=(B,x0,pg,y0)=>{const {sv,rows}=B;let h=scTx('s-sec',x0,y0,`${sv.tag}　${tplOf(sv).n}`,colW-4,4);
@@ -641,10 +648,21 @@ function scConnPages(M,newPage,pages,devList,title,kind,keep){if(!devList.length
     // 馬達：U／V／W／E 接到同一台馬達的列，收成一個馬達符號
     const motorRows=rows.filter(r=>kind==='servo'&&!r.miss&&r.ends.length&&/馬達/.test(tplOf(r.ends[0].d).cat||'')),mot=motorRows.length?motorRows[0].ends[0].d:null;
     let band=null;if(mot){const my0=by+4+rows.indexOf(motorRows[0])*RH+motorRows.length*RH/2,no=termsWired(mot).length-motorRows.length;band=[my0-7,my0+10+Math.max(0,no)*6.4+5];}
+    // 同一台器具端子之間的短路線（P+–D、P3–P4…）：在框旁邊直接用線接起來，不寫「（同一台）」
+    const jg=new Map(),lanes=[];{const done=new Set();rows.forEach((r,i)=>{if(!r.jc||done.has(i))return;
+      const g=r.jc.map(q=>rows.indexOf(q)).sort((a,b)=>a-b),lo=g[0],hi=g[g.length-1];let ln=0;while((lanes[ln]||[]).some(([a,b])=>!(hi<a||lo>b)))ln++;(lanes[ln]=lanes[ln]||[]).push([lo,hi]);
+      const o={g,ln};g.forEach(j=>{done.add(j);jg.set(j,o);});});}
     rows.forEach((r,i)=>{const y=by+4+i*RH+RH/2,xl=bx+bw,xr=x0+112,lim=band&&y>band[0]-3&&y<band[1]+3?x0+133:x0+colW;
       h+=scTx('s-term',xl-1,y+.9,scTL(sv,r.t),bw-6,SCF.term);
       if(r.miss){h+=`<line x1="${xl}" y1="${y}" x2="${xl+6}" y2="${y}"/>`+scTx('s-sub',xl+8,y+1,`${r.t}（編碼器）：沒有接線`,colW-bw-14,SCF.sub,'fill:#a00');return;}
-      const fiber=r.ws.some(w=>/光纖|SSCNET|fiber/i.test(w.no||''))||/^CN1[AB]$/.test(r.t)||(r.pl||[]).some(q=>/光纖|SSCNET|fiber/i.test((q.c.spec||'')+(q.c.no||''))), /* 只有接頭電纜（沒有散線）的光纖也畫虛線 */self=r.ends.length&&r.ends.every(e=>e.d===sv);
+      const fiber=r.ws.some(w=>/光纖|SSCNET|fiber/i.test(w.no||''))||/^CN1[AB]$/.test(r.t)||(r.pl||[]).some(q=>/光纖|SSCNET|fiber/i.test((q.c.spec||'')+(q.c.no||''))); /* 只有接頭電纜（沒有散線）的光纖也畫虛線 */
+      if(jg.has(i)){const o=jg.get(i),xj=xl+18+o.ln*6,y0=by+4+o.g[0]*RH+RH/2,y1=by+4+o.g[o.g.length-1]*RH+RH/2;
+        if(i===o.g[0])h+=`<line x1="${xj}" y1="${y0}" x2="${xj}" y2="${y1}"/>`;
+        if(!r.rest.length){h+=`<line x1="${xl}" y1="${y}" x2="${xj}" y2="${y}"/>`+(i!==o.g[0]&&i!==o.g[o.g.length-1]?SY.dot(xj,y):'');
+          const lb=[...new Set(r.ws.map(w=>w.no))].join('、');if(lb)h+=scTx('s-net',xl+2,y-1,lb,xj-xl-3,SCF.net);
+          pg.pos.push({x:xl,y,terms:[sv.id+'|'+r.t,...r.ends.map(e=>e.d.id+'|'+e.t)]});pg.pos.push({e:{d:sv,act:sv.id,k:'servo'},x:xl,y,terms:[sv.id+'|'+r.t]});return;}
+        h+=SY.dot(xj,y);r={...r,ends:r.rest};} // 還接到別的地方：短路線接在這條線上，後面照常寫對端
+      const self=r.ends.length&&r.ends.every(e=>e.d===sv);
       const isMot=mot&&r.ends.some(e=>e.d===mot);
       const xe=isMot?x0+136:xr;
       h+=`<line x1="${xl}" y1="${y}" x2="${xe}" y2="${y}"${fiber?' stroke-dasharray="2 1.2"':''}/>`;

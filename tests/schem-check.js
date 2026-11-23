@@ -89,6 +89,7 @@ const userFile=process.argv[2];
         ok(!miss.length,'使用者專案：每個線號都標在圖上（表格頁以外）'+(miss.length?`：漏 ${miss.slice(0,5).join('、')}`:''));
         const ctl=U.pages.filter(pg=>pg.kind==='ctrl').map(pg=>pg.svg).join(''),nm=[];let tot=0;
         (U.M.ctrlTrees||[]).forEach(({tree})=>{const walk=t=>{if(t.t==='leaf')return;(t.nodes||[]).forEach(k=>{const n=U.M.netName(k);if(!n)return;tot++;if(!ctl.includes('>'+n+'<'))nm.push(n);});(t.c||[]).forEach(walk);};walk(tree);});
+        { const sp=U.pages.filter(pg=>pg.kind==='servo'||/^伺服接線/.test(pg.title));ok(!sp.length||sp.every(pg=>!/（同一台）/.test(pg.svg)),'使用者專案：伺服同一台端子之間的短路線直接用線接起來（不寫「同一台」）'); }
         ok(tot>0&&!nm.length,`使用者專案：控制回路 ${tot} 個串聯中間點都標了線號`+(nm.length?`：漏 ${nm.slice(0,5).join('、')}`:'')); }
       ok(schemVerify(U).length===0&&U.pages.every(pg=>!/\u0001/.test(pg.svg+pg.html)),`使用者專案：${U.pages.length} 頁，${Math.round(performance.now()-t)} ms，圖和配線一致`);}
     return out;},userFile?fs.readFileSync(userFile,'utf8'):null);
