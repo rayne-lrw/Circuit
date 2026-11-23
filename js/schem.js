@@ -225,7 +225,9 @@ function scFrame(pg,meta){
   for(let i=0;i<SC.COLS;i++){const x=M+i*cw;if(i)h+=`<line class="s-grid" x1="${x}" y1="${M}" x2="${x}" y2="${M+5}"/><line class="s-grid" x1="${x}" y1="${H-M-5}" x2="${x}" y2="${H-M}"/>`;h+=`<text class="s-gl" x="${x+cw/2}" y="${M+3.6}">${i+1}</text><text class="s-gl" x="${x+cw/2}" y="${H-M-1.4}">${i+1}</text>`;}
   for(let j=0;j<6;j++){const y=M+j*rh;if(j)h+=`<line class="s-grid" x1="${M}" y1="${y}" x2="${M+5}" y2="${y}"/><line class="s-grid" x1="${W-M-5}" y1="${y}" x2="${W-M}" y2="${y}"/>`;h+=`<text class="s-gl" x="${M+2.5}" y="${y+rh/2+1}">${'ABCDEF'[j]}</text><text class="s-gl" x="${W-M-2.5}" y="${y+rh/2+1}">${'ABCDEF'[j]}</text>`;}
   // 標題欄（右下）
-  const bx=W-M-5-170,by=H-M-5-22;
+  const bx=W-M-5-170,by=H-M-5-22,cx=bx-56;
+  // 公司名稱（有填才畫，放在標題欄左邊）
+  if(meta.company)h+=`<rect class="s-tb" x="${cx}" y="${by}" width="56" height="22"/><text class="s-tbk" x="${cx+1.5}" y="${by+3}">公司</text>`+scTxW('s-tbv',cx+28,by+10,meta.company,52,3.4,2,2.2).replace(/<text /g,'<text text-anchor="middle" ');
   h+=`<rect class="s-tb" x="${bx}" y="${by}" width="170" height="22"/><line class="s-tbl" x1="${bx}" y1="${by+11}" x2="${bx+170}" y2="${by+11}"/><line class="s-tbl" x1="${bx+110}" y1="${by}" x2="${bx+110}" y2="${by+22}"/><line class="s-tbl" x1="${bx+140}" y1="${by+11}" x2="${bx+140}" y2="${by+22}"/>
     <text class="s-tbk" x="${bx+1.5}" y="${by+3}">專案</text>`+scTx('s-tbv',bx+12,by+7.5,meta.title,96,3.4)+`
     <text class="s-tbk" x="${bx+111.5}" y="${by+3}">日期</text><text class="s-tbv" x="${bx+120}" y="${by+7.5}">${scEsc(meta.date)}</text>
@@ -673,7 +675,7 @@ function scPackTables(newPage,title,secs,per=34){
 function schemBuild(){
   const M=schemModel(),pages=[];let no=0;
   SC_XR=new Map();{const G=new Map();M.E.filter(e=>e.ctl&&['no','nc'].includes(e.k)&&M.wiredNode.has(e.u)&&M.wiredNode.has(e.v)).forEach(e=>{if(!G.has(e.act))G.set(e.act,new Set());G.get(e.act).add(e.k+(M.phase.has(e.u)?'m':e.id));});G.forEach((v,k)=>SC_XR.set(k,v.size));}
-  const d=new Date(),p2=n=>String(n).padStart(2,'0'),meta={date:`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`,title:S.docTitle||'（未命名專案）',ver:($('ver')&&$('ver').textContent)||''};
+  const d=new Date(),p2=n=>String(n).padStart(2,'0'),meta={date:`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`,title:S.docTitle||'（未命名專案）',company:S.docCompany||'',ver:($('ver')&&$('ver').textContent)||''};
   const newPage=(title,kind,src)=>{const pg={no:++no,title,kind,src,pos:[],body:'',html:''};pages.push(pg);return pg;};
   const cover=newPage('封面與圖例','cover'),index=newPage('圖面目錄','index');
   scMainPages(M,pages,newPage,meta);
@@ -686,9 +688,9 @@ function schemBuild(){
   { const bom=bomRows();scTablePages(newPage,'材料表',['分類','品名／型號','廠牌','數量','單位','器具編號'],bom.map(r=>[r.sec,r.name,r.brand,r.qty,r.unit,r.tags]),30); }
   // 封面
   const cnt=k=>pages.filter(p=>p.kind===k).length;
-  cover.body=`<text class="s-big" x="${SC.W/2}" y="70">電路圖</text><text class="s-big2" x="${SC.W/2}" y="84">${scEsc(meta.title)}</text>
+  cover.body=`${meta.company?`<text class="s-big2" x="${SC.W/2}" y="52">${scEsc(meta.company)}</text>`:''}<text class="s-big" x="${SC.W/2}" y="70">電路圖</text><text class="s-big2" x="${SC.W/2}" y="84">${scEsc(meta.title)}</text>
     <text class="s-cv" x="${SC.W/2}" y="96">${scEsc(meta.date)}　${S.devices.length} 器具　${S.wires.length} 條線　共 \u0001N\u0001 頁</text>
-    <text class="s-cv" x="${SC.W/2}" y="104">由盤面配線模擬器依配線資料自動產生；符號照 IEC 60617（與現行 JIS C 0617 相同）。器具接點、規格請以原廠資料與實物為準。</text>`+scLegend(60,130);
+    <text class="s-cv" x="${SC.W/2}" y="104">由盤面配線模擬器依配線資料自動產生；符號照 IEC 60617（與現行 JIS C 0617 相同）。器具接點、規格請以原廠資料與實物為準。</text>`+scLegend(130);
   // 圖面目錄
   const rows=pages.map(p=>[p.no,p.title]);index.html=`<table class="s-table s-idx"><thead><tr><th>頁</th><th>圖名</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${scEsc(r[1])}</td></tr>`).join('')}</tbody></table>`;
   // 未畫進控制回路、也不在主回路的有接線負載（例如接到沒有動作資料的器具），列在目錄頁
@@ -709,14 +711,15 @@ function schemBuild(){
   return {M,pages:pages.map(pg=>({...pg,svg:fill(`<svg class="s-svg" viewBox="0 0 ${SC.W} ${SC.H}" xmlns="http://www.w3.org/2000/svg">${scFrame(pg,meta)}<text class="s-ptitle" x="${SC.M+8}" y="${SC.M+13}">${scEsc(pg.title)}</text>${pg.body}</svg>`),html:fill(pg.html||'')})),used,meta};
 }
 // 圖例
-function scLegend(x,y){const L=[['no','常開接點'],['nc','常閉接點'],['brk','斷路器'],['fuse','保險絲'],['ol','熱動元件'],['btn','按鈕（手動）'],['trip','熱動（積熱電驛）'],['sens','感測器輸出'],['coil','線圈'],['diode','二極體'],['lamp','指示燈'],['box','負載／器具電源'],['plcx','PLC 輸入']];
-  let h=`<text class="s-sec" x="${x}" y="${y-8}">圖例（IEC 60617）</text>`;
+function scLegend(y){const L=[['no','常開接點'],['nc','常閉接點'],['brk','斷路器'],['fuse','保險絲'],['ol','熱動元件'],['btn','按鈕（手動）'],['trip','熱動（積熱電驛）'],['sens','感測器輸出'],['coil','線圈'],['diode','二極體'],['lamp','指示燈'],['box','負載／器具電源'],['plcx','PLC 輸入']];
+  const x=SC.W/2-(L.length-1)*14; // 整列置中
+  let h=`<text class="s-sec" x="${SC.W/2}" y="${y-8}" text-anchor="middle">圖例（IEC 60617）</text>`;
   L.forEach(([k,t],i)=>{const xx=x+i*28,c=y+8;h+=SY.line(xx,y,c-4)+SY.line(xx,c+4,y+16);
     h+=k==='diode'?SY.diode(xx,c,true):k==='btn'?SY.no(xx,c)+SY.btn(xx,c):k==='trip'?SY.nc(xx,c)+SY.trip(xx,c):k==='sens'?SY.no(xx,c)+SY.sensA(xx,c):k==='box'?SY.box(xx,c,'負載'):k==='plcx'?SY.plcx(xx,c,'X0'):SY[k](xx,c);
     if(['no','nc','brk','btn','trip','sens'].includes(k))h+=SY.line(xx,c-4,c-3)+SY.line(xx,c+3,c+4);
-    h+=`<text class="s-sub" x="${xx-7}" y="${y+23}">${t}</text>`;});
-  h+=`<text class="s-sub" x="${x}" y="${y+36}">接點旁的大字是器具編號（輔助接點、裝在操作部上的接點塊標示帶動它的器具）；左邊小字是端子號；線上的小字是線號。</text>
-    <text class="s-sub" x="${x}" y="${y+41}">線圈下方列出它的接點在第幾頁第幾欄（∟ 常開、⊥ 常閉）；頁面上下的 1～10 是欄號、左右的 A～F 是列號。＊ 表示同一個接點因為迴路無法化簡而出現在多處。</text>`;
+    h+=`<text class="s-sub" x="${xx}" y="${y+23}" text-anchor="middle">${t}</text>`;});
+  h+=`<text class="s-sub" x="${SC.W/2}" y="${y+36}" text-anchor="middle">接點旁的大字是器具編號（輔助接點、裝在操作部上的接點塊標示帶動它的器具）；左邊小字是端子號；線上的小字是線號。</text>
+    <text class="s-sub" x="${SC.W/2}" y="${y+41}" text-anchor="middle">線圈下方列出它的接點在第幾頁第幾欄（∟ 常開、⊥ 常閉）；頁面上下的 1～10 是欄號、左右的 A～F 是列號。＊ 表示同一個接點因為迴路無法化簡而出現在多處。</text>`;
   return h;}
 function schemPrintHtml(){const B=schemBuild();return B.pages.map(pg=>`<section class="pg sch"><div class="sch-pg">${pg.svg}${pg.html?`<div class="sch-body">${pg.html}</div>`:''}</div></section>`).join('');}
 
@@ -736,10 +739,12 @@ function schemVerify(B){
 /* ---------- 12. 工具分頁：專案名稱、預覽、列印 ---------- */
 function schemSectionHtml(){
   return `<div class="bom-h">正式電路圖</div><p class="note">依配線自動產生 A3 橫式電路圖（IEC 60617 符號）：封面與圖例、目錄、主回路、控制回路（每個 DC 電源一段展開圖）、PLC 輸入輸出、端子台表、線號表、材料表。每頁有欄號、列號與標題欄，線圈下方列出接點在哪一頁哪一欄。列印時選「另存為 PDF」，紙張 A3 橫式。</p>
+    <label class="sch-ttl">公司名稱（標題欄與封面）<input id="schCo" maxlength="40" placeholder="（不填就不顯示）" value="${esc(S.docCompany||'')}"></label>
     <label class="sch-ttl">標題欄的專案名稱<input id="schTitle" maxlength="60" placeholder="（未命名專案）" value="${esc(S.docTitle||'')}"></label>
     <div class="row" style="justify-content:flex-start"><button class="tool" id="schPrev">預覽</button><button class="tool" id="schPrint">列印電路圖（PDF）</button></div>`;}
 function schemSectionBind(){
   const t=$('schTitle');if(t)t.onchange=()=>{const v=t.value.trim().slice(0,60);if(v)S.docTitle=v;else delete S.docTitle;commit();};
+  const c=$('schCo');if(c)c.onchange=()=>{const v=c.value.trim().slice(0,40);if(v)S.docCompany=v;else delete S.docCompany;commit();};
   const p=$('schPrint');if(p)p.onclick=()=>toolPrint('schem');
   const v=$('schPrev');if(v)v.onclick=schemPreview;}
 function schemPreview(){

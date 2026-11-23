@@ -78,6 +78,7 @@ const userFile=process.argv[2];
       ok(schemBuild().pages.find(x=>/^控制回路/.test(x.title)).svg.match(/<line class="s-rail"[^>]*>/g).every(l=>/y1="(\S+)"[^>]*y2="\1"/.test(l)),'控制回路電源線一律上下水平'); }
     // 專案名稱存檔
     { const n=normalize({...JSON.parse(JSON.stringify(S)),docTitle:'  測試專案  '}).state;ok(n.docTitle==='測試專案','標題欄專案名稱存在專案檔'); S.docTitle='測試專案';ok(schemBuild().pages[2].svg.includes('測試專案'),'標題欄顯示專案名稱'); }
+    { ok(!/公司<\/text>/.test(schemBuild().pages[2].svg),'沒填公司名稱就不畫公司欄');const n=normalize({...JSON.parse(JSON.stringify(S)),docCompany:' 測試公司 '}).state;ok(n.docCompany==='測試公司','公司名稱存在專案檔');S.docCompany='測試公司';const P=schemBuild().pages;ok(P[0].svg.includes('測試公司')&&P[2].svg.includes('測試公司'),'封面與標題欄顯示公司名稱');delete S.docCompany; }
     $('tabTool').click();ok($('schPrint')&&$('schPrev')&&$('schTitle'),'工具分頁有正式電路圖（專案名稱、預覽、列印）');
     $('schPrev').click();ok(document.querySelectorAll('#schPrevBox .pg.sch').length>2,'預覽顯示全部頁面');$('schPrevClose').click();
     if(uj){S=normalize(JSON.parse(uj)).state;resetUi();recompute();const t=performance.now();const U=schemBuild();
