@@ -382,6 +382,10 @@ function scMainPages(M,pages,newPage,meta){
       if(th){const cy=y+22;poles.forEach(p=>{const xx=x+3+phX(p.ph);h+=SY.ol(xx,cy);});h+=scTx('s-tag',tx,cy+.6,th.tag,aw,SCF.tag)+scTx('s-sub',tx,cy+3.8,tplOf(th).n,aw,SCF.sub);
         ctx.put({e:{d:th,act:th.id,k:'cons'},x:tx,y:cy,terms:(tplOf(th).terms||[]).filter(t=>/^[LT]\d$/.test(t.id)).map(t=>th.id+'|'+t.id)});} }
     if(nd._trunc){if(!nd._sameSub){poles.forEach(p=>{const xx=x+3+phX(p.ph);h+=SY.line(xx,y+LV-6,y+LV-2);});h+=`<text class="s-pot" x="${x+3+phX(poles[0]?poles[0].ph:'')+5}" y="${y+LV+2}">→ 第 \u0001T:${scEsc(nd.id)}\u0001 頁</text>`;}return h;}
+    // 開關負載側到下一層開關之間的線號（下一層是用電器具時，器具上緣已經標了，不重複）
+    if(nd.kids.some(k=>!k.cons)){const y1=y+(S.devices.some(r=>r.on===nd.d.id&&tplOf(r).plug&&tplOf(r).trip)?27.5:17.5),y2=nd.kids.length>1?y+LV-6.5:y+LV+3,L=y2-y1;
+      if(L>=4.5)poles.forEach(p=>{const nm=M.netName(p.e.v);if(!nm)return;const F=scFit(nm,L,2.3,1.4);if(/…/.test(F.t))return;
+        h+=`<text class="s-netv" transform="translate(${x+3+phX(p.ph)+.8} ${y1}) rotate(90)"${F.fs!==2.3?` style="font-size:${F.fs}px"`:''}>${scEsc(F.t)}</text>`;});}
     h+=drawKids(nd,x,y+LV-6,ctx,phs);
     return h;};
   const drawKids=(nd,x,y,ctx,phs)=>{let h='',xx=x;const kx=[];nd.kids.forEach(k=>{kx.push(xx);xx+=wOf(k)*SC.U;});phs=[...new Set(phs)];
