@@ -633,12 +633,17 @@ function scConnPages(M,newPage,pages,devList,title,kind,keep){if(!devList.length
     // 接到同一台馬達的列排在一起（U V W、接地、編碼器），收線時不會穿過其他列
     const mi=r=>kind==='servo'&&!r.miss&&r.ends.length&&/馬達/.test(tplOf(r.ends[0].d).cat||'');const f0=rows.findIndex(mi);
     if(f0>=0){const mr=rows.filter(mi),rest=rows.filter(r=>!mi(r));rest.splice(f0,0,...mr);rows.length=0;rows.push(...rest);}
-    // 同一台端子之間的短路線：互接的端子排在相鄰列（P+ 後面接 R1），短路線才不會跨過其他列
-    { const par=new Map(rows.map(r=>[r,r])),fd=r=>{while(par.get(r)!==r)r=par.get(r);return r;};
-      rows.forEach(r=>{if(r.miss)return;r.ends.forEach(e=>{if(e.d!==sv||e.via)return;const q=rows.find(x=>x.t===e.t&&!x.miss);if(q)par.set(fd(q),fd(r));});});
-      const G=new Map();rows.forEach(r=>{const k=fd(r);if(!G.has(k))G.set(k,[]);G.get(k).push(r);});
-      const out=[];rows.forEach(r=>{const g=G.get(fd(r));if(out.includes(r))return;if(g.length<2){out.push(r);return;}
-        g.forEach(q=>{q.jc=g;q.rest=q.ends.filter(e=>!(e.d===sv&&!e.via&&g.some(x=>x.t===e.t)));out.push(q);});});
+    // 同一台器具上同電位的端子（直接短接、或經端子台接在一起）歸成一組：排在相鄰列，同一側（外形上端子在哪一邊）的用短線直接接起來，兩側之間再用一條線連；
+    // 別頁已經畫過的同組端子也列出來（灰字標見第幾頁），一眼看出整組怎麼接
+    { const T=tplOf(sv),side=t=>{const q=T.terms.find(x=>x.id===t);if(!q||!T.w||!T.h)return 0;const dd=[q.y,T.h-q.y,q.x,T.w-q.x];return dd.indexOf(Math.min(...dd));};
+      const inMot=new Set(rows.filter(mi).map(r=>r.t)),okT=t=>!inMot.has(t)&&!scEarth(sv,t)&&!/^CN\d/.test(t);
+      const byN=new Map();scTermsWired(sv).filter(okT).forEach(t=>{const k=nk(sv,t);if(!byN.has(k))byN.set(k,[]);byN.get(k).push(t);});
+      const out=[];rows.forEach(r=>{if(out.includes(r))return;const g=!r.miss&&okT(r.t)?byN.get(nk(sv,r.t)):null;
+        if(!g||g.length<2){out.push(r);return;}
+        const mem=g.map(t=>rows.find(x=>x.t===t&&!x.miss)||{t,ends:[],ws:wiresAt(sv,t),pl:[],ref:true});
+        const pos=t=>{const q=T.terms.find(x=>x.id===t);return q?(side(t)<2?q.x:q.y):999;};mem.sort((a,b)=>side(a.t)-side(b.t)||pos(a.t)-pos(b.t)||natCmp(a.t,b.t)); // 同一側照端子在外形上的位置排
+        const grp={mem,side:mem.map(m=>side(m.t))};
+        mem.forEach(m=>{m.grp=grp;m.rest=m.ref?[]:m.ends.filter(e=>!(e.d===sv&&g.includes(e.t)));out.push(m);});});
       rows.length=0;rows.push(...out); }
     return {sv,rows};});
   const RH=7.2,colW=SC.X1-SC.X0+4; // 一欄佔滿頁寬（圖放大後兩欄放不下）
@@ -649,25 +654,33 @@ function scConnPages(M,newPage,pages,devList,title,kind,keep){if(!devList.length
     const motorRows=rows.filter(r=>kind==='servo'&&!r.miss&&r.ends.length&&/馬達/.test(tplOf(r.ends[0].d).cat||'')),mot=motorRows.length?motorRows[0].ends[0].d:null;
     let band=null;if(mot){const my0=by+4+rows.indexOf(motorRows[0])*RH+motorRows.length*RH/2,no=termsWired(mot).length-motorRows.length;band=[my0-7,my0+10+Math.max(0,no)*6.4+5];}
     // 同一台器具端子之間的短路線（P+–D、P3–P4…）：在框旁邊直接用線接起來，不寫「（同一台）」
-    const jg=new Map(),lanes=[];{const done=new Set();rows.forEach((r,i)=>{if(!r.jc||done.has(i))return;
-      const g=r.jc.map(q=>rows.indexOf(q)).sort((a,b)=>a-b),lo=g[0],hi=g[g.length-1];let ln=0;while((lanes[ln]||[]).some(([a,b])=>!(hi<a||lo>b)))ln++;(lanes[ln]=lanes[ln]||[]).push([lo,hi]);
-      const o={g,ln};g.forEach(j=>{done.add(j);jg.set(j,o);});});}
+    const labOf=r=>[...r.ws.map(w=>w.no+(cabNo(w)?`（${cabNo(w)}）`:'')),...(r.pl||[]).map(q=>`${q.c.no}　${q.c.spec||''}`)].filter((v,j,a)=>a.indexOf(v)===j).join('、');
+    const jg=new Map(),lanes=[];new Set(rows.map(r=>r.grp).filter(Boolean)).forEach(G=>{const g=G.mem.map(m=>rows.indexOf(m)),lo=Math.min(...g),hi=Math.max(...g);
+      const multi=new Set(G.side).size>1,need=multi?2:1;let ln=0;const busy=l=>(lanes[l]||[]).some(([a,b])=>!(hi<a||lo>b));while([...Array(need).keys()].some(k=>busy(ln+k)))ln++;
+      for(let k=0;k<need;k++)(lanes[ln+k]=lanes[ln+k]||[]).push([lo,hi]);
+      const subs=[];G.mem.forEach((m,j)=>{const ix=rows.indexOf(m);if(!j||G.side[j]!==G.side[j-1])subs.push([]);subs[subs.length-1].push(ix);});
+      const lw=Math.max(0,...G.mem.map(m=>scTW(labOf(m),SCF.net)));const o={g,ln,multi,subs,x0:Math.min(60,Math.max(18,lw+5))};g.forEach(j=>jg.set(j,o));});
     rows.forEach((r,i)=>{const y=by+4+i*RH+RH/2,xl=bx+bw,xr=x0+112,lim=band&&y>band[0]-3&&y<band[1]+3?x0+133:x0+colW;
       h+=scTx('s-term',xl-1,y+.9,scTL(sv,r.t),bw-6,SCF.term);
       if(r.miss){h+=`<line x1="${xl}" y1="${y}" x2="${xl+6}" y2="${y}"/>`+scTx('s-sub',xl+8,y+1,`${r.t}（編碼器）：沒有接線`,colW-bw-14,SCF.sub,'fill:#a00');return;}
       const fiber=r.ws.some(w=>/光纖|SSCNET|fiber/i.test(w.no||''))||/^CN1[AB]$/.test(r.t)||(r.pl||[]).some(q=>/光纖|SSCNET|fiber/i.test((q.c.spec||'')+(q.c.no||''))); /* 只有接頭電纜（沒有散線）的光纖也畫虛線 */
-      if(jg.has(i)){const o=jg.get(i),xj=xl+18+o.ln*6,y0=by+4+o.g[0]*RH+RH/2,y1=by+4+o.g[o.g.length-1]*RH+RH/2;
-        if(i===o.g[0])h+=`<line x1="${xj}" y1="${y0}" x2="${xj}" y2="${y1}"/>`;
-        if(!r.rest.length){h+=`<line x1="${xl}" y1="${y}" x2="${xj}" y2="${y}"/>`+(i!==o.g[0]&&i!==o.g[o.g.length-1]?SY.dot(xj,y):'');
-          const lb=[...new Set(r.ws.map(w=>w.no))].join('、');if(lb)h+=scTx('s-net',xl+2,y-1,lb,xj-xl-3,SCF.net);
-          pg.pos.push({x:xl,y,terms:[sv.id+'|'+r.t,...r.ends.map(e=>e.d.id+'|'+e.t)]});pg.pos.push({e:{d:sv,act:sv.id,k:'servo'},x:xl,y,terms:[sv.id+'|'+r.t]});return;}
-        h+=SY.dot(xj,y);r={...r,ends:r.rest};} // 還接到別的地方：短路線接在這條線上，後面照常寫對端
+      if(jg.has(i)){const o=jg.get(i),xj=xl+o.x0+o.ln*6,xT=xj+6,yy=k=>by+4+k*RH+RH/2,sg=o.subs.find(q=>q.includes(i)),first=sg[0]===i,last=sg[sg.length-1]===i;
+        const fs=o.subs.map(q=>q[0]),cont=r.rest.length>0,xe=cont?null:(o.multi&&first?xT:xj);
+        if(first&&sg.length>1)h+=`<line x1="${xj}" y1="${yy(sg[0])}" x2="${xj}" y2="${yy(sg[sg.length-1])}"/>`;
+        if(o.multi&&i===fs[0])h+=`<line x1="${xT}" y1="${yy(fs[0])}" x2="${xT}" y2="${yy(fs[fs.length-1])}"/>`;
+        if(sg.length>1&&((!first&&!last)||(first&&(cont||o.multi))))h+=SY.dot(xj,y);
+        if(o.multi&&first&&((i!==fs[0]&&i!==fs[fs.length-1])||cont))h+=SY.dot(xT,y);
+        if(!cont){h+=`<line x1="${xl}" y1="${y}" x2="${xe}" y2="${y}"/>`;
+          const lb=labOf(r);if(lb)h+=scTx('s-net',xl+2,y-1,lb,xj-xl-3,SCF.net);
+          if(r.ref)h+=`<text class="s-sub" x="${xj+(o.multi?9:3)}" y="${y+1}" style="fill:#555">\u0001Q:${scEsc(sv.id+'|'+r.t)}\u0001</text>`;
+          if(!r.ref)pg.pos.push({x:xl,y,terms:[sv.id+'|'+r.t,...r.ends.map(e=>e.d.id+'|'+e.t)]}),pg.pos.push({e:{d:sv,act:sv.id,k:'servo'},x:xl,y,terms:[sv.id+'|'+r.t]});return;}
+        r={...r,ends:r.rest};} // 還接到別的地方：組線接在這條線上，後面照常寫對端
       const self=r.ends.length&&r.ends.every(e=>e.d===sv);
       const isMot=mot&&r.ends.some(e=>e.d===mot);
       const xe=isMot?x0+136:xr;
       h+=`<line x1="${xl}" y1="${y}" x2="${xe}" y2="${y}"${fiber?' stroke-dasharray="2 1.2"':''}/>`;
-      const lab=[...r.ws.map(w=>w.no+(cabNo(w)?`（${cabNo(w)}）`:'')),...(r.pl||[]).map(q=>`${q.c.no}　${q.c.spec||''}`)].filter((v,j,a)=>a.indexOf(v)===j).join('、');
-      if(lab)h+=scTx('s-net',xl+2,y-1,lab,xe-xl-4,SCF.net);
+      const lab=labOf(r);
+      if(lab)h+=scTx('s-net',xl+2,y-1,lab,(jg.has(i)?xl+jg.get(i).x0+jg.get(i).ln*6:xe)-xl-4,SCF.net);
       pg.pos.push({x:xl,y,terms:[sv.id+'|'+r.t,...r.ends.map(e=>e.d.id+'|'+e.t)]});
       if(isMot){const mx=x0+148,my=by+4+rows.indexOf(motorRows[0])*RH+motorRows.length*RH/2;h+=`<line x1="${xe}" y1="${y}" x2="${mx-7}" y2="${my}"/>`;return;}
       const far=self?r.ends.map(e=>`${scTL(sv,e.t)}（同一台）`).join('、'):r.ends.map(e=>`${e.d.tag}：${scTL(e.d,e.t)}${e.via?`（經 ${e.via}）`:''}`).join('、');
@@ -741,7 +754,7 @@ function schemBuild(){
   const xrefU=act=>{const L=xrefL(act);
     const rows=L.length>4?[...L.slice(0,3),`另 ${L.length-3} 個`]:L;return {n:rows.length,h:rows.map((t,i)=>{const F=scFit(t,SC_V.U-7,2.4,1.5);return `<tspan x="0" dy="${i?2.9:0}"${F.fs!==2.4?` style="font-size:${F.fs}px"`:''}>${scEsc(F.t)}</tspan>`;}).join('')};};
   const fill=s=>s.replace(/<text class="s-xref" x="([\d.]+)" y="([\d.]+)">\u0001U:([^\u0001]*)\u0001<\/text>/g,(m,x,y,a)=>{const X=xrefU(a.replace(/&amp;/g,'&'));return `<text class="s-xref" transform="translate(${x} ${(+y-(X.n-1)*2.9).toFixed(2)})">${X.h}</text>`;}).replace(/<text class="s-xref" x="([\d.]+)" y="([\d.]+)">\u0001C:([^\u0001]*)\u0001<\/text>/g,(m,x,y,a)=>`<text class="s-xref" transform="translate(${x} ${y})">${xref(a.replace(/&amp;/g,'&'))}</text>`)
-    .replace(/\u0001S:([^\u0001]*)\u0001/g,(m,id)=>{const n=srcPage(id);return n==='—'?'（沒有接負載）':` → 第 ${n} 頁`;}).replace(/\u0001T:([^\u0001]*)\u0001/g,(m,id)=>{const g=(M.contPage||{})[id.replace(/&gt;/g,'>').replace(/&amp;/g,'&')];return g&&g.pg?g.pg.no:'—';}).replace(/\u0001M:([^\u0001]*)\u0001/g,(m,id)=>{const k=id.replace(/&gt;/g,'>').replace(/&amp;/g,'&');const pg=pages.find(p=>p.pos.some(o=>o.node===k));return pg?pg.no:'—';}).replace(/\u0001D:([^\u0001]*)\u0001/g,(m,id)=>{const pg=pages.find(p=>p.kind==='ctrl'&&p.pos.some(o=>o.e&&o.e.d&&o.e.d.id===id));return pg?pg.no:'—';}).replace(/\u0001P:(\d+)\u0001/g,'$1').replace(/\u0001N\u0001/g,String(pages.length));
+    .replace(/\u0001S:([^\u0001]*)\u0001/g,(m,id)=>{const n=srcPage(id);return n==='—'?'（沒有接負載）':` → 第 ${n} 頁`;}).replace(/\u0001T:([^\u0001]*)\u0001/g,(m,id)=>{const g=(M.contPage||{})[id.replace(/&gt;/g,'>').replace(/&amp;/g,'&')];return g&&g.pg?g.pg.no:'—';}).replace(/\u0001M:([^\u0001]*)\u0001/g,(m,id)=>{const k=id.replace(/&gt;/g,'>').replace(/&amp;/g,'&');const pg=pages.find(p=>p.pos.some(o=>o.node===k));return pg?pg.no:'—';}).replace(/\u0001D:([^\u0001]*)\u0001/g,(m,id)=>{const pg=pages.find(p=>p.kind==='ctrl'&&p.pos.some(o=>o.e&&o.e.d&&o.e.d.id===id));return pg?pg.no:'—';}).replace(/\u0001Q:([^\u0001]*)\u0001/g,(m,k)=>{k=k.replace(/&gt;/g,'>').replace(/&amp;/g,'&');const [di,t]=[k.slice(0,k.indexOf('|')),k.slice(k.indexOf('|')+1)];const pg=pages.find(p=>p.kind!=='other'&&p.kind!=='servo'&&p.pos.some(o=>(o.terms||[]).includes(k)||(o.e&&o.e.d&&o.e.d.id===di&&(o.e.ta===t||o.e.tb===t))));return pg?`見第 ${pg.no} 頁`:'另見其他頁';}).replace(/\u0001P:(\d+)\u0001/g,'$1').replace(/\u0001N\u0001/g,String(pages.length));
   return {M,pages:pages.map(pg=>({...pg,svg:fill(`<svg class="s-svg" viewBox="0 0 ${SC.W} ${SC.H}" xmlns="http://www.w3.org/2000/svg">${scFrame(pg,meta)}<text class="s-ptitle" x="${SC.M+8}" y="${SC.M+13}">${scEsc(pg.title)}</text>${pg.body}</svg>`),html:fill(pg.html||'')})),used,meta};
 }
 // 圖例
