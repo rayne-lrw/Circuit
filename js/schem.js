@@ -637,7 +637,7 @@ function scConnPages(M,newPage,pages,devList,title,kind,keep){if(!devList.length
     // 經過端子台或別的器具才同電位的不算（那是接到不同器具）。一組畫一條並聯線，再延伸一條線出去寫對端；別頁畫過的同組端子也列出來
     const wEnd=(w,t)=>w.a.d===sv.id&&w.a.t===t?w.b:w.a;
     const inPanel=e=>{const od=devOf(e.d);return od&&od.sheet!=='field';};
-    const jbox=kind==='other'&&(/接線盒/.test(T.n||'')||(sv.sheet==='field'&&rows.some(r=>{const sd=r.ws.filter(w=>wEnd(w,r.t).d!==sv.id).map(w=>inPanel(wEnd(w,r.t)));return sd.includes(true)&&sd.includes(false);})));
+    const jbox=kind==='other'&&(/接線盒|中繼/.test(T.n||'')||(T.sheet==='field'&&T.userLinks)); // 只有電箱外的中繼盒（接線盒）兩側出線；一般現場器具（一體化馬達串接 485）照一般畫法，免得看起來像端子台
     { const SD=['top','bottom','left','right'],side=t=>{if(jbox||kind==='servo')return 0;const q=T.terms.find(x=>x.id===t);if(!q)return 0;if(SD.includes(q.side))return SD.indexOf(q.side);if(!T.w||!T.h)return 0;const dd=[q.y,T.h-q.y,q.x,T.w-q.x];return dd.indexOf(Math.min(...dd));}; // 樣板有標端子在哪一邊就照標的
       const pos=t=>{if(jbox||kind==='servo')return 0;const q=T.terms.find(x=>x.id===t);return q?(side(t)<2?q.x:q.y):999;}; // 接線盒照腳位編號排
       const inMot=new Set(rows.filter(mi).map(r=>r.t)),okT=t=>!inMot.has(t)&&!scEarth(sv,t)&&!/^CN\d/.test(t);

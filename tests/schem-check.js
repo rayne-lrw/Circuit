@@ -91,6 +91,9 @@ const userFile=process.argv[2];
         (U.M.ctrlTrees||[]).forEach(({tree})=>{const walk=t=>{if(t.t==='leaf')return;(t.nodes||[]).forEach(k=>{const n=U.M.netName(k);if(!n)return;tot++;if(!ctl.includes('>'+n+'<'))nm.push(n);});(t.c||[]).forEach(walk);};walk(tree);});
         { const sp=U.pages.filter(pg=>pg.kind==='servo'||/^伺服接線/.test(pg.title));ok(!sp.length||sp.every(pg=>!/（同一台）/.test(pg.svg)),'使用者專案：伺服同一台端子之間的短路線直接用線接起來（不寫「同一台」）'); }
         { const op=U.pages.filter(pg=>/^其他接線/.test(pg.title)).map(pg=>pg.svg).join('');ok(!/（同一台）/.test(op)&&(!/>S\/S</.test(op)||/見第 \d+ 頁/.test(op)),'使用者專案：其他接線頁同一台同電位的端子歸成一組接起來，別頁畫過的標「見第 N 頁」'); }
+        { const op=U.pages.filter(pg=>/^其他接線/.test(pg.title)),jb=S.devices.filter(d=>/接線盒/.test(tplOf(d).n||'')).map(d=>d.tag);
+          const two=op.flatMap(pg=>[...pg.svg.matchAll(/>([^<>]+)　[^<>]*<\/text>/g)].map(m=>m[1]).filter(t=>{const i=pg.svg.indexOf('>'+t+'　');const nx=pg.svg.indexOf('class="s-sec"',i+1);return pg.svg.slice(i,nx<0?undefined:nx).includes('電箱側');}));
+          ok(two.every(t=>jb.includes(t)),'使用者專案：只有接線盒畫成電箱側／外部側兩側出線，一般現場器具（例如一體化馬達）照一般畫法'+(two.filter(t=>!jb.includes(t)).length?'：'+two.filter(t=>!jb.includes(t)).join('、'):'')); }
         ok(tot>0&&!nm.length,`使用者專案：控制回路 ${tot} 個串聯中間點都標了線號`+(nm.length?`：漏 ${nm.slice(0,5).join('、')}`:'')); }
       ok(schemVerify(U).length===0&&U.pages.every(pg=>!/\u0001/.test(pg.svg+pg.html)),`使用者專案：${U.pages.length} 頁，${Math.round(performance.now()-t)} ms，圖和配線一致`);}
     return out;},userFile?fs.readFileSync(userFile,'utf8'):null);
