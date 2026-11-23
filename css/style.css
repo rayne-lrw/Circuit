@@ -574,7 +574,7 @@ main.lc.wl{grid-template-columns:40px minmax(0,1fr) var(--wideW,640px) 320px}
 .s-in{font-size:2.6px;text-anchor:middle}
 .s-ln{font-size:3px;text-anchor:end;fill:#555!important}
 .s-pot{font-size:2.9px;text-anchor:middle;font-weight:700}
-.s-big{font-size:12px;font-weight:700;text-anchor:middle}.s-big2{font-size:6px;text-anchor:middle}.s-cv{font-size:3px;text-anchor:middle}
+.s-big{font-size:14px;font-weight:700;text-anchor:middle}.s-big2{font-size:7px;text-anchor:middle}.s-cv{font-size:3.8px;text-anchor:middle}.s-lg{font-size:3.6px}.s-lgn{font-size:3.4px}
 .sch-body{position:absolute;left:22mm;top:28mm;width:376mm;font-size:2.9mm;color:#000}
 .s-table{border-collapse:collapse;width:100%}.s-table th,.s-table td{border:.2mm solid #555;padding:.6mm 1.2mm;text-align:left;vertical-align:top}.s-table th{background:#eee}
 .s-idx{width:60%}.s-note{font-size:2.6mm;margin-top:3mm}.s-th{font-size:3.4mm;margin:2.5mm 0 1mm}.s-th:first-child{margin-top:0}
