@@ -633,21 +633,53 @@ function scConnPages(M,newPage,pages,devList,title,kind,keep){if(!devList.length
     // 接到同一台馬達的列排在一起（U V W、接地、編碼器），收線時不會穿過其他列
     const mi=r=>kind==='servo'&&!r.miss&&r.ends.length&&/馬達/.test(tplOf(r.ends[0].d).cat||'');const f0=rows.findIndex(mi);
     if(f0>=0){const mr=rows.filter(mi),rest=rows.filter(r=>!mi(r));rest.splice(f0,0,...mr);rows.length=0;rows.push(...rest);}
-    // 同一台器具上同電位的端子（直接短接、或經端子台接在一起）歸成一組：排在相鄰列，同一側（外形上端子在哪一邊）的用短線直接接起來，兩側之間再用一條線連；
-    // 別頁已經畫過的同組端子也列出來（灰字標見第幾頁），一眼看出整組怎麼接
-    { const T=tplOf(sv),side=t=>{const q=T.terms.find(x=>x.id===t);if(!q||!T.w||!T.h)return 0;const dd=[q.y,T.h-q.y,q.x,T.w-q.x];return dd.indexOf(Math.min(...dd));};
+    // 同一台器具上「短接」的端子歸成一組：同一台兩個端子之間直接拉線、器具上的短路片（接線盒 1～4 腳）、器具內部相通；
+    // 經過端子台或別的器具才同電位的不算（那是接到不同器具）。一組畫一條並聯線，再延伸一條線出去寫對端；別頁畫過的同組端子也列出來
+    const wEnd=(w,t)=>w.a.d===sv.id&&w.a.t===t?w.b:w.a;
+    const inPanel=e=>{const od=devOf(e.d);return od&&od.sheet!=='field';};
+    const jbox=kind==='other'&&(/接線盒/.test(T.n||'')||(sv.sheet==='field'&&rows.some(r=>{const sd=r.ws.filter(w=>wEnd(w,r.t).d!==sv.id).map(w=>inPanel(wEnd(w,r.t)));return sd.includes(true)&&sd.includes(false);})));
+    { const SD=['top','bottom','left','right'],side=t=>{if(jbox||kind==='servo')return 0;const q=T.terms.find(x=>x.id===t);if(!q)return 0;if(SD.includes(q.side))return SD.indexOf(q.side);if(!T.w||!T.h)return 0;const dd=[q.y,T.h-q.y,q.x,T.w-q.x];return dd.indexOf(Math.min(...dd));}; // 樣板有標端子在哪一邊就照標的
+      const pos=t=>{if(jbox||kind==='servo')return 0;const q=T.terms.find(x=>x.id===t);return q?(side(t)<2?q.x:q.y):999;}; // 接線盒照腳位編號排
       const inMot=new Set(rows.filter(mi).map(r=>r.t)),okT=t=>!inMot.has(t)&&!scEarth(sv,t)&&!/^CN\d/.test(t);
-      const byN=new Map();scTermsWired(sv).filter(okT).forEach(t=>{const k=nk(sv,t);if(!byN.has(k))byN.set(k,[]);byN.get(k).push(t);});
-      const out=[];rows.forEach(r=>{if(out.includes(r))return;const g=!r.miss&&okT(r.t)?byN.get(nk(sv,r.t)):null;
+      const ts=scTermsWired(sv).filter(okT),par=new Map(ts.map(t=>[t,t])),fd=t=>{while(par.get(t)!==t)t=par.get(t);return t;},un=(a,b)=>{if(par.has(a)&&par.has(b))par.set(fd(a),fd(b));};
+      S.wires.forEach(w=>{if(w.a.d===sv.id&&w.b.d===sv.id)un(w.a.t,w.b.t);});
+      (linksOf(sv)||[]).forEach(g=>{for(let i=1;i<g.length;i++)un(g[0],g[i]);});
+      const G=new Map();ts.forEach(t=>{const k=fd(t);if(!G.has(k))G.set(k,[]);G.get(k).push(t);});
+      // 接線盒：每一腳的線分電箱側（對端在盤面／箱門）與外部側（現場），短路片只畫在電箱側
+      if(jbox)rows.forEach(r=>{const ws=r.ws.filter(w=>wEnd(w,r.t).d!==sv.id);r.L=ws.filter(w=>inPanel(wEnd(w,r.t)));r.R=ws.filter(w=>!inPanel(wEnd(w,r.t)));});
+      const out=[];rows.forEach(r=>{if(out.includes(r))return;const g=!r.miss&&okT(r.t)?G.get(fd(r.t)):null;
         if(!g||g.length<2){out.push(r);return;}
-        const mem=g.map(t=>rows.find(x=>x.t===t&&!x.miss)||{t,ends:[],ws:wiresAt(sv,t),pl:[],ref:true});
-        const pos=t=>{const q=T.terms.find(x=>x.id===t);return q?(side(t)<2?q.x:q.y):999;};mem.sort((a,b)=>side(a.t)-side(b.t)||pos(a.t)-pos(b.t)||natCmp(a.t,b.t)); // 同一側照端子在外形上的位置排
-        const grp={mem,side:mem.map(m=>side(m.t))};
-        mem.forEach(m=>{m.grp=grp;m.rest=m.ref?[]:m.ends.filter(e=>!(e.d===sv&&g.includes(e.t)));out.push(m);});});
+        const mem=g.map(t=>rows.find(x=>x.t===t&&!x.miss)||{t,ends:[],ws:wiresAt(sv,t),pl:[],ref:true,L:[],R:[]});
+        const ri=m=>{const j=rows.indexOf(m);return j<0?999:j;};mem.sort((a,b)=>side(a.t)-side(b.t)||pos(a.t)-pos(b.t)||ri(a)-ri(b)||natCmp(a.t,b.t)); // 同一側排在一起，照端子在外形上的位置
+        const grp={mem};mem.forEach(m=>{m.grp=grp;m.rest=m.ref?[]:m.ends.filter(e=>!(e.d===sv&&g.includes(e.t)));out.push(m);});});
       rows.length=0;rows.push(...out); }
-    return {sv,rows};});
+    return {sv,rows,jbox};});
   const RH=7.2,colW=SC.X1-SC.X0+4; // 一欄佔滿頁寬（圖放大後兩欄放不下）
-  const draw=(B,x0,pg,y0)=>{const {sv,rows}=B;let h=scTx('s-sec',x0,y0,`${sv.tag}　${tplOf(sv).n}`,colW-4,4);
+  // 接線盒：方框放中間，左邊是電箱側（對端在盤面／箱門）、右邊是外部側（現場器具）。短路片（1～4 腳）只在電箱側用並聯線接起來、拉一條線回電箱；
+  // 外部側每一腳各自拉到自己的器具，不畫短路線
+  const drawJ=(B,x0,pg,y0)=>{const {sv,rows}=B;let h=scTx('s-sec',x0,y0,`${sv.tag}　${tplOf(sv).n}`,colW-4,4);
+    const by=y0+6,bh=rows.length*RH+11,bw=22,bx=x0+118,xLs=x0+74,xLT=x0+72,xR=bx+bw+44,yy=k=>by+4+k*RH+RH/2;
+    const lab=ws=>[...new Set(ws.map(w=>w.no+(cabNo(w)?`（${cabNo(w)}）`:'')))].join('、'),endTx=(w,t)=>{const o=(w.a.d===sv.id&&w.a.t===t)?w.b:w.a,od=devOf(o.d);return od?`${od.tag}：${scTL(od,o.t)}`:'';};
+    h+=`<rect class="s-dev" x="${bx}" y="${by}" width="${bw}" height="${bh}"/>`+scTx('s-tag',bx+2,by+bh-2,sv.tag,bw-4,SCF.tag);
+    h+=`<text class="s-sub" x="${xLT}" y="${by+1}" style="fill:#555;text-anchor:end">電箱側</text><text class="s-sub" x="${xR+1.5}" y="${by+1}" style="fill:#555">外部側</text>`;
+    const tx=(parts,x,y,room,maxL,end)=>{const L=[[]];let cw=0;parts.forEach(p=>{const w=scTW(p,3.1)+scTW('、',3.1);if(cw+w>room&&L[L.length-1].length){L.push([]);cw=0;}L[L.length-1].push(p);cw+=w;});
+      let R=L;if(L.length>maxL){const n=L.slice(maxL-1).flat().length;R=[...L.slice(0,maxL-1),[`等另 ${n} 處`]];}
+      return R.map((ln,k)=>{const F=scFit(ln.join('、'),room,3.1,1.8);return `<text class="s-tag" x="${x}" y="${y+1.1+k*3.6}" style="font-size:${F.fs}px${end?';text-anchor:end':''}">${scEsc(F.t)}</text>`;}).join('');};
+    const done=new Set();
+    rows.forEach((r,i)=>{const y=yy(i);h+=`<text class="s-in" x="${bx+bw/2}" y="${y+1}">${scEsc(scTL(sv,r.t))}</text>`;
+      pg.pos.push({x:bx,y,terms:[sv.id+'|'+r.t,...r.ends.map(e=>e.d.id+'|'+e.t)]});pg.pos.push({e:{d:sv,act:sv.id,k:'servo'},x:bx,y,terms:[sv.id+'|'+r.t]});
+      // 外部側
+      if(r.R&&r.R.length){h+=`<line x1="${bx+bw}" y1="${y}" x2="${xR}" y2="${y}"/>`+scTx('s-net',bx+bw+2,y-1,lab(r.R),xR-bx-bw-4,SCF.net)+tx([...new Set(r.R.map(w=>endTx(w,r.t)))],xR+1.5,y,x0+colW-xR-4,1,false);}
+      // 電箱側：短路片的組
+      if(r.grp){if(done.has(r.grp))return;done.add(r.grp);const g=r.grp.mem.map(m=>rows.indexOf(m)).sort((a,b)=>a-b),y0=yy(g[0]),y1=yy(g[g.length-1]),yE=(y0+y1)/2,xb=bx-6;
+        g.forEach(k=>{h+=`<line x1="${bx}" y1="${yy(k)}" x2="${xb}" y2="${yy(k)}"/>`;if(k!==g[0]&&k!==g[g.length-1])h+=SY.dot(xb,yy(k));});
+        const L=r.grp.mem.flatMap(m=>(m.L||[]).map(w=>({w,t:m.t})));
+        h+=`<line x1="${xb}" y1="${y0}" x2="${xb}" y2="${y1}"/>`+SY.dot(xb,yE);
+        if(L.length){h+=`<line x1="${xb}" y1="${yE}" x2="${xLs}" y2="${yE}"/>`+scTx('s-net',xLs+2,yE-1,lab(L.map(q=>q.w)),xb-xLs-4,SCF.net)+tx([...new Set(L.map(q=>endTx(q.w,q.t)))],xLT,yE,xLT-x0-2,Math.max(1,Math.floor((y1-yE)/3.6)+1),true);}
+        return;}
+      if(r.L&&r.L.length)h+=`<line x1="${bx}" y1="${y}" x2="${xLs}" y2="${y}"/>`+scTx('s-net',xLs+2,y-1,lab(r.L),bx-xLs-4,SCF.net)+tx([...new Set(r.L.map(w=>endTx(w,r.t)))],xLT,y,xLT-x0-2,1,true);});
+    return h;};
+  const draw=(B,x0,pg,y0)=>{if(B.jbox)return drawJ(B,x0,pg,y0);const {sv,rows}=B;let h=scTx('s-sec',x0,y0,`${sv.tag}　${tplOf(sv).n}`,colW-4,4);
     const by=y0+6,bh=rows.length*RH+11,bx=x0,bw=34; // 框底下多留一行放器具編號
     h+=`<rect class="s-dev" x="${bx}" y="${by}" width="${bw}" height="${bh}"/>`+scTx('s-tag',bx+2,by+bh-2,sv.tag,bw-4,SCF.tag);
     // 馬達：U／V／W／E 接到同一台馬達的列，收成一個馬達符號
@@ -655,32 +687,34 @@ function scConnPages(M,newPage,pages,devList,title,kind,keep){if(!devList.length
     let band=null;if(mot){const my0=by+4+rows.indexOf(motorRows[0])*RH+motorRows.length*RH/2,no=termsWired(mot).length-motorRows.length;band=[my0-7,my0+10+Math.max(0,no)*6.4+5];}
     // 同一台器具端子之間的短路線（P+–D、P3–P4…）：在框旁邊直接用線接起來，不寫「（同一台）」
     const labOf=r=>[...r.ws.map(w=>w.no+(cabNo(w)?`（${cabNo(w)}）`:'')),...(r.pl||[]).map(q=>`${q.c.no}　${q.c.spec||''}`)].filter((v,j,a)=>a.indexOf(v)===j).join('、');
-    const jg=new Map(),lanes=[];new Set(rows.map(r=>r.grp).filter(Boolean)).forEach(G=>{const g=G.mem.map(m=>rows.indexOf(m)),lo=Math.min(...g),hi=Math.max(...g);
-      const multi=new Set(G.side).size>1,need=multi?2:1;let ln=0;const busy=l=>(lanes[l]||[]).some(([a,b])=>!(hi<a||lo>b));while([...Array(need).keys()].some(k=>busy(ln+k)))ln++;
-      for(let k=0;k<need;k++)(lanes[ln+k]=lanes[ln+k]||[]).push([lo,hi]);
-      const subs=[];G.mem.forEach((m,j)=>{const ix=rows.indexOf(m);if(!j||G.side[j]!==G.side[j-1])subs.push([]);subs[subs.length-1].push(ix);});
-      const lw=Math.max(0,...G.mem.map(m=>scTW(labOf(m),SCF.net)));const o={g,ln,multi,subs,x0:Math.min(60,Math.max(18,lw+5))};g.forEach(j=>jg.set(j,o));});
+    const yy=k=>by+4+k*RH+RH/2,farOf=e=>`${e.d.tag}：${scTL(e.d,e.t)}${e.via?`（經 ${e.via}）`:''}`;
+    // 對端文字（可能很多段）：照寬度換行，往下最多寫到 maxL 行；別頁畫過的端子用灰字「S/S 見第 N 頁」
+    const farLines=(parts,x,y,room,maxL,anchor)=>{const QW='見第 00 頁',wOf=p=>scTW(p.ref?p.t.replace(/\u0001Q:[^\u0001]*\u0001/,QW):p.t,3.1)+scTW('、',3.1);
+      const L=[[]];let cw=0;parts.forEach(p=>{const w=wOf(p);if(cw+w>room&&L[L.length-1].length){L.push([]);cw=0;}L[L.length-1].push(p);cw+=w;});
+      let rows2=L;if(L.length>maxL){const n=L.slice(maxL-1).flat().length;rows2=[...L.slice(0,maxL-1),[{t:`等另 ${n} 處（見端子台表、線號表）`,ref:true}]];}
+      return rows2.map((ln,k)=>`<text class="s-tag" x="${x}" y="${y+1.1+k*3.6}" style="font-size:3.1px${anchor?';text-anchor:end':''}">${ln.map((p,j)=>(j?'、':'')+(p.ref?`<tspan class="s-sub" style="fill:#555;font-weight:400">${scEsc(p.t).replace(/\u0001Q:([^\u0001]*)\u0001/,(m,k)=>'\u0001Q:'+k+'\u0001')}</tspan>`:scEsc(p.t))).join('')}</text>`).join('');};
+    // 一般器具的短接組：每個端子一小段接到並聯線，從並聯線中間延伸一條線出去
+    const jg=new Map();new Set(rows.map(r=>r.grp).filter(Boolean)).forEach(G=>{const g=G.mem.map(m=>rows.indexOf(m)).sort((a,b)=>a-b);
+      const lw=Math.max(0,...G.mem.map(m=>scTW(labOf(m),SCF.net)));const o={g,x0:Math.min(60,Math.max(14,lw+5))};g.forEach(j=>jg.set(j,o));});
     rows.forEach((r,i)=>{const y=by+4+i*RH+RH/2,xl=bx+bw,xr=x0+112,lim=band&&y>band[0]-3&&y<band[1]+3?x0+133:x0+colW;
       h+=scTx('s-term',xl-1,y+.9,scTL(sv,r.t),bw-6,SCF.term);
       if(r.miss){h+=`<line x1="${xl}" y1="${y}" x2="${xl+6}" y2="${y}"/>`+scTx('s-sub',xl+8,y+1,`${r.t}（編碼器）：沒有接線`,colW-bw-14,SCF.sub,'fill:#a00');return;}
       const fiber=r.ws.some(w=>/光纖|SSCNET|fiber/i.test(w.no||''))||/^CN1[AB]$/.test(r.t)||(r.pl||[]).some(q=>/光纖|SSCNET|fiber/i.test((q.c.spec||'')+(q.c.no||''))); /* 只有接頭電纜（沒有散線）的光纖也畫虛線 */
-      if(jg.has(i)){const o=jg.get(i),xj=xl+o.x0+o.ln*6,xT=xj+6,yy=k=>by+4+k*RH+RH/2,sg=o.subs.find(q=>q.includes(i)),first=sg[0]===i,last=sg[sg.length-1]===i;
-        const fs=o.subs.map(q=>q[0]),cont=r.rest.length>0,xe=cont?null:(o.multi&&first?xT:xj);
-        if(first&&sg.length>1)h+=`<line x1="${xj}" y1="${yy(sg[0])}" x2="${xj}" y2="${yy(sg[sg.length-1])}"/>`;
-        if(o.multi&&i===fs[0])h+=`<line x1="${xT}" y1="${yy(fs[0])}" x2="${xT}" y2="${yy(fs[fs.length-1])}"/>`;
-        if(sg.length>1&&((!first&&!last)||(first&&(cont||o.multi))))h+=SY.dot(xj,y);
-        if(o.multi&&first&&((i!==fs[0]&&i!==fs[fs.length-1])||cont))h+=SY.dot(xT,y);
-        if(!cont){h+=`<line x1="${xl}" y1="${y}" x2="${xe}" y2="${y}"/>`;
-          const lb=labOf(r);if(lb)h+=scTx('s-net',xl+2,y-1,lb,xj-xl-3,SCF.net);
-          if(r.ref)h+=`<text class="s-sub" x="${xj+(o.multi?9:3)}" y="${y+1}" style="fill:#555">\u0001Q:${scEsc(sv.id+'|'+r.t)}\u0001</text>`;
-          if(!r.ref)pg.pos.push({x:xl,y,terms:[sv.id+'|'+r.t,...r.ends.map(e=>e.d.id+'|'+e.t)]}),pg.pos.push({e:{d:sv,act:sv.id,k:'servo'},x:xl,y,terms:[sv.id+'|'+r.t]});return;}
-        r={...r,ends:r.rest};} // 還接到別的地方：組線接在這條線上，後面照常寫對端
+      if(jg.has(i)){const o=jg.get(i),xj=xl+o.x0,y0=yy(o.g[0]),y1=yy(o.g[o.g.length-1]),yE=(y0+y1)/2;
+        h+=`<line x1="${xl}" y1="${y}" x2="${xj}" y2="${y}"/>`;const lb=labOf(r);if(lb)h+=scTx('s-net',xl+2,y-1,lb,xj-xl-3,SCF.net);
+        if(i!==o.g[0]&&i!==o.g[o.g.length-1])h+=SY.dot(xj,y);
+        if(!r.ref)pg.pos.push({x:xl,y,terms:[sv.id+'|'+r.t,...r.ends.map(e=>e.d.id+'|'+e.t)]}),pg.pos.push({e:{d:sv,act:sv.id,k:'servo'},x:xl,y,terms:[sv.id+'|'+r.t]});
+        if(i===o.g[0]){const mem=o.g.map(k=>rows[k]),ex=[],seen=new Set();mem.forEach(m=>(m.rest||[]).forEach(e=>{const k=e.d.id+'|'+e.t+'|'+(e.via||'');if(!seen.has(k)){seen.add(k);ex.push({t:farOf(e)});}}));
+          const refs=mem.filter(m=>m.ref).map(m=>({t:`${scTL(sv,m.t)} \u0001Q:${sv.id+'|'+m.t}\u0001`,ref:true}));
+          h+=`<line x1="${xj}" y1="${y0}" x2="${xj}" y2="${y1}"/>`;const parts=[...ex,...refs]; // 只在同一台之間互接（P3–P4 短路片）：不拉延伸線
+          if(parts.length)h+=`<line x1="${xj}" y1="${yE}" x2="${xr}" y2="${yE}"/>`+SY.dot(xj,yE)+farLines(parts,xr+1.5,yE,lim-xr-4,Math.max(1,Math.floor((y1-yE)/3.6)+1),false);}
+        return;}
       const self=r.ends.length&&r.ends.every(e=>e.d===sv);
       const isMot=mot&&r.ends.some(e=>e.d===mot);
       const xe=isMot?x0+136:xr;
       h+=`<line x1="${xl}" y1="${y}" x2="${xe}" y2="${y}"${fiber?' stroke-dasharray="2 1.2"':''}/>`;
       const lab=labOf(r);
-      if(lab)h+=scTx('s-net',xl+2,y-1,lab,(jg.has(i)?xl+jg.get(i).x0+jg.get(i).ln*6:xe)-xl-4,SCF.net);
+      if(lab)h+=scTx('s-net',xl+2,y-1,lab,xe-xl-4,SCF.net);
       pg.pos.push({x:xl,y,terms:[sv.id+'|'+r.t,...r.ends.map(e=>e.d.id+'|'+e.t)]});
       if(isMot){const mx=x0+148,my=by+4+rows.indexOf(motorRows[0])*RH+motorRows.length*RH/2;h+=`<line x1="${xe}" y1="${y}" x2="${mx-7}" y2="${my}"/>`;return;}
       const far=self?r.ends.map(e=>`${scTL(sv,e.t)}（同一台）`).join('、'):r.ends.map(e=>`${e.d.tag}：${scTL(e.d,e.t)}${e.via?`（經 ${e.via}）`:''}`).join('、');
