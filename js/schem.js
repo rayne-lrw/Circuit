@@ -8,9 +8,9 @@
    - PLC I/O：每點一欄，上面是接的現場器具，下面是 PLC 端子與位址
    - 端子台表、線號表、材料表放在最後；每頁有欄號 1～10、列號 A～F 與標題欄，線圈下方列出接點在哪一頁哪一欄
    - schemVerify：把畫出來的圖反推回接點連接，和原本配線比對（測試用） */
-const SC={W:420,H:297,M:10,COLS:10,U:30,X0:36,X1:404,RT:44,RB:236};
+const SC={W:350,H:247.5,M:8.5,COLS:10,U:30,X0:34.5,X1:335.5,RT:42.5,RB:186.5}; // 畫在 350×247.5 的座標上、印成 A3（420×297 mm）：圖與字整份放大 1.2 倍
 /* 畫法：IEC 60617（現行 JIS C 0617 相同），控制回路電源線在上下、迴路垂直 */
-const SC_V={U:30,X0:36,X1:404,RT:44,RB:236};
+const SC_V={U:30,X0:34.5,X1:335.5,RT:42.5,RB:186.5};
 
 const SC_PH=['R','S','T','L1','L2','L3','L','N'];
 const scEsc=s=>esc(String(s==null?'':s));
@@ -540,13 +540,13 @@ function scMaxH(t,LH){return scSize(t,LH).h;}
 function scPlcPages(M,pages,newPage){
   const plcs=S.devices.filter(d=>M.E.some(e=>e.d===d&&(e.k==='plcx'||e.k==='plcy'))).sort((a,b)=>natCmp(a.tag,b.tag));
   const byNode=new Map();M.E.forEach(e=>[e.u,e.v].forEach(k=>{if(!byNode.has(k))byNode.set(k,[]);byNode.get(k).push(e);}));
-  const blocks=[],per=16,cw=22;
+  const blocks=[],per=8,cw=30; // 每段 8 點（X0～X7、X10～X17），一頁上下兩段
   plcs.forEach(d=>['plcx','plcy'].forEach(kind=>{const pts=M.E.filter(e=>e.d===d&&e.k===kind&&M.wiredNode.has(kind==='plcx'?e.u:e.v));
     for(let i=0;i<pts.length;i+=per)blocks.push({d,kind,part:pts.slice(i,i+per),n:pts.length>per?i/per+1:0});}));
   const drawBlock=(B,yo,pg)=>{const {d,kind,part}=B;
     const dn=tplOf(d).n,hd=d.tag===dn||dn.startsWith(d.tag)?dn:`${d.tag}　${dn}`,io=kind==='plcx'?'輸入':'輸出',gs=scChainGuess(d,kind==='plcx'?'X':'Y');
     let h=`<text class="s-sec" x="${SC.X0-6}" y="${yo}">PLC ${io}　${scEsc(hd)}${B.n?`（${B.n}）`:''}</text>`+(gs?scTx('s-sub',SC.X0-6,yo+5,`位址推定：沒有串接在 ${gs.host.tag} 旁邊，照盤面位置排在後面（實際以擴充電纜連接順序為準）`,300,SCF.sub):'');
-    const bx=SC.X0,by=yo+68,bw=Math.max(part.length*cw+8,scTW(hd,SCF.tag)+6); // 點數少時框也要放得下器具名稱
+    const bx=SC.X0,by=yo+64,bw=Math.max(part.length*cw+8,scTW(hd,SCF.tag)+6); // 點數少時框也要放得下器具名稱
     h+=`<rect class="s-dev" x="${bx}" y="${by}" width="${bw}" height="18"/>`+scTx('s-tag',bx+2,by+16,hd,bw-4,SCF.tag);
     part.forEach((e,j)=>{const x=bx+6+j*cw+cw/2-4,k=kind==='plcx'?e.u:e.v,nm=M.netName(k);
       h+=`<text class="s-in" x="${x}" y="${by+5}" style="font-weight:700">${scEsc(ptName(e))}</text><text class="s-in" x="${x}" y="${by+9.5}">${scEsc(termLabel(d,e.pt)||e.pt)}</text>`;
@@ -571,7 +571,7 @@ function scPlcPages(M,pages,newPage){
     return h;};
   for(let i=0;i<blocks.length;i+=2){const two=blocks.slice(i,i+2);
     const pg=newPage(`PLC ${two.map(B=>`${B.kind==='plcx'?'輸入':'輸出'} ${B.d.tag}${B.n?`（${B.n}）`:''}`).join('、')}`,'plc');
-    pg.body=two.map((B,j)=>drawBlock(B,j?140:34,pg)).join('');}
+    pg.body=two.map((B,j)=>drawBlock(B,j?125:32,pg)).join('');}
 }
 
 /* ---------- 8b. 伺服接線圖：每台伺服列出所有有接線的端子，拉到對端器具 ----------
@@ -619,30 +619,30 @@ function scConnPages(M,newPage,pages,devList,title,kind,keep){if(!devList.length
     const mi=r=>kind==='servo'&&!r.miss&&r.ends.length&&/馬達/.test(tplOf(r.ends[0].d).cat||'');const f0=rows.findIndex(mi);
     if(f0>=0){const mr=rows.filter(mi),rest=rows.filter(r=>!mi(r));rest.splice(f0,0,...mr);rows.length=0;rows.push(...rest);}
     return {sv,rows};});
-  const RH=7.2,colW=190;
+  const RH=7.2,colW=SC.X1-SC.X0+4; // 一欄佔滿頁寬（圖放大後兩欄放不下）
   const draw=(B,x0,pg,y0)=>{const {sv,rows}=B;let h=scTx('s-sec',x0,y0,`${sv.tag}　${tplOf(sv).n}`,colW-4,4);
     const by=y0+6,bh=rows.length*RH+11,bx=x0,bw=34; // 框底下多留一行放器具編號
     h+=`<rect class="s-dev" x="${bx}" y="${by}" width="${bw}" height="${bh}"/>`+scTx('s-tag',bx+2,by+bh-2,sv.tag,bw-4,SCF.tag);
     // 馬達：U／V／W／E 接到同一台馬達的列，收成一個馬達符號
     const motorRows=rows.filter(r=>kind==='servo'&&!r.miss&&r.ends.length&&/馬達/.test(tplOf(r.ends[0].d).cat||'')),mot=motorRows.length?motorRows[0].ends[0].d:null;
     let band=null;if(mot){const my0=by+4+rows.indexOf(motorRows[0])*RH+motorRows.length*RH/2,no=termsWired(mot).length-motorRows.length;band=[my0-7,my0+10+Math.max(0,no)*6.4+5];}
-    rows.forEach((r,i)=>{const y=by+4+i*RH+RH/2,xl=bx+bw,xr=x0+96,lim=band&&y>band[0]-3&&y<band[1]+3?x0+117:x0+colW;
+    rows.forEach((r,i)=>{const y=by+4+i*RH+RH/2,xl=bx+bw,xr=x0+112,lim=band&&y>band[0]-3&&y<band[1]+3?x0+133:x0+colW;
       h+=scTx('s-term',xl-1,y+.9,scTL(sv,r.t),bw-6,SCF.term);
       if(r.miss){h+=`<line x1="${xl}" y1="${y}" x2="${xl+6}" y2="${y}"/>`+scTx('s-sub',xl+8,y+1,`${r.t}（編碼器）：沒有接線`,colW-bw-14,SCF.sub,'fill:#a00');return;}
       const fiber=r.ws.some(w=>/光纖|SSCNET|fiber/i.test(w.no||''))||/^CN1[AB]$/.test(r.t)||(r.pl||[]).some(q=>/光纖|SSCNET|fiber/i.test((q.c.spec||'')+(q.c.no||''))), /* 只有接頭電纜（沒有散線）的光纖也畫虛線 */self=r.ends.length&&r.ends.every(e=>e.d===sv);
       const isMot=mot&&r.ends.some(e=>e.d===mot);
-      const xe=isMot?x0+120:xr;
+      const xe=isMot?x0+136:xr;
       h+=`<line x1="${xl}" y1="${y}" x2="${xe}" y2="${y}"${fiber?' stroke-dasharray="2 1.2"':''}/>`;
       const lab=[...r.ws.map(w=>w.no+(cabNo(w)?`（${cabNo(w)}）`:'')),...(r.pl||[]).map(q=>`${q.c.no}　${q.c.spec||''}`)].filter((v,j,a)=>a.indexOf(v)===j).join('、');
       if(lab)h+=scTx('s-net',xl+2,y-1,lab,xe-xl-4,SCF.net);
       pg.pos.push({x:xl,y,terms:[sv.id+'|'+r.t,...r.ends.map(e=>e.d.id+'|'+e.t)]});
-      if(isMot){const mx=x0+132,my=by+4+rows.indexOf(motorRows[0])*RH+motorRows.length*RH/2;h+=`<line x1="${xe}" y1="${y}" x2="${mx-7}" y2="${my}"/>`;return;}
+      if(isMot){const mx=x0+148,my=by+4+rows.indexOf(motorRows[0])*RH+motorRows.length*RH/2;h+=`<line x1="${xe}" y1="${y}" x2="${mx-7}" y2="${my}"/>`;return;}
       const far=self?r.ends.map(e=>`${scTL(sv,e.t)}（同一台）`).join('、'):r.ends.map(e=>`${e.d.tag}：${scTL(e.d,e.t)}${e.via?`（經 ${e.via}）`:''}`).join('、');
       // 對端編號，後面同一行接型號（灰色小字）
       const room=lim-xr-4,F=scFit(far||'—',room,3.1,1.8);h+=`<text class="s-tag" x="${xr+1.5}" y="${y+1.1}" style="font-size:${F.fs}px">${scEsc(F.t)}</text>`;
       const used=scTW(F.t,F.fs)+3,nm=r.ends.length&&!self?tplOf(r.ends[0].d).n:'';if(nm&&scTW(nm,SCF.sub*.9*.85)<=room-used)h+=scTx('s-sub',xr+1.5+used,y+1.1,nm,room-used,SCF.sub*.9,'fill:#555'); // 型號是補充資訊：放得下完整才寫
       pg.pos.push({e:{d:sv,act:sv.id,k:'servo'},x:xl,y,terms:[sv.id+'|'+r.t]});});
-    if(mot){const mr=motorRows,mx=x0+132,my=by+4+rows.indexOf(mr[0])*RH+mr.length*RH/2;
+    if(mot){const mr=motorRows,mx=x0+148,my=by+4+rows.indexOf(mr[0])*RH+mr.length*RH/2;
       h+=SY.motor(mx,my,'')+scTx('s-tag',mx+8,my-1,mot.tag,colW-(mx-x0)-10,SCF.tag)+scTx('s-sub',mx+8,my+3,tplOf(mot).n,colW-(mx-x0)-10,SCF.sub);
       // 馬達自己的其他端子（煞車、編碼器…）
       const others=termsWired(mot).filter(t=>!mr.some(r=>r.ends.some(e=>e.d===mot&&e.t===t)));
@@ -652,18 +652,18 @@ function scConnPages(M,newPage,pages,devList,title,kind,keep){if(!devList.length
         h+=scTx('s-sub',mx+7,y+1,`${w.map(q=>q.no).join('、')} → ${ed.map(e=>`${e.d.tag}：${termLabel(e.d,e.t)}`).join('、')||'—'}`,colW-(mx-x0)-9,SCF.sub);pg.pos.push({x:mx,y,terms:[mot.id+'|'+t]});});
       if(brakeEl&&others.length)h+=scTx('s-xr2',mx+7,my+10+others.length*6.4+2,`${brakeEl.name||'煞車'}的控制見第 \u0001D:${mot.id}\u0001 頁`,colW-(mx-x0)-9,SCF.xref);}
     return h;};
-  // 排版：兩欄，區塊高度照列數（有馬達時加上馬達與煞車的範圍）；放不下換欄、換頁
+  // 排版：放得下就兩欄（目前頁寬只放一欄），區塊高度照列數（有馬達時加上馬達與煞車的範圍）；放不下換欄、換頁
   const hOf=B=>{const mr=B.rows.filter(r=>kind==='servo'&&!r.miss&&r.ends.length&&/馬達/.test(tplOf(r.ends[0].d).cat||''));let h=B.rows.length*RH+11+12;
     if(mr.length){const mot=mr[0].ends[0].d,no=termsWired(mot).length-mr.length,my=mr.length*RH/2+B.rows.indexOf(mr[0])*RH+4;h=Math.max(h,my+10+Math.max(0,no)*6.4+12);}return h;};
-  let pg=null,col=0,y=0;const Y0=34,YMAX=250;const tags=[];
+  let pg=null,col=0,y=0;const Y0=SC.M+26,YMAX=SC.H-SC.M-5-22-4;const tags=[];
   const flush=()=>{if(pg)pg.title=`${title} ${tags.join('、')}`;};
-  blocks.forEach(B=>{const hh=hOf(B);if(!pg||y+hh>YMAX){if(pg&&col===0&&Y0+hh<=YMAX){col=1;y=Y0;}else{flush();pg=newPage(title,kind);pg.body='';tags.length=0;col=0;y=Y0;}}
-    pg.body+=draw(B,30+col*(colW+4),pg,y);tags.push(B.sv.tag);y+=hh+6;});flush();
+  blocks.forEach(B=>{const hh=hOf(B);if(!pg||y+hh>YMAX){if(pg&&col===0&&SC.X0-4+2*(colW+4)<=SC.X1&&Y0+hh<=YMAX){col=1;y=Y0;}else{flush();pg=newPage(title,kind);pg.body='';tags.length=0;col=0;y=Y0;}}
+    pg.body+=draw(B,SC.X0-4+col*(colW+4),pg,y);tags.push(B.sv.tag);y+=hh+6;});flush();
 }
 
 /* ---------- 9. 表格頁：小表合併在同一頁，大表分頁 ---------- */
-function scTablePages(newPage,title,head,rows,per=34){scPackTables(newPage,title,[{t:'',head,rows}],per);}
-function scPackTables(newPage,title,secs,per=34){
+function scTablePages(newPage,title,head,rows,per=33){scPackTables(newPage,title,[{t:'',head,rows}],per);}
+function scPackTables(newPage,title,secs,per=33){
   const chunks=[];secs.forEach(s=>{if(!s.rows.length)return;for(let i=0;i<s.rows.length;i+=per-2)chunks.push({...s,rows:s.rows.slice(i,i+per-2),cont:i>0});});
   if(!chunks.length)return;
   const pagesL=[];let cur=null,used=0;chunks.forEach(c=>{const need=c.rows.length+(c.t?3:1);if(!cur||used+need>per){cur=[];pagesL.push(cur);used=0;}cur.push(c);used+=need;});
@@ -685,12 +685,12 @@ function schemBuild(){
   scOtherPages(M,newPage,pages);
   scPackTables(newPage,'端子台',tbTables().map(t=>({t:t.d.tag,head:['片／端子','接線（點：線號 → 對端）'],rows:[...t.rows,...(t.jump.length?[['短路片',t.jump.join('、')]]:[])]})));
   scTablePages(newPage,'線號表',['線號','線徑','線色','起點','終點'],[...S.wires].sort((a,b)=>natCmp(a.no,b.no)).map(w=>[w.no,w.gauge,colorOf(w).n,epShort(w.a),epShort(w.b)]));
-  { const bom=bomRows();scTablePages(newPage,'材料表',['分類','品名／型號','廠牌','數量','單位','器具編號'],bom.map(r=>[r.sec,r.name,r.brand,r.qty,r.unit,r.tags]),30); }
+  { const bom=bomRows();scTablePages(newPage,'材料表',['分類','品名／型號','廠牌','數量','單位','器具編號'],bom.map(r=>[r.sec,r.name,r.brand,r.qty,r.unit,r.tags]),27); }
   // 封面
   const cnt=k=>pages.filter(p=>p.kind===k).length;
-  cover.body=`${meta.company?`<text class="s-big2" x="${SC.W/2}" y="52">${scEsc(meta.company)}</text>`:''}<text class="s-big" x="${SC.W/2}" y="70">電路圖</text><text class="s-big2" x="${SC.W/2}" y="84">${scEsc(meta.title)}</text>
-    <text class="s-cv" x="${SC.W/2}" y="96">${scEsc(meta.date)}　${S.devices.length} 器具　${S.wires.length} 條線　共 \u0001N\u0001 頁</text>
-    <text class="s-cv" x="${SC.W/2}" y="104">由盤面配線模擬器依配線資料自動產生；符號照 IEC 60617（與現行 JIS C 0617 相同）。器具接點、規格請以原廠資料與實物為準。</text>`+scLegend(130);
+  cover.body=`${meta.company?`<text class="s-big2" x="${SC.W/2}" y="44">${scEsc(meta.company)}</text>`:''}<text class="s-big" x="${SC.W/2}" y="60">電路圖</text><text class="s-big2" x="${SC.W/2}" y="72">${scEsc(meta.title)}</text>
+    <text class="s-cv" x="${SC.W/2}" y="82">${scEsc(meta.date)}　${S.devices.length} 器具　${S.wires.length} 條線　共 \u0001N\u0001 頁</text>
+    <text class="s-cv" x="${SC.W/2}" y="89">由盤面配線模擬器依配線資料自動產生；符號照 IEC 60617（與現行 JIS C 0617 相同）。器具接點、規格請以原廠資料與實物為準。</text>`+scLegend(112);
   // 圖面目錄
   const rows=pages.map(p=>[p.no,p.title]);index.html=`<table class="s-table s-idx"><thead><tr><th>頁</th><th>圖名</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${scEsc(r[1])}</td></tr>`).join('')}</tbody></table>`;
   // 未畫進控制回路、也不在主回路的有接線負載（例如接到沒有動作資料的器具），列在目錄頁
@@ -712,9 +712,9 @@ function schemBuild(){
 }
 // 圖例
 function scLegend(y){const L=[['no','常開接點'],['nc','常閉接點'],['brk','斷路器'],['fuse','保險絲'],['ol','熱動元件'],['btn','按鈕'],['trip','積熱電驛接點'],['sens','感測器輸出'],['coil','線圈'],['diode','二極體'],['lamp','指示燈'],['box','負載／器具電源'],['plcx','PLC 輸入']];
-  const x=SC.W/2-(L.length-1)*14; // 整列置中
-  let h=`<text class="s-sec" x="${SC.W/2}" y="${y-8}" text-anchor="middle" style="font-size:5.5px">圖例（IEC 60617）</text>`;
-  L.forEach(([k,t],i)=>{const xx=x+i*28,c=y+8;h+=SY.line(xx,y,c-4)+SY.line(xx,c+4,y+16);
+  const x=SC.W/2-(L.length-1)*12.5; // 整列置中
+  let h=`<text class="s-sec" x="${SC.W/2}" y="${y-8}" text-anchor="middle" style="font-size:4.6px">圖例（IEC 60617）</text>`;
+  L.forEach(([k,t],i)=>{const xx=x+i*25,c=y+8;h+=SY.line(xx,y,c-4)+SY.line(xx,c+4,y+16);
     h+=k==='diode'?SY.diode(xx,c,true):k==='btn'?SY.no(xx,c)+SY.btn(xx,c):k==='trip'?SY.nc(xx,c)+SY.trip(xx,c):k==='sens'?SY.no(xx,c)+SY.sensA(xx,c):k==='box'?SY.box(xx,c,'負載'):k==='plcx'?SY.plcx(xx,c,'X0'):SY[k](xx,c);
     if(['no','nc','brk','btn','trip','sens'].includes(k))h+=SY.line(xx,c-4,c-3)+SY.line(xx,c+3,c+4);
     h+=`<text class="s-lg" x="${xx}" y="${y+24}" text-anchor="middle">${t}</text>`;});

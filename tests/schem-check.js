@@ -34,7 +34,7 @@ const userFile=process.argv[2];
     let B=schemBuild();const T=B.pages.map(x=>x.title);
     ok(T[0]==='封面與圖例'&&T[1]==='圖面目錄'&&T.some(t=>/^主回路/.test(t))&&T.some(t=>/^控制回路 24V（PS）/.test(t))&&T.some(t=>/^PLC 輸入 PLC、輸出 PLC$/.test(t))&&T.some(t=>/^線號表/.test(t))&&T.some(t=>/^材料表/.test(t)),`頁面組成（${B.pages.length} 頁，PLC 輸入輸出合在同一頁）：${T.slice(0,8).join('、')}…`);
     ok(B.pages.every(pg=>!/\u0001/.test(pg.svg+pg.html))&&B.pages.every((pg,i)=>pg.svg.includes(`>${i+1} / ${B.pages.length}<`)),'每頁標題欄頁次「n / 總頁數」，沒有殘留的佔位符號');
-    ok(B.pages.every(pg=>/viewBox="0 0 420 297"/.test(pg.svg)&&/s-frame/.test(pg.svg)),'每頁都是 A3 橫式圖框（420×297）');
+    ok(B.pages.every(pg=>/viewBox="0 0 350 247.5"/.test(pg.svg)&&/s-frame/.test(pg.svg)),'每頁都是 A3 橫式圖框（420×297）');
     { const v=schemVerify(B);ok(v.length===0&&v.checked>=10,`控制回路：從圖反推回每個元素的兩端，和配線完全一致（檢查 ${v.checked} 個）`); }
     // 自保持：SB1 3-4 和 KX 53-54 並聯
     const tr=B.M.ctrlTrees[0].tree,find=(t,f)=>f(t)||(t.c||[]).some(c=>find(c,f));
@@ -134,7 +134,7 @@ const userFile=process.argv[2];
     { const B2=(()=>{S.devices.push({id:'SMX',tag:'SMX',tpl:'pnoz',x:500,y:300,sheet:'plate'},{id:'PSX',tag:'PSX',tpl:'drl120',x:600,y:300,sheet:'plate'},{id:'ESX',tag:'ESX',tpl:'yw1b',x:600,y:500,sheet:'door'});
         let k=900;const W2=(a,at,bb,bt)=>S.wires.push({id:'w'+(++k),no:'S'+k,a:{d:a,t:at},b:{d:bb,t:bt},wps:[],gauge:.75,color:'black'});
         W2('QF','2','PSX','L');W2('QF','4','PSX','N');W2('PSX','+V1','SMX','A1');W2('SMX','A2','PSX','-V1');W2('SMX','S11','ESX','1');W2('ESX','2','SMX','S21');W2('SMX','S12','ESX',"1'");W2('ESX',"2'",'SMX','S22');recompute();return schemBuild();})();
-      const sp=B2.pages.find(x=>/安全輸入（SMX）/.test(x.title));ok(sp&&(sp.svg.match(/>ESX</g)||[]).length===2&&!B2.pages.some(x=>/^其他接線/.test(x.title)&&/ESX/.test(x.title))&&schemVerify(B2).length===0,'安全繼電器：急停接在輸入端子之間的迴路畫在控制回路頁（配對照實際接線找：S11-S21、S12-S22）'); }
+      const sp=B2.pages.filter(x=>/安全輸入（SMX）/.test(x.title)).map(x=>x.svg).join('');ok(sp&&(sp.match(/>ESX</g)||[]).length===2&&!B2.pages.some(x=>/^其他接線/.test(x.title)&&/ESX/.test(x.title))&&schemVerify(B2).length===0,'安全繼電器：急停接在輸入端子之間的迴路畫在控制回路頁（配對照實際接線找：S11-S21、S12-S22）'); }
     ok(schemVerify(B).length===0,'正反轉＋AC 控制回路：圖反推回去和配線一致');
     return out;}));
   res.push(...await p.evaluate(()=>{const out=[],ok=(c,m)=>out.push((c?'✓ ':'✗ ')+m),D=(id,tpl,x,y,sheet='plate',extra={})=>({id,tag:id,tpl,x,y,sheet,...extra});
