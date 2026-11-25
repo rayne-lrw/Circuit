@@ -23,6 +23,7 @@ let dragPrev=null, hoverCab=null; // 拖曳中繼點時的單線預覽 {w,pts}
 let cabPickCore=null; // 在圖上接芯線時，目前要接的那一芯
 let selCab=null, cabPick=null, coreEdit=null; // 選取的電纜、「接下一芯」中的電纜、芯線表正在編輯的那一芯
 let draft=null, railHit=null, bundleSel=null, multi=[], renameOffer=null, swapOffer=null;   // {a:{d,t},wps:[],end?:{d,t},pop:false,ext:{}}
+let rewire=null; // 改接線頭：{wid,end:'a'|'b',drag}
 let snap=null, hoverW=null, cursor={x:0,y:0,sx:0,sy:0}, listHover=null;
 let last={gauge:1.25,color:'white',direct:false};
 const filt={color:null,gauge:null,dev:'',kind:null};

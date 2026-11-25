@@ -324,7 +324,7 @@ function setLeft(collapsed,save){
 }
 /* 檢視模式：只能看。會改到資料的按鈕停用，右側詳細資料的欄位反灰 */
 const VIEW_LOCK=['undo','redo','clearB','setOpen','newTpl','sample']; // 檢視模式可以匯入專案（看別人的檔案）
-function setMode(m){
+function setMode(m){rewire=null;
   if(m!=='place'&&typeof placing!=='undefined'&&placing)stopPlacing();
   if(m!=='wire'){cabPick=null;cabPickCore=null;}mode=m;$('mWire').setAttribute('aria-pressed',m==='wire');$('mPlace').setAttribute('aria-pressed',m==='place');$('mView').setAttribute('aria-pressed',m==='view');$('mSim').setAttribute('aria-pressed',m==='sim');if(m==='sim'&&!SIMST)simEnter();if(m!=='sim'&&SIMST)simLeave();
   draft=null;closePop();snap=null;hoverW=null;picked=null;multi=[];sel=m!=='place'?sel:null;$('tip').hidden=true;

@@ -68,6 +68,8 @@ svg.addEventListener('pointerdown',e=>{
   // 拖曳線號：接線模式、選取中的線
   const lg=mode==='wire'&&e.button===0&&!draft&&e.target.closest&&e.target.closest('[data-lab]');
   if(lg&&lg.dataset.lab===sel){act={t:'lab',wid:sel,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId};svg.setPointerCapture(e.pointerId);return;}
+  // 拖曳線頭改接點：接線模式、選取中的線、按在兩端的小圓點上
+  if(mode==='wire'&&e.button===0&&!draft&&sel&&!spaceDown){const end=wireEndAt(sel,p);if(end){act={t:'wend',wid:sel,end,sx:e.clientX,sy:e.clientY,moved:false,id:e.pointerId};svg.setPointerCapture(e.pointerId);return;}}
   // 中鍵、或按住空白鍵＋左鍵：一律平移畫面（不管點到什麼）
   if(e.button===1||(e.button===0&&spaceDown)){if(e.button===1)e.preventDefault();act={t:'press',sx:e.clientX,sy:e.clientY,vx:view.x,vy:view.y,moved:false,btn:e.button,id:e.pointerId,target:e.target,pan:true};svg.setPointerCapture(e.pointerId);return;}
   if(placing){if(e.button===0){if(e.pointerType==='touch'){placing.touch=e.pointerId;placeMove(e);try{svg.setPointerCapture(e.pointerId);}catch(_){}}else{placeMove(e);placeDrop();}}else if(e.button===2)stopPlacing();return;}
@@ -140,6 +142,7 @@ svg.addEventListener('pointermove',e=>{
   if(!act.moved&&Math.hypot(dx,dy)<4) return;
   if(!act.moved){act.moved=true;try{svg.setPointerCapture(act.id);}catch(_){}$('tip').hidden=true;}
   if(act.t==='note'){const p=toWorld(e);act.n.x=Math.round(p.x-act.ox);act.n.y=Math.round(p.y-act.oy);renderOverlay();return;}
+  if(act.t==='wend'){const p=toWorld(e);cursor=p;snap=findSnap(p,e.altKey);rewire={wid:act.wid,end:act.end,drag:true};renderOverlay();return;}
   if(act.t==='box'){moveBox(toWorld(e));return;}
   if(act.t==='multi'){moveMulti(toWorld(e));return;}
   if(act.t==='drag'){
@@ -206,6 +209,8 @@ svg.addEventListener('pointerup',e=>{
   if(a.t==='simpress'){const i=a.key.indexOf('|');simPress(a.key.slice(0,i),a.key.slice(i+1),false);return;}
   if(a.t==='simsel'){SIMST.sel[a.id]=a.back;simRefresh();return;} // 選擇開關有彈簧的那一邊：放開回去
   if(a.t==='note'){noteSel=a.n.id;if(a.moved)commit();tab='rev';renderList();renderOverlay();return;}
+  if(a.t==='wend'){if(a.moved){const s=findSnap(toWorld(e),e.altKey);rewire=null;if(s)doRewire(a.wid,a.end,s);else toast('沒有放在接點上，維持原本的接法');snap=null;renderOverlay();}
+    else{rewire={wid:a.wid,end:a.end};toast('已拿起線頭：點新的接點改接，按 Esc 或點空白處取消');renderOverlay();updateHint();}return;}
   if(a.t==='box'){endBox(a);return;}
   if(a.t==='multi'){endMultiDrag(a);return;}
   if(a.copy&&!a.moved){dropClip(a.copy);picked=a.src;recompute();return;} // Ctrl＋點一下沒拖：不複製
@@ -235,9 +240,31 @@ function viewClick(a){
   const cb=!g&&t&&t.closest('[data-cab]');selCab=cb?cb.dataset.cab:null;if(cb)picked=null;
   renderList();renderWires();renderDetail();updateHint();
 }
+/* ---------- 改接線頭 ----------
+   選取一條線後，兩端出現線頭小圓點：按住拖到新的接點放開，或點一下（拿起）再點新的接點。
+   線號、線徑、顏色、中繼點、是否進線槽、所屬電纜都保留；走線重算。可以復原。 */
+function wireEndAt(wid,p){const r=ROUTES.get(wid);if(!r||!r.pts||r.pts.length<2)return null;const tol=11/view.k;
+  const a=r.pts[0],b=r.pts[r.pts.length-1],da=Math.hypot(a.x-p.x,a.y-p.y),db=Math.hypot(b.x-p.x,b.y-p.y);
+  if(Math.min(da,db)>tol)return null;return da<=db?'a':'b';}
+const epKind=e=>{const t=tplOf(devOf(e.d)||{});return t.cns&&t.cns[e.t]?'cn':'t';}; // 整個接頭（CN1）或一般接點
+function rewireCheck(w,end,s){const ne={d:s.d,t:s.t},cur=w[end],oth=w[end==='a'?'b':'a'];
+  if(cur.d===ne.d&&cur.t===ne.t)return '還是原本的接點，沒有改';
+  if(oth.d===ne.d&&oth.t===ne.t)return '不能接到這條線另一端的同一個接點';
+  if(epKind(cur)!==epKind(ne))return epKind(cur)==='cn'?'這條線接的是整個接頭，只能改接到別的接頭':'一般接點的線不能改接到整個接頭';
+  if(S.wires.some(q=>q!==w&&((q.a.d===ne.d&&q.a.t===ne.t&&q.b.d===oth.d&&q.b.t===oth.t)||(q.b.d===ne.d&&q.b.t===ne.t&&q.a.d===oth.d&&q.a.t===oth.t))))return '新接點和另一端之間已經有一條線（重複接線），沒有改';
+  return '';}
+function doRewire(wid,end,s){const w=S.wires.find(x=>x.id===wid);if(!w)return false;if(mode==='view'){toast('檢視模式不能改接');return false;}
+  const why=rewireCheck(w,end,s);if(why){toast(why);return false;}
+  const from=epText(w[end]);w[end]={d:s.d,t:s.t};commit();recompute();sel=w.id;
+  const nos=[...new Set(S.wires.filter(q=>q!==w&&[q.a,q.b].some(e=>e.d===s.d&&e.t===s.t)).map(q=>q.no).filter(Boolean))];
+  const msg=`已把 ${w.no||'這條線'} 從 ${from} 改接到 ${epText(w[end])}`;
+  if(nos.length&&!nos.includes(w.no)){const to=nos[0];toast(`${msg}；這一點原本是 ${nos.join('、')}，這條線是 ${w.no||'（無）'}`,{label:`改成 ${to}`,fn:()=>{w.no=to;commit();recompute();toast(`線號已改成 ${to}`);}});}
+  else toast(msg);
+  renderList();renderDetail();renderOverlay();return true;}
 function clickWire(e,a){
   const p=toWorld(e);cursor=p;
   const s=findSnap(p,e.altKey);
+  if(rewire){const r=rewire;rewire=null;if(s)doRewire(r.wid,r.end,s);else toast('已取消改接');renderOverlay();updateHint();return;} // 拿起線頭後點新的接點
   if(draft){
     if(draft.pop) return;
     if(s){
@@ -519,6 +546,7 @@ document.addEventListener('keydown',e=>{
   if(!$('askDlg').hidden){if(e.key==='Escape')askClose();return;}
   if(!$('specDlg').hidden){if(e.key==='Escape')specClose();return;}
   if(noteAdd&&e.key==='Escape'){noteAdd=false;renderList();updateHint();return;}
+  if(rewire&&e.key==='Escape'){rewire=null;toast('已取消改接');renderOverlay();updateHint();return;}
   if((mode==='view'||mode==='sim')&&!typing){
     const k=e.key.toLowerCase();
     if(e.key==='Escape'){sel=null;picked=null;selCab=null;renderList();renderWires();renderDetail();return;}

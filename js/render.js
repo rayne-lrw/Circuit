@@ -352,8 +352,10 @@ function renderOverlay(){
         h+=`<g transform="translate(${p.x} ${p.y}) ${inv}"><circle class="end-ring" r="8"/><rect class="pill-bg" x="10" y="-11" width="${tw}" height="22" rx="4"/><text class="pill-t" x="17" y="5">${esc(t)}</text></g>`;
       }
       w.wps.forEach(p=>h+=`<circle class="wp" cx="${p.x}" cy="${p.y}" r="${(focus===sel?6:3.5)/k}"/>`);
+      if(focus===sel&&mode==='wire'&&!draft)ends.forEach(([p],i)=>{const on=rewire&&rewire.wid===sel&&rewire.end===(i?'b':'a');h+=`<g transform="translate(${p.x} ${p.y}) ${inv}"><circle class="end-h${on?' on':''}" r="${on?6.5:5}"/></g>`;}); // 線頭：拖曳或點一下改接
     }
   }
+  if(rewire&&rewire.drag){const w=S.wires.find(x=>x.id===rewire.wid),r=ROUTES.get(rewire.wid);if(w&&r){const fx=rewire.end==='a'?r.pts[r.pts.length-1]:r.pts[0],to=snap?{x:snap.x,y:snap.y}:cursor;h+=`<path class="draft" d="M${fx.x} ${fx.y}L${to.x} ${to.y}"/>`;}} // 拖曳線頭的預覽
   if(hoverCab&&hoverCab!==selCab){const r=CABROUTES.get(hoverCab),c=cabOf(hoverCab);if(r&&c)h+=`<path class="hov" d="${pathD(r.pts)}" style="vector-effect:none;stroke-width:${cabStroke(c)+2.4}px"/>`;}
   if(selCab&&!sel){const c=cabOf(selCab);(c&&c.wps||[]).forEach(p=>h+=`<circle class="wp" cx="${p.x}" cy="${p.y}" r="${6/k}"/>`);}
   if(dragPrev){const w=dragPrev.w,c=colorOf(w),d=pathD(dragPrev.pts);h+=`<path d="${d}" fill="none" stroke="${c.k}" stroke-width="${gw(w.gauge)+.9}" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="${c.c}" stroke-width="${gw(w.gauge)}" stroke-linejoin="round"/>`;}
@@ -446,5 +448,5 @@ function syncSizes(){
   set('bw',S.box.w);set('bh',S.box.h);set('bd',S.box.d);set('bk',S.box.back);set('pw',S.plate.w);set('ph',S.plate.h);set('dw',S.door.w);set('dh',S.door.h);set('hy',S.hinge);set('fl',S.fillLimit);
 }
 let toastT=0;
-function toast(s){const t=$('toast');t.textContent=s;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3200);}
+function toast(s,act){const t=$('toast');t.textContent=s;if(act){const b=document.createElement('button');b.className='toast-act';b.textContent=act.label;b.onclick=ev=>{ev.stopPropagation();t.hidden=true;act.fn();};t.appendChild(b);}t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,act?8000:3200);} // act：提示列上的按鈕（例如「改成 0V」），多留幾秒
 
