@@ -94,6 +94,7 @@ const userFile=process.argv[2];
         { const op=U.pages.filter(pg=>/^其他接線/.test(pg.title)),jb=S.devices.filter(d=>/接線盒/.test(tplOf(d).n||'')).map(d=>d.tag);
           const two=op.flatMap(pg=>[...pg.svg.matchAll(/>([^<>]+)　[^<>]*<\/text>/g)].map(m=>m[1]).filter(t=>{const i=pg.svg.indexOf('>'+t+'　');const nx=pg.svg.indexOf('class="s-sec"',i+1);return pg.svg.slice(i,nx<0?undefined:nx).includes('電箱側');}));
           ok(two.every(t=>jb.includes(t)),'使用者專案：只有接線盒畫成電箱側／外部側兩側出線，一般現場器具（例如一體化馬達）照一般畫法'+(two.filter(t=>!jb.includes(t)).length?'：'+two.filter(t=>!jb.includes(t)).join('、'):'')); }
+        { const mm=schemMainNetMiss(U);ok(!mm.length,'使用者專案：主回路開關接開關的每一段都有線號（含一台接到好幾台的分岔）'+(mm.length?'：漏 '+mm.slice(0,5).join('、'):'')); }
         ok(tot>0&&!nm.length,`使用者專案：控制回路 ${tot} 個串聯中間點都標了線號`+(nm.length?`：漏 ${nm.slice(0,5).join('、')}`:'')); }
       ok(schemVerify(U).length===0&&U.pages.every(pg=>!/\u0001/.test(pg.svg+pg.html)),`使用者專案：${U.pages.length} 頁，${Math.round(performance.now()-t)} ms，圖和配線一致`);}
     return out;},userFile?fs.readFileSync(userFile,'utf8'):null);
@@ -174,7 +175,7 @@ const userFile=process.argv[2];
       const r=await p.evaluate(([devs,ws])=>{try{S=normalize({box:{w:900,h:700,d:300,back:20},plate:{w:860,h:660},door:{w:900,h:700},ducts:[],glands:[],wires:ws,devices:devs}).state;resetUi();recompute();
         const B=schemBuild();document.getElementById('print').innerHTML=schemPrintHtml();const svg=B.pages.map(x=>x.svg).join('');
         const miss=S.devices.filter(d=>!isTB(d)&&d.tpl!=='field-power'&&S.wires.some(w=>w.a.d===d.id||w.b.d===d.id)&&!B.pages.some(x=>new RegExp('>'+d.tag+'[<　（＊]').test(x.svg||''))).map(d=>d.tag);
-        const v=schemVerify(B),ov=schemOverlaps();return [v.length?'對不上 '+v.slice(0,2).join('、'):'',/>[^<]*…[^<]*</.test(svg)?'有截斷':'',/\u0001/.test(svg)?'佔位符號':'',miss.length?'沒畫出 '+miss.join('、'):'',ov.length?`重疊 ${ov.length}（${ov[0].page} ${ov[0].a}｜${ov[0].b}）`:''].filter(Boolean).join('；');}catch(e){return '錯誤 '+e.message;}},[devs,ws]);
+        const v=schemVerify(B),ov=schemOverlaps(),nm=schemMainNetMiss(B);return [nm.length?'主回路漏線號 '+nm.slice(0,3).join('、'):'',v.length?'對不上 '+v.slice(0,2).join('、'):'',/>[^<]*…[^<]*</.test(svg)?'有截斷':'',/\u0001/.test(svg)?'佔位符號':'',miss.length?'沒畫出 '+miss.join('、'):'',ov.length?`重疊 ${ov.length}（${ov[0].page} ${ov[0].a}｜${ov[0].b}）`:''].filter(Boolean).join('；');}catch(e){return '錯誤 '+e.message;}},[devs,ws]);
       if(r)NG.push(`種子 ${sd}：${r}`);}
     res.push((NG.length?'✗ ':'✓ ')+`隨機電路 40 組（主回路、AC 控制、正反轉、插座、24V 控制、PLC、感測器、端子台中繼）都能正確畫出`+(NG.length?'：'+NG.slice(0,3).join('　'):'')); }
   await b.close();

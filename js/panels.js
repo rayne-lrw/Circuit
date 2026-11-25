@@ -233,7 +233,9 @@ function slotHtml(d){
   const n=d.count||resolveTpl(d.tpl).cnt,L=d.labels||[];
   let h='';for(let i=0;i<n;i++) h+=`<label><span>${i+1}</span><input data-slot="${i}" maxlength="10" value="${esc(L[i]||'')}" placeholder="${i+1}" aria-label="第 ${i+1} 片端子號"></label>`;
   return `<div><div class="sub-h">端子號（每片一格，空白就顯示原編號）</div><div class="slots">${h}</div>
-    <div class="row" style="justify-content:flex-start;align-items:center;margin-top:6px"><button class="tool" id="slotSeq">依序編號</button><span class="note">從</span><input id="slotFrom" type="number" value="1" step="1" aria-label="起始號碼" style="width:64px;border:1px solid var(--line);background:var(--panel-2);border-radius:5px;padding:4px 6px;font-family:var(--mono);font-size:12.5px"><button class="tool" id="slotClr">清除端子號</button></div></div>`;
+    <div class="row" style="justify-content:flex-start;align-items:center;margin-top:6px"><button class="tool" id="slotSeq">依序編號</button><span class="note">從</span><input id="slotFrom" type="number" value="1" step="1" aria-label="起始號碼" style="width:64px;border:1px solid var(--line);background:var(--panel-2);border-radius:5px;padding:4px 6px;font-family:var(--mono);font-size:12.5px"><button class="tool" id="slotClr">清除端子號</button></div>
+    <div class="row" style="justify-content:flex-start;align-items:center;margin-top:6px"><span class="note">在第</span><input id="slotInsAt" type="number" min="0" max="${n}" value="1" step="1" aria-label="插在第幾片後面" style="width:52px;border:1px solid var(--line);background:var(--panel-2);border-radius:5px;padding:4px 6px;font-family:var(--mono);font-size:12.5px"><span class="note">片後插入</span><input id="slotInsN" type="number" min="1" max="20" value="1" step="1" aria-label="插入片數" style="width:52px;border:1px solid var(--line);background:var(--panel-2);border-radius:5px;padding:4px 6px;font-family:var(--mono);font-size:12.5px"><span class="note">片</span><button class="tool" id="slotIns">插入</button></div>
+    <div class="row" style="justify-content:flex-start;align-items:center;margin-top:6px"><span class="note">刪除第</span><input id="slotDelAt" type="number" min="1" max="${n}" value="${n}" step="1" aria-label="刪除第幾片" style="width:52px;border:1px solid var(--line);background:var(--panel-2);border-radius:5px;padding:4px 6px;font-family:var(--mono);font-size:12.5px"><span class="note">片</span><button class="tool" id="slotDel">刪除這片</button><span class="note">（接在這片的線一起刪；後面的片往前移）</span></div></div>`;
 }
 /* 接線盒的短路片：勾選幾個接點設為同電位；已設的組列出來可以刪除 */
 function linkHtml(d){
@@ -254,6 +256,28 @@ function jumperHtml(d){
     <div class="row" style="justify-content:flex-start;align-items:center;margin-top:6px"><span class="note">從第</span><input id="jAt" type="number" min="1" max="${n}" value="1" aria-label="起始片" style="width:56px;border:1px solid var(--line);background:var(--panel-2);border-radius:5px;padding:4px 6px;font-family:var(--mono);font-size:12.5px"><span class="note">片</span>
     <select id="jRow" aria-label="插槽"><option value="1">上排</option><option value="2">下排</option></select><select id="jP" aria-label="短路片規格">${[2,3,4,5].map(p=>`<option value="${p}">${p}P</option>`).join('')}</select><button class="tool" id="jAdd">加入</button></div></div>`;
 }
+/* 端子台中間插入／刪除片：後面的片號、端子號、導線與電纜接頭的接點、短路片一起移動。
+   插入位置在一組短路片中間、或要刪的片上有短路片時不做，請先拿掉短路片（短路片規格固定，自動改大小或拆開都可能跟現場不符）。
+   回傳 {ok,msg}；op='ins' 時 N＝插在第 N 片後面（0＝最前面）、k＝片數；op='del' 時 N＝要刪的片 */
+function tbSlices(d,op,N,k){const t=tplOf(d),n=d.count||resolveTpl(d.tpl).cnt,J=d.jumpers||[],mx=t.cntLabel&&t.cntLabel.includes('mm')?2000:96;
+  const parse=x=>{const m=/^(\d+)(\D*)$/.exec(String(x));return m?{i:+m[1],s:m[2]}:null;};
+  const ends=[...S.wires.flatMap(w=>[w.a,w.b]),...(S.cables||[]).flatMap(c=>c.plug?['a','b'].map(q=>c.plug[q]).filter(Boolean):[])].filter(e=>e.d===d.id);
+  const move=f=>ends.forEach(e=>{const q=parse(e.t);if(q){const i2=f(q.i);if(i2!==q.i)e.t=i2+q.s;}});
+  const L=Array.from({length:n},(_,i)=>(d.labels||[])[i]||'');
+  if(op==='ins'){k=Math.round(k);N=Math.round(N);if(!(N>=0&&N<=n))return {ok:false,msg:`位置要在 0～${n} 之間（0 是插在最前面）`};if(!(k>=1&&k<=20))return {ok:false,msg:'插入片數要在 1～20 之間'};
+    if(n+k>mx)return {ok:false,msg:`最多 ${mx} 片`};
+    const cut=J.find(j=>j.at<=N&&j.at+j.p-1>=N+1);if(cut)return {ok:false,msg:`第 ${N}、${N+1} 片之間有${(cut.row||1)===2?'下排':'上排'} ${cut.p}P 短路片（第 ${cut.at}～${cut.at+cut.p-1} 片），請先拿掉短路片再插入`};
+    move(i=>i>N?i+k:i);J.forEach(j=>{if(j.at>N)j.at+=k;});L.splice(N,0,...Array(k).fill(''));d.count=n+k;
+    while(L.length&&!L[L.length-1])L.pop();if(L.some(Boolean))d.labels=L;else delete d.labels;
+    return {ok:true,msg:`已在第 ${N} 片後插入 ${k} 片，後面的片號、端子號、接線跟著往後移；新的片端子號空白`};}
+  if(op==='del'){N=Math.round(N);if(!(N>=1&&N<=n))return {ok:false,msg:`要刪的片要在 1～${n} 之間`};if(n<=1)return {ok:false,msg:'只剩 1 片，不能再刪'};
+    const on=J.find(j=>N>=j.at&&N<=j.at+j.p-1);if(on)return {ok:false,msg:`第 ${N} 片上有${(on.row||1)===2?'下排':'上排'} ${on.p}P 短路片（第 ${on.at}～${on.at+on.p-1} 片），請先拿掉短路片再刪`};
+    if((S.cables||[]).some(c=>c.plug&&['a','b'].some(q=>c.plug[q]&&c.plug[q].d===d.id&&(parse(c.plug[q].t)||{}).i===N)))return {ok:false,msg:`第 ${N} 片有電纜接頭，請先拔掉再刪`};
+    const before=S.wires.length;S.wires=S.wires.filter(w=>![w.a,w.b].some(e=>e.d===d.id&&(parse(e.t)||{}).i===N));const gone=before-S.wires.length;
+    move(i=>i>N?i-1:i);J.forEach(j=>{if(j.at>N)j.at-=1;});L.splice(N-1,1);d.count=n-1;
+    while(L.length&&!L[L.length-1])L.pop();if(L.some(Boolean))d.labels=L;else delete d.labels;
+    return {ok:true,msg:`已刪除第 ${N} 片${gone?`，一起移除 ${gone} 條線`:''}；後面的片往前移，可按復原`};}
+  return {ok:false,msg:'未知的操作'};}
 function setSlots(d,L){
   while(L.length&&!L[L.length-1])L.pop();
   if(L.length)d.labels=L;else delete d.labels;

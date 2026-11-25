@@ -1,5 +1,5 @@
 // 器具覆蓋測試：每種器具照它的動作資料套 3 種電路（tests/cover-gen.js），產生正式電路圖並檢查：
-// 不能出錯、圖反推和配線一致、沒有截斷與佔位符號、有接線的器具都畫得出來、文字不重疊、受測器具不會掉到「其他接線」頁、附件有裝上。
+// 不能出錯、圖反推和配線一致、主回路開關接開關的每一段都有線號、沒有截斷與佔位符號、有接線的器具都畫得出來、文字不重疊、受測器具不會掉到「其他接線」頁、附件有裝上。
 // 用法：node tests/cover-check.js [種類，預設全部]（brk 斷路器類、mc 接觸器類…）（目前種類：brk 斷路器／保險絲座與附件）
 const {chromium}=require('playwright'),path=require('path'),fs=require('fs');
 const {schemOverlaps}=require(path.resolve('tests/schem-overlap.js'));
@@ -20,8 +20,8 @@ for(let i=s0;i<s1;i+=20){
     let addr='';if(c.plc){const seen=new Map(),bad=[];B.M.E.filter(e=>e.k==='plcx'||e.k==='plcy').forEach(e=>{const nm=ptName(e),key=e.k+'|'+nm;
       if(e.d.on&&/^\d+$/.test(nm))bad.push(e.d.tag+':'+e.pt+'沒有位址');const o=e.d.id+'|'+e.pt;if(seen.has(key)&&seen.get(key)!==o)bad.push(nm+'重複');seen.set(key,o);});
       if(bad.length)addr='位址:'+[...new Set(bad)].slice(0,3).join('、');}
-    const v=schemVerify(B),ov=schemOverlaps();
-    const pr=[v.length?'對不上':'',/>[^<]*…[^<]*</.test(svg)?'截斷':'',/\u0001/.test(svg)?'佔位':'',miss.length?'沒畫出:'+miss.join('、'):'',ov.length?'重疊:'+ov[0].a+'｜'+ov[0].b:'',oth.length&&!c.expectOther?'其他接線:'+oth.join('、'):'',c.expectOther&&!B.pages.some(x=>/^其他接線/.test(x.title)&&/DUT/.test(x.title)&&c.expectOther.every(t=>x.svg.includes('>'+termLabel(S.devices.find(d=>d.id==='DUT'),t)+'<')))?'其他接線頁沒列出受測器具的端子':'',auxOn&&!auxOn.on?'附件沒裝上':'',addr,(c.cables||[]).some(q=>/光纖/.test(q.spec||''))&&!/stroke-dasharray/.test(svg)?'光纖沒畫虛線':'',c.tbPage&&!B.pages.some(x=>/^端子台/.test(x.title)&&/DUT/.test(x.title+(x.html||'')))?'端子台頁沒有':''].filter(Boolean);
+    const v=schemVerify(B),ov=schemOverlaps(),nm=schemMainNetMiss(B);
+    const pr=[nm.length?'主回路漏線號:'+nm.slice(0,2).join('、'):'',v.length?'對不上':'',/>[^<]*…[^<]*</.test(svg)?'截斷':'',/\u0001/.test(svg)?'佔位':'',miss.length?'沒畫出:'+miss.join('、'):'',ov.length?'重疊:'+ov[0].a+'｜'+ov[0].b:'',oth.length&&!c.expectOther?'其他接線:'+oth.join('、'):'',c.expectOther&&!B.pages.some(x=>/^其他接線/.test(x.title)&&/DUT/.test(x.title)&&c.expectOther.every(t=>x.svg.includes('>'+termLabel(S.devices.find(d=>d.id==='DUT'),t)+'<')))?'其他接線頁沒列出受測器具的端子':'',auxOn&&!auxOn.on?'附件沒裝上':'',addr,(c.cables||[]).some(q=>/光纖/.test(q.spec||''))&&!/stroke-dasharray/.test(svg)?'光纖沒畫虛線':'',c.tbPage&&!B.pages.some(x=>/^端子台/.test(x.title)&&/DUT/.test(x.title+(x.html||'')))?'端子台頁沒有':''].filter(Boolean);
     return {name:c.name,pr};}catch(e){return {name:c.name,pr:['錯誤:'+e.message]};}}),[i,i+20]);
   r.forEach(x=>{if(x.pr.length){ng.push(x);x.pr.forEach(q=>{const key=q.replace(/[:：].*/,'')+(q.startsWith('重疊')?':'+q.split(':')[1].replace(/[0-9]+/g,'#'):'');cls[key]=(cls[key]||0)+1;});}});}
 fail+=ng.length;console.log(ng.length?`✗ ${kind}：${ng.length} / ${s1-s0} 個組合有問題 ${JSON.stringify(cls)}`:`✓ ${kind}：${s1-s0} 個組合全部通過`);

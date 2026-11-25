@@ -326,7 +326,9 @@ function scMainPages(M,pages,newPage,meta){
   const ownW=nd=>nd.cons?Math.max(2,Math.ceil((phases.length*PX+18)/SC.U)):Math.max(1,Math.ceil((phases.length*PX+16)/SC.U));
   const wOf=nd=>nd._w!=null?nd._w:(nd._w=Math.max(ownW(nd),nd.kids.reduce((a,k)=>a+wOf(k),0)));
   const usedPh=nd=>phases.filter(ph=>scUses(nd,ph));
-  let LV=32;const motorDone=new Set(); // 層高：一頁放不下時往下壓（見分頁）
+  let LV=32;const motorDone=new Set(),BSP=3.2,bOff=()=>Math.max(1.5,25-LV),kOf=()=>Math.max(9,bOff()+(phases.length-1)*BSP+2.6),
+    straightPh=nd=>nd.kids.length>1&&!nd.kids[0].cons?usedPh(nd).filter(ph=>scUses(nd.kids[0],ph)&&!nd.kids.slice(1).some(k=>scUses(k,ph))&&[...nd.poles.values()].some(p=>p.ph===ph&&M.netName(p.e.v))):[],
+    kOfN=nd=>kOf()+(straightPh(nd).length?6:0); // 分岔：第一條橫線離上一層開關的距離（避開下方端子號）、橫線間距、分岔後下一台的起點 // 層高：一頁放不下時往下壓（見分頁）
   const drawNode=(nd,x,y,ctx)=>{ // x：這一格的左緣；y：上端
     let h='';
     if(nd.cons&&nd.cons.m3){ // 三相馬達：三條線進 M 3~ 圓圈
@@ -387,18 +389,25 @@ function scMainPages(M,pages,newPage,meta){
         ctx.put({e:{d:th,act:th.id,k:'cons'},x:tx,y:cy,terms:(tplOf(th).terms||[]).filter(t=>/^[LT]\d$/.test(t.id)).map(t=>th.id+'|'+t.id)});} }
     if(nd._trunc){if(!nd._sameSub){poles.forEach(p=>{const xx=x+3+phX(p.ph);h+=SY.line(xx,y+LV-6,y+LV-2);});h+=`<text class="s-pot" x="${x+3+phX(poles[0]?poles[0].ph:'')+5}" y="${y+LV+2}">→ 第 \u0001T:${scEsc(nd.id)}\u0001 頁</text>`;}return h;}
     // 開關負載側到下一層開關之間的線號（下一層是用電器具時，器具上緣已經標了，不重複）
-    if(nd.kids.some(k=>!k.cons)){const y1=y+(S.devices.some(r=>r.on===nd.d.id&&tplOf(r).plug&&tplOf(r).trip)?27.5:17.5),y2=nd.kids.length>1?y+LV-6.5:y+LV+3,L=y2-y1;
+    if(nd.kids.length===1&&!nd.kids[0].cons){const y1=y+(S.devices.some(r=>r.on===nd.d.id&&tplOf(r).plug&&tplOf(r).trip)?27.5:17.5),y2=nd.kids.length>1?y+LV-6.5:y+LV+3,L=y2-y1;
       if(L>=4.5)poles.forEach(p=>{const nm=M.netName(p.e.v);if(!nm)return;const F=scFit(nm,L,2.3,1.4);if(/…/.test(F.t))return;
         h+=`<text class="s-netv" transform="translate(${x+3+phX(p.ph)+.8} ${y1}) rotate(90)"${F.fs!==2.3?` style="font-size:${F.fs}px"`:''}>${scEsc(F.t)}</text>`;});}
     h+=drawKids(nd,x,y+LV-6,ctx,phs);
     return h;};
   const drawKids=(nd,x,y,ctx,phs)=>{let h='',xx=x;const kx=[];nd.kids.forEach(k=>{kx.push(xx);xx+=wOf(k)*SC.U;});phs=[...new Set(phs)];
-    if(nd.kids.length>1){phs.forEach(ph=>{const yb=y+1+Math.max(0,phases.indexOf(ph))*2,used=nd.kids.map((k,i)=>[k,kx[i]]).filter(([k])=>scUses(k,ph));if(!used.length)return;
+    if(nd.kids.length>1){ // 分岔：每相一條橫線（間距 3.2，線號寫在橫線上方、開關最右一極的右邊）
+      const xR=x+3+Math.max(0,...phs.map(phX)),drops=[];nd.kids.forEach((k,i)=>phs.forEach(ph=>{if(scUses(k,ph))drops.push(kx[i]+3+phX(ph));}));
+      phs.forEach(ph=>{const yb=y+bOff()+Math.max(0,phases.indexOf(ph))*BSP,used=nd.kids.map((k,i)=>[k,kx[i]]).filter(([k])=>scUses(k,ph));if(!used.length)return;
       const xa=x+3+phX(ph),xs=used.map(([k,kx0])=>kx0+3+phX(ph));h+=SY.line(xa,y,yb)+`<line x1="${Math.min(xa,...xs)}" y1="${yb}" x2="${Math.max(xa,...xs)}" y2="${yb}"/>`;
-      used.forEach(([k,kx0])=>{const x2=kx0+3+phX(ph);h+=SY.line(x2,yb,y+9);});
+      used.forEach(([k,kx0])=>{const x2=kx0+3+phX(ph);h+=SY.line(x2,yb,y+kOfN(nd));});
+      { const p=[...nd.poles.values()].find(q=>q.ph===ph),nm=p&&!used.every(([k])=>k.cons)?M.netName(p.e.v):'';const lx=xR+1.2,rx=Math.min(...drops.filter(q=>q>lx+.5),Math.max(xa,...xs)+1);
+        if(nm&&rx-lx>3){const F=scFit(nm,Math.min(14,rx-lx-1),2.3,1.4);if(!/…/.test(F.t))h+=`<text class="s-net" x="${lx}" y="${yb-.6}"${F.fs!==2.3?` style="font-size:${F.fs}px"`:''}>${scEsc(F.t)}</text>`;} }
       const lo=Math.min(xa,...xs),hi=Math.max(xa,...xs); // 節點只畫在三條以上線交會的地方；轉角（L 形）不畫
       [...new Set([xa,...xs])].forEach(px=>{const n=(Math.abs(px-xa)<.01?1:0)+(xs.some(q=>Math.abs(q-px)<.01)?1:0)+(px>lo+.01?1:0)+(px<hi-.01?1:0);if(n>=3)h+=SY.dot(px,yb);});});
-      nd.kids.forEach((k,i)=>{h+=drawNode(k,kx[i],y+9,ctx);});}
+      // 只往正下方那台走、沒有分岔橫線的相：在橫線下方那一段直寫線號
+      { const sp=straightPh(nd),y1=y+kOf()-1.4;sp.forEach(ph=>{const p=[...nd.poles.values()].find(q=>q.ph===ph),nm=p&&M.netName(p.e.v);if(!nm)return;const F=scFit(nm,5.4,2.3,1.4);if(/…/.test(F.t))return;
+        h+=`<text class="s-netv" transform="translate(${x+3+phX(ph)+.8} ${y1}) rotate(90)"${F.fs!==2.3?` style="font-size:${F.fs}px"`:''}>${scEsc(F.t)}</text>`;}); }
+      nd.kids.forEach((k,i)=>{h+=drawNode(k,kx[i],y+kOfN(nd),ctx);});}
     else if(nd.kids.length===1){const k=nd.kids[0];phs.forEach(ph=>{if(scUses(k,ph))h+=SY.line(x+3+phX(ph),y,y+9);});h+=drawNode(k,x,y+9,ctx);}
     return h;};
   // 分頁：分支依序排，一頁放不下就換頁。單一分支比一頁還寬時（例如總開關 Q1），只畫到那台開關，
@@ -426,7 +435,7 @@ function scMainPages(M,pages,newPage,meta){
     // 層高：整頁最深的分支要在標題欄上方結束，放不下就把層高從 32 往下壓（插在接觸器下的積熱電驛至少要 30）
     { const thOf=nd=>!nd.cons&&nd.d&&S.devices.some(r=>r.on===nd.d.id&&tplOf(r).plug&&tplOf(r).trip),anyTh=nd=>thOf(nd)||(!nd._trunc&&nd.kids.some(anyTh));
       const hOf=nd=>{if(nd.cons){const c=nd.cons;if(c.m3)return 30;if(c.ctlRef||c.outlet)return 18;let h=33;if(scMotorsOf(M,c).length)h=52;if((c.plugged||[]).length)h=Math.max(h,60);return h;}
-        if(nd._trunc)return LV+4;return LV+3+Math.max(0,...nd.kids.map(hOf));};
+        if(nd._trunc)return LV+4;return LV-6+(nd.kids.length>1?kOfN(nd):9)+Math.max(0,...nd.kids.map(hOf));};
       const bot=()=>{let b=yTop+Math.max(0,...g.items.map(hOf));if(g.sub){const ySub=yTop+LV+2;b=Math.max(b,ySub+g.sub.lbl.length*BS+6+Math.max(0,...g.sub.items.map(hOf)));}return b;};
       const lim=SC.H-SC.M-5-22-3,lo=[...g.items,...(g.sub?g.sub.items:[])].some(anyTh)?30:22;
       for(LV=32;LV>lo&&bot()>lim;LV--); }
@@ -802,6 +811,11 @@ function scLegend(y){const L=[['no','常開接點'],['nc','常閉接點'],['brk'
   h+=`<text class="s-lgn" x="${SC.W/2}" y="${y+38}" text-anchor="middle">接點旁的大字是器具編號（輔助接點、裝在操作部上的接點塊標示帶動它的器具）；左邊小字是端子號；線上的小字是線號。</text>
     <text class="s-lgn" x="${SC.W/2}" y="${y+44.5}" text-anchor="middle">線圈下方列出它的接點在第幾頁第幾欄（∟ 常開、⊥ 常閉）；頁面上下的 1～10 是欄號、左右的 A～F 是列號。＊ 表示同一個接點因為迴路無法化簡而出現在多處。</text>`;
   return h;}
+// 主回路：開關接到下一層開關的每一段都要標線號（下一層全是用電器具時由器具上緣標，不算）；回傳漏標的「器具 線號」（測試用）
+function schemMainNetMiss(B){B=B||schemBuild();const M=B.M,svg=B.pages.filter(x=>x.kind==='main').map(x=>x.svg).join(''),out=[];
+  (M.mainNodes||new Map()).forEach(nd=>{if(!nd.devs||nd._trunc||!nd.kids.length||nd.kids.every(k=>k.cons))return;
+    nd.poles.forEach(p=>{if(!nd.kids.some(k=>!k.cons&&scUses(k,p.ph)))return;const nm=M.netName(p.e.v);if(nm&&!new RegExp('>'+nm.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'</text>').test(svg))out.push(`${nd.d.tag} ${nm}`);});});
+  return out;}
 function schemPrintHtml(){const B=schemBuild();return B.pages.map(pg=>`<section class="pg sch"><div class="sch-pg">${pg.svg}${pg.html?`<div class="sch-body">${pg.html}</div>`:''}</div></section>`).join('');}
 
 /* ---------- 11. 驗證：圖反推回連接，要和配線一致 ---------- */

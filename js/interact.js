@@ -795,6 +795,10 @@ $('detail').addEventListener('click',e=>{
     if((d.jumpers||[]).some(j=>(j.row||1)===row&&at<=j.at+j.p-1&&j.at<=at+p-1)){toast(`${row===2?'下排':'上排'}和已經有的短路片重疊了，可以改插另一排`);return;}
     (d.jumpers=d.jumpers||[]).push({at,p,row});commit();recompute();toast(`已加入${row===2?'下排':'上排'} ${p}P 短路片（第 ${at}～${at+p-1} 片）`);return;
   }
+  if(b.id==='slotIns'||b.id==='slotDel'){
+    const d=devOf(picked.id);if(!d)return;const r=b.id==='slotIns'?tbSlices(d,'ins',Number($('slotInsAt').value),Number($('slotInsN').value)):tbSlices(d,'del',Number($('slotDelAt').value));
+    if(r.ok){commit();recompute();renderDetail();}toast(r.msg);return;
+  }
   if(b.id==='slotSeq'||b.id==='slotClr'){
     const d=devOf(picked.id),n=d.count||resolveTpl(d.tpl).cnt,f=Math.round(Number($('slotFrom').value)||1);
     setSlots(d,b.id==='slotClr'?[]:Array.from({length:n},(_,i)=>String(f+i)));renderDetail();return;
