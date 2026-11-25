@@ -87,7 +87,7 @@ function normalize(o){
     if(typeof w.hex==='string'&&/^#[0-9a-fA-F]{6}$/.test(w.hex)){r.hex=w.hex;r.cname=txt(w.cname||'自訂',8);}
     if(w.ext&&typeof w.ext==='object') r.ext={cable:txt(w.ext.cable,12),core:txt(w.ext.core,10),spec:cleanSpec(w.ext.spec)};
     if(safe(w.gland)) r.gland=w.gland;
-    if(w.direct===true) r.direct=true;
+    if(w.direct===true) r.direct=true; if(w.spare===true) r.spare=true; // 預留跳線（拆下接選配）
     if(w.auto==='coil') r.auto='coil';
     if(w.ribbon===true) r.ribbon=true;
     if(Number.isFinite(w.lab)) r.lab=Math.min(1,Math.max(0,w.lab));

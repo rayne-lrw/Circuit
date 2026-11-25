@@ -84,7 +84,7 @@ function renderDetailInner(){
     ${r.warn?`<span class="flag">${esc(r.warn)}：請加中繼點或調整線槽</span>`:''}
     ${w.cab?coreInfo(w):`<div class="fields"><label for="xCab" style="grid-column:1/-1">電纜<select id="xCab"><option value="">不屬於電纜（散線）</option>${[...S.cables].sort((a,b)=>natCmp(a.no,b.no)).map(c=>`<option value="${c.id}">${esc(c.no)}　${esc(specName(c.spec))}</option>`).join('')}<option value="__new">新電纜…</option></select></label>
       ${kind==='ext'?`<label for="xGland" style="grid-column:1/-1">出線口<select id="xGland"><option value="">自動選最近</option>${S.glands.map(g=>`<option value="${g.id}"${w.gland===g.id?' selected':''}>${esc(g.id)}</option>`).join('')}</select></label>`:''}</div>
-    <label class="check"><input type="checkbox" id="wDirect"${w.direct?' checked':''}>不進線槽（直接拉線，可加中繼點調整路徑）</label>
+    <label class="check"><input type="checkbox" id="wDirect"${w.direct?' checked':''}>不進線槽（直接拉線，可加中繼點調整路徑）</label>${typeof scIsJump==='function'&&scIsJump(w)?`<label class="check"><input type="checkbox" id="wSpare"${w.spare?' checked':''}>預留跳線（拆下接選配；電路圖畫虛線並框「選配」）</label>`:''}
     <div><div class="sub-h">線徑 mm²</div>${gaugeChips(w.gauge,'dg','dn')}</div>
     <div><div class="sub-h">顏色</div>${colorChips(w.color,'dn',w)}</div>
     <p class="note">${esc(stockMsg(w.gauge,w.color))}</p>`}
@@ -101,6 +101,7 @@ function renderDetailInner(){
     if($('renNo'))$('renNo').onclick=()=>{renameOffer=null;renderDetail();};
     if(w.cab){bindCoreInfo(w);return;}
     $('wDirect').onchange=e=>{if(e.target.checked)w.direct=true;else delete w.direct;commit();recompute();};
+    if($('wSpare'))$('wSpare').onchange=e=>{if(e.target.checked)w.spare=true;else delete w.spare;commit();recompute();};
     $('xCab').onchange=e=>{const v=e.target.value;if(!v)return;const c=v==='__new'?newCable('',''):cabOf(v);if(!c)return;const k=attachCore(w,c);commit();recompute();toast(`已把 ${w.no} 編進電纜 ${c.no}，芯線 ${k.n}`);};
     if(kind==='ext'){
       $('xGland').onchange=e=>{if(e.target.value)w.gland=e.target.value;else delete w.gland;commit();recompute();};
