@@ -11,7 +11,7 @@ const {chromium}=require('playwright'),path=require('path'),fs=require('fs');
 const {schemOverlaps}=require('./schem-overlap.js');
 const userFile=process.argv[2];
 (async()=>{
-  const b=await chromium.launch(),p=await b.newPage({viewport:{width:1400,height:900}});
+  const b=await chromium.launch(),p=await b.newPage({viewport:{width:1400,height:900},bypassCSP:true}); /* 測試要注入輔助腳本，略過網頁的 CSP */
   const errs=[];p.on('pageerror',e=>errs.push(e.message));
   await p.goto('file://'+path.join(__dirname,'..','index.html'));
   const res=await p.evaluate(uj=>{

@@ -7,7 +7,7 @@
 // 用法：node tests/jbox-check.js [截圖前綴]
 const {chromium}=require('playwright'),path=require('path');
 const {schemOverlaps}=require(path.resolve('tests/schem-overlap.js'));
-(async()=>{const b=await chromium.launch(),p=await b.newPage({viewport:{width:1600,height:1130}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
+(async()=>{const b=await chromium.launch(),p=await b.newPage({viewport:{width:1600,height:1130},bypassCSP:true}); /* 測試要注入輔助腳本，略過網頁的 CSP */const errs=[];p.on('pageerror',e=>errs.push(e.message));
 await p.goto('file://'+path.resolve('index.html'));await p.addScriptTag({content:schemOverlaps.toString()});await p.emulateMedia({media:'print'});
 const shot=process.argv[2];
 const r=await p.evaluate(()=>{

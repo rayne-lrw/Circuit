@@ -3,7 +3,7 @@
 // 用法：node tests/cover-check.js [種類，預設全部]（brk 斷路器類、mc 接觸器類…）（目前種類：brk 斷路器／保險絲座與附件）
 const {chromium}=require('playwright'),path=require('path'),fs=require('fs');
 const {schemOverlaps}=require(path.resolve('tests/schem-overlap.js'));
-(async()=>{const b=await chromium.launch(),p=await b.newPage({viewport:{width:1600,height:1130}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
+(async()=>{const b=await chromium.launch(),p=await b.newPage({viewport:{width:1600,height:1130},bypassCSP:true}); /* 測試要注入輔助腳本，略過網頁的 CSP */const errs=[];p.on('pageerror',e=>errs.push(e.message));
 await p.goto('file://'+path.resolve('index.html'));await p.addScriptTag({path:path.resolve('tests/cover-gen.js')});await p.addScriptTag({content:schemOverlaps.toString()});await p.emulateMedia({media:'print'});
 const KINDS=process.argv[2]?[process.argv[2]]:['brk','mc','relay','tb','panel','plc','misc','nosim'];let fail=0;
 for(const kind of KINDS){
