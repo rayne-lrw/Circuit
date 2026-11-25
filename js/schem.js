@@ -253,8 +253,13 @@ const scCol=x=>Math.min(SC.COLS,Math.max(1,Math.floor((x-SC.M)/((SC.W-2*SC.M)/SC
 
 /* ---------- 6. 主回路（AC）：電源 → 開關 → 用電器具 的樹 ---------- */
 function scMainPages(M,pages,newPage,meta){
-  const uidE=e=>e.d.id+(e.el&&e.el.g&&e.el.by==='coil'?'#'+e.el.g:''),devU=u=>devOf(String(u).split('#')[0]); // 一體式正反轉：每組線圈的接點是一個單位
   const {E,phase,adj,acNodes,f,acs}=M;if(!acNodes.length)return;
+  // 單位：一台器具的接點畫在同一格（3 極斷路器的三極）；一體式正反轉每組線圈的接點是一個單位；
+  // 同一台、同一相有兩個以上接點（輔助接點 73-74、83-84 各接不同負載）時，每個接點各自一格，不疊在一起
+  const uid0=e=>e.d.id+(e.el&&e.el.g&&e.el.by==='coil'?'#'+e.el.g:''),SW0=['brk','no','nc','fuse','ol','jump'],dupPh=new Set();
+  { const seen=new Map(),ks=e=>[e.u,e.v].map(n=>uid0(e)+'|'+phase.get(e.u)+'|'+n),SWE=E.filter(e=>e.ctl&&SW0.includes(e.k)&&phase.has(e.u));
+    SWE.forEach(e=>ks(e).forEach(k=>seen.set(k,(seen.get(k)||0)+1)));SWE.forEach(e=>{if(ks(e).some(k=>seen.get(k)>1))dupPh.add(e.id);}); } // 同相、而且從同一點分出去（並聯）才分開
+  const uidE=e=>{const u=uid0(e);return dupPh.has(e.id)?u+'@'+e.ta+'-'+e.tb:u;},devU=u=>devOf(String(u).split(/[#@]/)[0]);
   // 從電源往下的最短路徑（只走接點）
   const par=new Map(),q=[];acNodes.forEach(([k])=>{if(!par.has(k)){par.set(k,null);q.push(k);}});
   while(q.length){const x=q.shift();(adj.get(x)||[]).forEach(e=>{const y=e.u===x?e.v:e.u;if(!par.has(y)){par.set(y,{e,from:x});q.push(y);}});}
@@ -822,6 +827,11 @@ function scLegend(y){const L=[['no','常開接點'],['nc','常閉接點'],['brk'
   h+=`<text class="s-lgn" x="${SC.W/2}" y="${y+38}" text-anchor="middle">接點旁的大字是器具編號（輔助接點、裝在操作部上的接點塊標示帶動它的器具）；左邊小字是端子號；線上的小字是線號。</text>
     <text class="s-lgn" x="${SC.W/2}" y="${y+44.5}" text-anchor="middle">線圈下方列出它的接點在第幾頁第幾欄（∟ 常開、⊥ 常閉）；頁面上下的 1～10 是欄號、左右的 A～F 是列號。＊ 表示同一個接點因為迴路無法化簡而出現在多處。</text>`;
   return h;}
+// 主回路：兩端都在 AC 相上、有接線的接點（斷路器、接觸器主接點、輔助接點…），每一個都要畫在某一頁（主回路或控制回路）；回傳漏掉的「器具 端子-端子」（測試用）
+function schemSwitchMiss(B){B=B||schemBuild();const M=B.M,drawn=new Set(),at=new Map(),out=[];
+  B.pages.forEach(pg=>pg.pos.forEach(o=>{if(!o.e||!o.e.id)return;drawn.add(o.e.id);if(!['brk','no','nc','fuse','ol','jump'].includes(o.e.k))return;const k=pg.no+'|'+o.x.toFixed(1)+'|'+o.y.toFixed(1),q=at.get(k);
+    if(q&&q.id!==o.e.id&&!(q.d===o.e.d&&q.ta===o.e.ta&&q.tb===o.e.tb))out.push(`${o.e.d.tag} ${o.e.ta}-${o.e.tb} 和 ${q.d.tag} ${q.ta}-${q.tb} 疊在一起`);else at.set(k,o.e);}));
+  return out.concat(M.E.filter(e=>e.ctl&&['brk','no','nc','fuse','ol','jump'].includes(e.k)&&M.phase.has(e.u)&&M.phase.has(e.v)&&M.wiredNode.has(e.u)&&M.wiredNode.has(e.v)&&e.u!==e.v&&!drawn.has(e.id)).map(e=>`${e.d.tag} ${e.ta}-${e.tb} 沒畫出來`));}
 // 主回路：開關接到下一層開關的每一段都要標線號（下一層全是用電器具時由器具上緣標，不算）；回傳漏標的「器具 線號」（測試用）
 function schemMainNetMiss(B){B=B||schemBuild();const M=B.M,svg=B.pages.filter(x=>x.kind==='main').map(x=>x.svg).join(''),out=[];
   (M.mainNodes||new Map()).forEach(nd=>{if(!nd.devs||nd._trunc||!nd.kids.length||nd.kids.every(k=>k.cons))return;
